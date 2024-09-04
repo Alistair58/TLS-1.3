@@ -1,0 +1,28 @@
+{
+    "files.associations": {
+        "sysinfoapi.h": "c",
+        "any": "c",
+        "bit": "c",
+        "charconv": "c",
+        "chrono": "c",
+        "codecvt": "c",
+        "compare": "c",
+        "condition_variable": "c",
+        "cstddef": "c",
+        "forward_list": "c",
+        "list": "c",
+        "string": "c",
+        "optional": "c",
+        "format": "c",
+        "future": "c",
+        "limits": "c",
+        "memory": "c",
+        "mutex": "c",
+        "new": "c",
+        "functional": "c",
+        "regex": "c",
+        "stdbool.h": "c",
+        "winuser.h": "c",
+        "random": "c"
+    }
+}
