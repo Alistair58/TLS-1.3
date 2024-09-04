@@ -1,16 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-/* 
- * File:   main.c
- * Author: Alistair
- *
- * Created on 04 August 2024, 15:39
- */
-
 #include <stdio.h>
 #include <winsock2.h>
 #include <WS2tcpip.h>
@@ -18,21 +5,27 @@
 #include <string.h>
 #include <unistd.h>
 
-#define PORT 8080
-/*
- * 
- */
+//gcc server.c -o server.exe -l ws2_32
+
 int main(int argc, char** argv) {
-    char* ip = "27.0.0.1";
+    char* ip = "127.0.0.1";
     int port = 80;
     int server_sock, client_sock;
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_size;
     char buffer[1024];
     int n;
-    
+    WSADATA wsa;
+    printf("\nInitialising Winsock...");
+    if (WSAStartup(MAKEWORD(2,2),&wsa) != 0)
+    {
+        printf("Failed. Error Code : %d",WSAGetLastError());
+        return 1;
+    }
+
+    printf("Initialised.\n");
     server_sock = socket(AF_INET,SOCK_STREAM,0); //ipv4, tcp, IP protocol (0) - returns an int
-    if(server_sock < 0){
+    if(server_sock == INVALID_SOCKET){
         perror("Could not get socket");
         exit(1);
     }
@@ -41,9 +34,9 @@ int main(int argc, char** argv) {
     memset(&server_addr,0,sizeof(server_addr));
     server_addr.sin_family = AF_INET; //ipv4
     server_addr.sin_port = port;
-    server_addr.sin_addr.in_addr = inet_addr(ip);
+    server_addr.sin_addr.s_addr = inet_addr(ip);
     
-    n = bind(server_sock, (struct sockaddr*)&server_sock, sizeof(server_sock)); //assigns address to the socket
+    n = bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)); //assigns address to the socket
     if(n<0){
         perror("Could not bind socket");
         exit(1);
