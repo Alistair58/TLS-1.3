@@ -23,6 +23,7 @@
         "regex": "c",
         "stdbool.h": "c",
         "winuser.h": "c",
-        "random": "c"
+        "random": "c",
+        "string.h": "c"
     }
 }

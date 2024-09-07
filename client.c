@@ -15,11 +15,12 @@ int sendClientHello(int sock,struct sockaddr_in addr,char* buffer);
 //gcc client.c -o client.exe -l ws2_32
 
 /*
+USEFUL
 memset(&buffer,0,sizeof(buffer)); //Remove any rubbish from buffer
 strcpy(buffer,"Client Test Message");
 send(sock,buffer,strlen(buffer),0);
 
-memset(&buffer,0,sizeof(buffer)); //Remove any rubbish from buffer
+memset(&buffer,0,sizeof(buffer)); 
 recv(sock,buffer,sizeof(buffer),0);
 printf("\nClient received: %s",buffer);
 */
@@ -28,11 +29,15 @@ int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
-    unsigned long dest[7] = {0}; //Set all elements to zero so you don't get rubbish
-    unsigned long num1[] = {3,2,1};
-    unsigned long num2[] = {1,2,3,4};
-    bigNumMult(num1,3,num2,4,dest,7); 
-    printf("\n Big result %lu %lu %lu %lu %lu %lu %lu",dest[0],dest[1],dest[2],dest[3],dest[4],dest[5],dest[6]);
+    unsigned long k1[] = {1,2,3,4,5,6,7,8};
+    unsigned long k2[] = {3,4};
+    unsigned long *num1 = createBigNum(k1,8);
+    unsigned long *num2 = createBigNum(k2,2);
+    unsigned long *dest = bigNumMult(num1,8,num2,2,10); 
+    printf("\n Big result %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu",dest[0],dest[1],dest[2],dest[3],dest[4],dest[5],dest[6],dest[7],dest[8],dest[9],dest[10]);
+    free(num1);
+    free(num2);
+    free(dest);
     //sendClientHello(-1,addr,buffer);
     /*if(connectToServer(&addr,&sock)==0){
         sendClientHello(sock,addr,buffer);

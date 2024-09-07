@@ -1,17 +1,37 @@
-int bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, unsigned long *dest, int lenDest);
-int multiAdd(unsigned long *a,int lenA,unsigned long *b, int lenB, unsigned long *c,int lenC, unsigned long *dest, int lenDest);
-int bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB, unsigned long *dest,int lenDest);
+unsigned long* createBigNum(unsigned long *a, int len);
+unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, int lenDest);
+unsigned long* multiAdd(unsigned long *a,int lenA,unsigned long *b, int lenB, unsigned long *c,int lenC, int lenDest);
+unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest);
+
+
+unsigned long* createBigNum(unsigned long *a, int len){ //MUST REMEMBER TO FREE IF USING THIS
+    unsigned long* p = calloc(len,sizeof(unsigned long));
+    if(!p){
+        perror("\nCalloc error during addition bigNum creation");
+        exit(1);
+    }
+    for(int i=0;i<len;i++){
+        p[i] = a[i];
+    }
+    return p;
+}
 
 //NOTE - Numbers are stored with MSB at index 0
 
-int bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, unsigned long *dest, int lenDest){
+unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, int lenDest){
     unsigned long long temp;
     int carry=0;
     if(lenDest < lenA || lenDest <lenB){
         perror("\nStorage destination for addition is too small");
         exit(1);
     }
-    for(int i= max(lenA,lenB);i>-1;i--){
+    unsigned long *sum = calloc(lenDest,sizeof(unsigned long));
+    printf("\nSum pointer %p ",sum);
+    if(!sum){
+        perror("\nCalloc error during addition");
+        exit(1);
+    }
+    for(int i= lenDest-1;i>-1;i--){
         unsigned long op1;
         unsigned long op2;
         if(i>=lenA) op1 = 0;
@@ -23,104 +43,128 @@ int bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, unsigned lo
         if(carry>0){
             temp %= (unsigned long) pow(2,sizeof(unsigned long)*8);
             if(i==0){
-                printf("\nAddition overflow");
-                return 0;
+                free(sum);
+                perror("\nAddition overflow");
+                exit(1);
             }
         }    
-        dest[i] = temp;
+        sum[i] = temp;
     }
-    return 1;
+    return sum;
 }
 
-int multiAdd(unsigned long *a,int lenA,unsigned long *b, int lenB, unsigned long *c,int lenC, unsigned long *dest, int lenDest){
-    int res1 = bigNumAdd(a,lenA,b,lenB,dest,lenDest);
-    if(!res1) return res1;
-    int res2 = bigNumAdd(dest,lenDest,c,lenC,dest,lenDest);
-    if(!res2) return res2;
-    printf(" %lu + %lu + %lu = %lu ",a[0],b[0],c[0],dest[0]);
-    return 1;
+unsigned long*  multiAdd(unsigned long *a,int lenA,unsigned long *b, int lenB, unsigned long *c,int lenC, int lenDest){
+    unsigned long* sum1 = bigNumAdd(a,lenA,b,lenB,lenDest);
+    unsigned long* sum2 = bigNumAdd(sum1,lenDest,c,lenC,lenDest);
+    free(sum1);
+    return sum2;
 }
 
-int bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB, unsigned long *dest,int lenDest){ 
+unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest){ 
     /*a = [a1,a2]
     b = [b1,b2]
     a*b = [a1*b1,a1*b2+a2*b1,a2*b2]
     */
-    
     int longest = max(lenA,lenB);
     if(lenDest<lenA+lenB){
-        printf("Multiplication destination is too small");
-        return 0;
+        free(a); free(b);
+        perror("\nStorage destination for multiplication is too small");
+        exit(1);
     }
-    printf("\nlenA %d lenB %d",lenA,lenB);
+    unsigned long *product = calloc(lenDest,sizeof(unsigned long));
+    if(!product){
+        perror("\nCalloc error during multiplication");
+        exit(1);
+    }
     if(lenA>1 || lenB>1){
-        printf("aquel");
-        if(lenA != lenB){ //Pad the start with zeroes
-            if(longest == lenA){ //Can't do it with pointers as a and b might be arrays and haven't been mallocd
-                unsigned long temp[lenA];
-                for(int i=0;i<lenA;i++){
-                    temp[i] = 0; //I can't find an easy way to initialise a variable sized array
-                }
-                memcpy(&temp[lenA-lenB],b,lenB*sizeof(unsigned long));
-                printf("there");
-                b = temp;
+        if(longest & 1){
+            if(longest==lenA){
+                a = realloc(a,(lenA+1)*sizeof(unsigned long));
+                memcpy(&a[1],a,lenA*sizeof(unsigned long));
+                a[0] = 0;
+                lenA++;
             }
             else{
-                unsigned long temp[lenB];
-                for(int i=0;i<lenB;i++){
-                    temp[i] = 0; //I can't find an easy way to initialise a variable sized array
+                b = realloc(b,(lenB+1)*sizeof(unsigned long));
+                memcpy(&b[1],b,lenB*sizeof(unsigned long));
+                b[0] = 0;
+                lenB++;
+            }
+            longest++;
+        }
+        if(lenA != lenB){ //Pad the start with zeroes
+            if(longest == lenA){
+                b = realloc(b,lenA*sizeof(unsigned long));
+                memcpy(&b[lenA-lenB],b,lenB*sizeof(unsigned long));
+                for(int i=0;i<(lenA-lenB);i++){
+                    b[i] = 0;
                 }
-                memcpy(&temp[lenB-lenA],a,lenA*sizeof(unsigned long));
-                a = temp;
+                lenB = longest;
+            }
+            else{
+                a = realloc(a,lenB*sizeof(unsigned long));
+                memcpy(&a[lenB-lenA],a,lenA*sizeof(unsigned long));
+                for(int i=0;i<(lenB-lenA);i++){
+                    a[i] = 0;
+                }
+                lenA = longest;
             }
         }
+
         unsigned long w[longest/2]; unsigned long x[longest/2]; unsigned long y[longest/2]; unsigned long z[longest/2];
-        memcpy(w, a, longest/2 * sizeof(unsigned long)); memcpy(x, &a[longest/2], longest/2 * sizeof(unsigned long)); 
-        memcpy(y, b, longest/2 * sizeof(unsigned long)); memcpy(z, &b[longest/2], longest/2 * sizeof(unsigned long)); 
-        unsigned long wy[longest];unsigned long wz[longest];unsigned long xy[longest];unsigned long xz[longest];
         unsigned long wy1[longest/2];unsigned long wy2[longest/2]; unsigned long wz1[longest/2];unsigned long wz2[longest/2];
         unsigned long xy1[longest/2];unsigned long xy2[longest/2];unsigned long xz1[longest/2];unsigned long xz2[longest/2];
-        bigNumMult(w,longest/2,y,longest/2,wy,longest);
-        bigNumMult(w,longest/2,z,longest/2,wz,longest);
-        bigNumMult(x,longest/2,y,longest/2,xy,longest);
-        bigNumMult(x,longest/2,z,longest/2,xz,longest);
+
+        memcpy(w, a, longest/2 * sizeof(unsigned long)); memcpy(x, &a[longest/2], longest/2 * sizeof(unsigned long)); 
+        memcpy(y, b, longest/2 * sizeof(unsigned long)); memcpy(z, &b[longest/2], longest/2 * sizeof(unsigned long)); 
+        
+        unsigned long *wy = bigNumMult(w,longest/2,y,longest/2,longest);
+        unsigned long *wz = bigNumMult(w,longest/2,z,longest/2,longest);
+        unsigned long *xy = bigNumMult(x,longest/2,y,longest/2,longest);
+        unsigned long *xz = bigNumMult(x,longest/2,z,longest/2,longest);
+
         memcpy(wy1, wy, longest/2 * sizeof(unsigned long)); memcpy(wy2, &wy[longest/2], longest/2 * sizeof(unsigned long));  
         memcpy(wz1, wz, longest/2 * sizeof(unsigned long)); memcpy(wz2, &wz[longest/2], longest/2 * sizeof(unsigned long));  
         memcpy(xy1, xy, longest/2 * sizeof(unsigned long)); memcpy(xy2, &xy[longest/2], longest/2 * sizeof(unsigned long));  
         memcpy(xz1, xz, longest/2 * sizeof(unsigned long)); memcpy(xz2, &xz[longest/2], longest/2 * sizeof(unsigned long));  
 
-        unsigned long *pos1 = calloc(longest,sizeof(unsigned long));
-        unsigned long *pos2 = calloc(longest,sizeof(unsigned long));
-        multiAdd(wy2,longest/2,xy1,longest/2,wz1,longest/2,pos1,longest);
-        multiAdd(xy2,longest/2,wz2,longest/2,xz1,longest/2,pos2,longest);
         
-        printf("\nlenDest %d xz1 %lu xz2 %lu ",lenDest,xz1[0],xz2[0]);
+        unsigned long *pos1 = multiAdd(wy2,longest/2,xy1,longest/2,wz1,longest/2,longest);
+        unsigned long *pos2 = multiAdd(xy2,longest/2,wz2,longest/2,xz1,longest/2,longest);
+        
         int niceLength = (longest*2);
         int quartered = niceLength>>2; //Just for readability
-        int i = quartered;
-        if(niceLength-lenDest <= 0) memcpy(dest,wy1,quartered* sizeof(unsigned long));
-        else i=(quartered%2==0)?0:1;
-        if(niceLength -quartered-lenDest <= 0){
-            memcpy(&dest[i],pos1,quartered* sizeof(unsigned long));
-            i+=quartered;
+        int i = 0;
+        int diff = niceLength-lenDest;
+        int j = diff%quartered;
+        if(diff <=quartered){
+            memcpy(&product[i],&wy1[j],(quartered-j)* sizeof(unsigned long));
+            i+= quartered - j;
+            j=0;
         }
-        else i=(lenDest%2==0)?0:1;
-        if(niceLength-quartered*2-lenDest <= 0){
-            memcpy(&dest[i],pos2,quartered * sizeof(unsigned long));
-            i+=quartered;
+        if(diff <= 2*quartered){
+            memcpy(&product[i],&pos1[j],(quartered-j)* sizeof(unsigned long));
+            i+=quartered -j;
+            j=0;
         }
-        else i=(lenDest%2==0)?0:1;
-        memcpy(&dest[i],xz2,quartered * sizeof(unsigned long));
+        if(diff <= 3*quartered){
+            memcpy(&product[i],&pos2[j],(quartered-j) * sizeof(unsigned long));
+            i+=quartered-j;
+            j=0;
+        }
+        memcpy(&product[i],&xz2[j],(quartered-j) * sizeof(unsigned long));
         
+
+        free(wy);free(wz);free(xy);free(xz);
+        free(pos1);free(pos2);
     }
     else{
         unsigned long long result = a[0]*b[0];
         unsigned long smallResult = result % (unsigned long) pow(256,sizeof(unsigned long));
         unsigned long bigResult = result >> sizeof(unsigned long) * 8;
-        printf("\nmult %lu * %lu = %lu smallResult %lu bigResult %lu",a[0],b[0],result,smallResult,bigResult);
-        dest[0] = bigResult;
-        dest[1] = smallResult;
+        product[0] = bigResult;
+        product[1] = smallResult;
     }
-    return 1;
+    return product;
 
 }
