@@ -1,7 +1,7 @@
 #include <sysinfoapi.h>
 #include "bigmaths.h"
 int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n);
-int ECDH(unsigned long *bigIntArr,struct CurveGroupParams params, unsigned long *q);
+unsigned long** ECDH(unsigned long *bigIntArr,struct CurveGroupParams params, unsigned long *q, int lenQ);
 int ECPointAddition(unsigned long** p1,unsigned long** p2, unsigned long** dest,bool same,struct CurveGroupParams params);
 
 
@@ -41,31 +41,28 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
     return 1;
 }
 
-int ECDH(unsigned long *bigIntArr,struct CurveGroupParams params, unsigned long *q){
-    int chunk = 0;
+unsigned long** ECDH(unsigned long *bigIntArr,struct CurveGroupParams params, unsigned long *q, int lenQ){
+    int chunk = lenQ - 1;
     bool started = false;
     unsigned long *p[2];
     p[0] = malloc(sizeof(unsigned long)*8); p[1] = malloc(sizeof(unsigned long)*8);
     unsigned long *r[2];
     r[0] = malloc(sizeof(unsigned long)*8); r[1] = malloc(sizeof(unsigned long)*8);
     memcpy(r[0],secp256rParams.G[0],sizeof(r[0])); memcpy(r[1],secp256rParams.G[1],sizeof(r[1]));
-    while(chunk < 8){ //Binary exponentiation of point addition
+    while(chunk > 0){ //Binary exponentiation of point addition
         if(q[chunk] & 1 ==1){
             if(!started){
-                started = 0;
-                memcpy(r,p,sizeof(p));
+                started = true;
+                memcpy(p,r,sizeof(unsigned long)*16);
             }
-            else{
-                ECPointAddition(r,p,p,false,params);
-            }
+            else ECPointAddition(r,p,p,false,params);
         }
         q[chunk] >>= 1;
-        if(q[chunk]==0) chunk++;
+        if(q[chunk]==0) chunk--;
         ECPointAddition(r,r,r,true,params);
     }
-    free(p[0]);free(p[1]);
     free(r[0]);free(r[1]);
-    return 1;
+    return p;
 }
 
 int ECPointAddition(unsigned long** p1,unsigned long** p2, unsigned long** dest,bool same,struct CurveGroupParams params){
