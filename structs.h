@@ -76,8 +76,14 @@ secp256rParams = {
     {{0x6b17d1f2,0xe12c4247,0xf8bce6e5,0x63a440f2,0x77037d81,0x2deb33a0,0xf4a13945,0xd898c296}, 
     {0x4fe342e2,0xfe1a7f9b,0x8ee7eb4a,0x7c0f9e16,0x2bce3357,0x6b315ece,0xcbb64068,0x37bf51f5}},
     {0xffffffff,0x00000000,0xffffffff,0xffffffff,0xbce6faad,0xa7179e84,0xf3b9cac2,0xfc632551}
-};
-/*curve25519Params = {
+}, 
+curve25519Params = {
     {0x7FFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFED},
-
-};*/
+    {0,         0,         0,         0,         0,         0,         0,         486662    },
+    {0,         0,         0,         0,         0,         0,         0,         0         },
+    {{0,         0,         0,         0,         0,         0,         0,         9         },
+    {0x20AE19A1,0xB8A086B4,0xE01EDD2C,0x7748D14C,0x923D4D7E,0x6D7C61B2,0x29E9C5A2,0x7ECED3D9}
+    },
+    {0x10,      0,         0,         0,         0x14def9de,0xa2f79cd6,0x5812631a,0x5cf5d3ed } //G has order 2^252 + 0x14def9dea2f79cd65812631a5cf5d3ed
+    //Cofactor 8
+};

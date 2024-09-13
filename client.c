@@ -29,16 +29,7 @@ int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
-    unsigned long k1[] = {1,2,3,4,5,6,7,8};
-    unsigned long k2[] = {3,4};
-    unsigned long *num1 = createBigNum(k1,8);
-    unsigned long *num2 = createBigNum(k2,2);
-    unsigned long *dest = bigNumMult(num1,8,num2,2,10); 
-    printf("\n Big result %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu",dest[0],dest[1],dest[2],dest[3],dest[4],dest[5],dest[6],dest[7],dest[8],dest[9],dest[10]);
-    free(num1);
-    free(num2);
-    free(dest);
-    //sendClientHello(-1,addr,buffer);
+    sendClientHello(-1,addr,buffer);
     /*if(connectToServer(&addr,&sock)==0){
         sendClientHello(sock,addr,buffer);
         close(sock);
@@ -91,16 +82,17 @@ int sendClientHello(int sock, struct sockaddr_in addr, char* buffer){
     unsigned long *ECDHKey = malloc(sizeof(unsigned long)*8);
     printf("\nGenerating random number. Please move your mouse until generation is completed");
     randomNumber(clientRandom,1,NULL);
-    randomNumber(privateDH,8,secp256rParams.n);
+    randomNumber(privateDH,8,curve25519Params.n);
     printf("\nGeneration completed");
 
-    ECDH(ECDHKey,secp256rParams,privateDH);
+    ECDHKey = X25519(curve25519Params.G[0],privateDH);
+    printf("ECDHKey: %lu %lu %lu %lu %lu %lu %lu %lu",ECDHKey[0],ECDHKey[1],ECDHKey[2],ECDHKey[3],ECDHKey[4],ECDHKey[5],ECDHKey[6],ECDHKey[7]);
 
-    struct ClientHello clientHello;
+    /*struct ClientHello clientHello;
     clientHello.clientRandom = clientRandom[0];
     memcpy(clientHello.cipherSuites,cipherSuites,sizeof(cipherSuites));
     
-    printf("\nClient random %lu",clientRandom[0]);
+    printf("\nClient random %lu",clientRandom[0]);*/
     return 0;
       
 

@@ -24,6 +24,7 @@
         "stdbool.h": "c",
         "winuser.h": "c",
         "random": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "numbers": "c"
     }
 }
