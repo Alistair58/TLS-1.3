@@ -12,7 +12,7 @@
 
 int connectToServer(struct sockaddr_in* addr, int* sock);
 int sendClientHello(int sock,struct sockaddr_in addr,char* buffer);
-//gcc client.c -o client.exe -l ws2_32
+//gcc client.c -o client.exe -g -l ws2_32
 
 /*
 USEFUL
