@@ -45,9 +45,9 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
 unsigned long* X25519(unsigned long *p,unsigned long *q){
     int bit;
     unsigned long *x1,*x2,*z1,*z2,*pSub2;
-    x1 = malloc(sizeof(unsigned long)*8); x2 = malloc(sizeof(unsigned long)*8);
-    z1 = malloc(sizeof(unsigned long)*8); z2 = malloc(sizeof(unsigned long)*8);
-    pSub2 = malloc(sizeof(unsigned long)*8);
+    x1 = calloc(8,sizeof(unsigned long)); x2 = calloc(8,sizeof(unsigned long));
+    z1 = calloc(8,sizeof(unsigned long)); z2 = calloc(8,sizeof(unsigned long));
+    pSub2 = calloc(8,sizeof(unsigned long));
     memcpy(x2,p,8*sizeof(unsigned long));memcpy(pSub2,p,8*sizeof(unsigned long));
     pSub2[7] &= 0xFFFFFFEB; //Manually sub 2;
     q[0] &= 0xfffffff8; //q[0] & 11111 ... 1000 - set last 3 bits = 0 so it is multiple of 8
@@ -61,15 +61,17 @@ unsigned long* X25519(unsigned long *p,unsigned long *q){
         bit = (q[i >> 3] >> (i & 7)) & 1; //i>>3 divides by 8 and tell us which chunk we want i&7 shifts by the chunk i mod 8
         swapPoints(x1,x2,8,bit); //Swap if bit is 1
         swapPoints(z1,z2,8,bit); //Run anyway for constant time
-        printf("\nOne");
+        
         montgomeryLadder(x1,x2,z1,z2,p);
-        printf("\nTwo");
+        printf("\n x1 %lu %lu %lu %lu %lu %lu %lu %lu",x1[0],x1[1],x1[2],x1[3],x1[4],x1[5],x1[6],x1[7]);
         swapPoints(x1,x2,8,bit); //Swap back
         swapPoints(z1,z2,8,bit); 
 
     }
-    
+    printf("\n Done");
     unsigned long *invZ1 = bigNumModInv(z1,8,pSub2,8,8,255,19);
+    printf("\n x1 %lu %lu %lu %lu %lu %lu %lu %lu",x1[0],x1[1],x1[2],x1[3],x1[4],x1[5],x1[6],x1[7]);
+    printf("\n invZ1 %lu %lu %lu %lu %lu %lu %lu %lu",invZ1[0],invZ1[1],invZ1[2],invZ1[3],invZ1[4],invZ1[5],invZ1[6],invZ1[7]);
     unsigned long *result = bigNumModMult(invZ1,8,x1,8,8,255,19);
     
     memcpy(p,result,8*sizeof(unsigned long));
@@ -89,45 +91,49 @@ void swapPoints(unsigned long *a1, unsigned long *a2,int lenA, int bit){
 }
 
 void montgomeryLadder(unsigned long *x1, unsigned long *x2, unsigned long *z1, unsigned long *z2,unsigned long *x){
-    printf("\n0");
+     
+    
     unsigned long *r1 = bigNumModAdd(x1,8,x2,8,8,255,19); //x1 + x2
-    printf("\n1");
+    
     unsigned long *r2 = bigNumModSub(x1,8,x2,8,8,255,19,curve25519Params.p,8); //x1- x2
-    printf("\n2");
+    
     unsigned long *r3 = bigNumModAdd(x1,8,x2,8,8,255,19); //z1 + z2
-    printf("\n3");
+    
     unsigned long *r4= bigNumModSub(x1,8,x2,8,8,255,19,curve25519Params.p,8); //z1- z2
-    printf("\n4");
+    
     unsigned long *r5= bigNumModMult(r1,8,r1,8,8,255,19); //(x1+x2)^2
-    printf("\n5");
+    
     unsigned long *r6 = bigNumModMult(r2,8,r2,8,8,255,19); //(x1-x2)^2
-    printf("\n6");
+    
     unsigned long *r7 = bigNumModMult(r2,8,r3,8,8,255,19);//(x1-x2)(z1+z2)
-    printf("\n7");
+    
     unsigned long *r8 = bigNumModMult(r1,8,r4,8,8,255,19);//(x1+x2)(z1-z2)
-    printf("\n8");
+    
     unsigned long *r9 = bigNumModAdd(r7,8,r8,8,8,255,19); // 2(x1z1 − x2z2)
-    printf("\n9");
+    
     unsigned long *r10 = bigNumModSub(r7,8,r8,8,8,255,19,curve25519Params.p,8); // 2(x2z2-x1z1)
-    printf("\n10");
+    
     unsigned long *r11 = bigNumModMult(r10,8,r10,8,8,255,19);// 4(x1z2 − x2z1)^2
-    printf("\n11");
+    
     unsigned long *r12 = bigNumModSub(r5,8,r6,8,8,255,19,curve25519Params.p,8); // 4x1z1
-    printf("\n12");
+    
     unsigned long *r13 = bigNumModMultByLittle(r12,8,121665,8,255,19); // (A-2)x1z1
-    printf("\n13");
+    
     unsigned long *r14 = bigNumModAdd(r13,8,r5,8,8,255,19); // x1^2 + Ax1z1 + z1^2
-    printf("\n14");
+    
     unsigned long *newZ1 = bigNumModMult(r12,8,r14,8,8,255,19); //4x1z1 (x1^2 + Ax1z1 + z1^2)
-    printf("\n15");
+    
     unsigned long *newX1 = bigNumModMult(r5,8,r6,8,8,255,19); //(a^2 − c^2)^2
-    printf("\n16");
+    
     unsigned long *newZ2 = bigNumModMult(r11,8,x,8,8,255,19); //4x(x1z2-x2z1)^2
-    printf("\n17");
+    
     unsigned long *newX2 = bigNumModMult(r9,8,r9,8,8,255,19); //4(x1x2 - z1z2)^2
-    printf("\n18");
+    
     memcpy(x1,newX1,8*sizeof(unsigned long));memcpy(x2,newX2,8*sizeof(unsigned long));
+    
     memcpy(z1,newZ1,8*sizeof(unsigned long));memcpy(z2,newZ2,8*sizeof(unsigned long));
-    free(r1);free(r2);free(r3);free(r4);free(r5);free(r6);free(r7);free(r8);free(r9);
-    free(r10);free(r11);free(r12);free(r13);free(r14);free(newZ1);free(newX1);free(newZ2);free(newX2);
+    
+    free(r1);
+    free(r10);
+    
 }

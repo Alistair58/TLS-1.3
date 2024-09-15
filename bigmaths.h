@@ -30,7 +30,6 @@ unsigned long* createBigNum(unsigned long *a, int len){ //MUST REMEMBER TO FREE 
 unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, int lenDest){
     unsigned long long temp;
     int carry=0;
-    printf("lenA %d lenB %d lenDest %d",lenA,lenB,lenDest);
     if(lenDest < lenA || lenDest <lenB){
         
         perror("\nStorage destination for addition is too small");
@@ -44,8 +43,9 @@ unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, 
     int iA;
     int iB;
     for(int i= lenDest-1;i>-1;i--){
-        iA = lenA - (lenDest-1-i);
-        iB = lenB - (lenDest-1-i);
+        iA = lenA - (lenDest-i);
+        iB = lenB - (lenDest-i);
+        
         unsigned long op1;
         unsigned long op2;
         if(iA<0) op1 = 0;
@@ -69,9 +69,7 @@ unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, 
 
 unsigned long* bigNumModAdd(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult){
     unsigned long *addResult = bigNumAdd(a,lenA,b,lenB,lenDest+1);
-    printf("\n0.25");
     unsigned long *modResult = bigNumBitMod(addResult,lenDest+1,bitMod,carryMult,lenDest);
-    printf("\n0.5");
     free(addResult);
     return modResult;
 }
@@ -195,6 +193,7 @@ unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,i
 
 unsigned long* bigNumModMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult){
     unsigned long *multResult = bigNumMult(a,lenA,b,lenB,lenDest*2);
+    printf("\n multResult %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu",multResult[0],multResult[1],multResult[2],multResult[3],multResult[4],multResult[5],multResult[6],multResult[7],multResult[8],multResult[9],multResult[10],multResult[11],multResult[12],multResult[13],multResult[14],multResult[15]);
     unsigned long *modResult = bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,lenDest);
     free(multResult);
     return modResult;
@@ -219,14 +218,16 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
             perror("\nCalloc error during mod");
             exit(1);
         }
+        int pI;
         for(int j=0;j<=i;j++){ //Go through all the remaining chunks
+            pI = lenDest - lenA + j;
             if(j==i){
                 carry[j] = a[j] >> bitDepth;
-                product[j] = a[j] % (unsigned long) pow(2,8*sizeof(unsigned long)-bitDepth);
+                if(pI>-1) product[pI] = a[j] % (unsigned long) pow(2,8*sizeof(unsigned long)-bitDepth);
             }
             else{
                 carry[j] = a[j];
-                product[j] = 0;
+                if(pI>-1) product[pI] = 0;
             }
         }
         realCarry = bigNumMultByLittle(carry,i+1,carryMult,i+2);
@@ -334,8 +335,8 @@ unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,in
     int iA;
     int iB;
     for(int i= lenDest-1;i>-1;i--){
-        iA = lenA - (lenDest-1-i);
-        iB = lenB - (lenDest-1-i);
+        iA = lenA - (lenDest-i);
+        iB = lenB - (lenDest-i);
         unsigned long op1;
         unsigned long op2;
         if(iA<0) op1 = 0;
@@ -368,8 +369,9 @@ unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB
     int iA;
     int iB;
     for(int i= lenDest-1;i>-1;i--){
-        iA = lenA - (lenDest-1-i);
-        iB = lenB - (lenDest-1-i);
+        iA = lenA - (lenDest-i);
+        iB = lenB - (lenDest-i);
+        
         unsigned long op1;
         unsigned long op2;
         if(iA<0) op1 = 0;
@@ -412,7 +414,9 @@ unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int len
     bool started = false;
     unsigned long *inv = calloc(lenP,sizeof(unsigned long));
     unsigned long *r = calloc(lenP,sizeof(unsigned long));
-    if(!r){
+    unsigned long *temp1,*temp2;
+    unsigned long *modTemp1,*modTemp2;
+    if(!r || !inv){
         perror("\nCalloc error during inverse");
         exit(1);
     }
@@ -423,17 +427,18 @@ unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int len
                 memcpy(inv,r,sizeof(unsigned long)*lenP);
             }
             else{
-                unsigned long *temp = bigNumMult(inv,lenA,r,lenP,lenP*2);
-                unsigned long *modTemp = bigNumBitMod(temp,lenP*2,bitMod,carryMult,lenP);
-                memcpy(inv,modTemp,lenP * sizeof(unsigned long));
-                free(temp); free(modTemp);
+                temp1 = bigNumMult(inv,lenA,r,lenP,lenP*2);
+                modTemp1 = bigNumBitMod(temp1,lenP*2,bitMod,carryMult,lenP);
+                memcpy(inv,modTemp1,lenP * sizeof(unsigned long));
+                free(temp1); free(modTemp1);
             }
         }
         p[chunk] >>= 1;
         if(p[chunk]==0) chunk--;
-        unsigned long *temp = bigNumMult(r,lenP,r,lenP,lenP*2);
-        unsigned long *modTemp = bigNumBitMod(temp,lenP*2,bitMod,carryMult,lenP);
-        memcpy(r,modTemp,lenP * sizeof(unsigned long));
-        free(temp); free(modTemp);
+        temp2 = bigNumMult(r,lenP,r,lenP,lenP*2);
+        modTemp2 = bigNumBitMod(temp2,lenP*2,bitMod,carryMult,lenP);
+        memcpy(r,modTemp2,lenP * sizeof(unsigned long));
+        free(temp2); free(modTemp2);
     }
+    return inv;
 }

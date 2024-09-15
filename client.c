@@ -77,9 +77,9 @@ int sendClientHello(int sock, struct sockaddr_in addr, char* buffer){
     int curveGroups[1] = {secp256r};
     int signatureAlgorithms[1] = {rsa_pss_pss_sha256};
     //unsigned long dhKey = ECDH(secp256r);
-    unsigned long *clientRandom = malloc(sizeof(unsigned long));
-    unsigned long *privateDH = malloc(sizeof(unsigned long)*8);
-    unsigned long *ECDHKey = malloc(sizeof(unsigned long)*8);
+    unsigned long *clientRandom = calloc(1,sizeof(unsigned long));
+    unsigned long *privateDH = calloc(8,sizeof(unsigned long));
+    unsigned long *ECDHKey = calloc(8,sizeof(unsigned long));
     printf("\nGenerating random number. Please move your mouse until generation is completed");
     randomNumber(clientRandom,1,NULL);
     randomNumber(privateDH,8,curve25519Params.n);
