@@ -25,6 +25,7 @@
         "winuser.h": "c",
         "random": "c",
         "string.h": "c",
-        "numbers": "c"
+        "numbers": "c",
+        "ws2tcpip.h": "c"
     }
 }

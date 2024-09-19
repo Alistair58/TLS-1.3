@@ -11,6 +11,13 @@ unsigned long* bigNumModMultByLittle(unsigned long *a,int lenA, int littleNum,in
 
 
 
+
+void printBigNum(char *text, unsigned long *n, int lenN){
+    printf("\n%s",text);
+    for(int i=0;i<lenN;i++){
+        printf(" %lu",n[i]);
+    }
+}
 //NOTE - Numbers are stored with MSB at index 0
 
 unsigned long* createBigNum(unsigned long *a, int len){ //MUST REMEMBER TO FREE IF USING THIS
@@ -88,6 +95,8 @@ unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,i
     b = [b1,b2]
     a*b = [a1*b1,a1*b2+a2*b1,a2*b2]
     */
+   printBigNum("Starting mult a: ",a,lenA);
+   printBigNum("Starting mult b: ",b,lenB);
     int longest = max(lenA,lenB);
     if(lenDest<lenA+lenB){
         free(a); free(b);
@@ -152,54 +161,62 @@ unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,i
         memcpy(xz1, xz, longest/2 * sizeof(unsigned long)); memcpy(xz2, &xz[longest/2], longest/2 * sizeof(unsigned long));  
 
         
-        unsigned long *pos1 = multiAdd(wy2,longest/2,xy1,longest/2,wz1,longest/2,longest);
+        unsigned long *pos1 = multiAdd(wy2,longest/2,xy1,longest/2,wz1,longest/2,longest); //TODO need to put as longest and then put overflow into wy1 or see if it works without
         unsigned long *pos2 = multiAdd(xy2,longest/2,wz2,longest/2,xz1,longest/2,longest);
-        
         int niceLength = (longest*2);
         int quartered = niceLength>>2; //Just for readability
         int i = 0;
         int diff = niceLength-lenDest;
         int j = diff%quartered;
+        printf("\ni %d",i);
         if(diff <=quartered){
             memcpy(&product[i],&wy1[j],(quartered-j)* sizeof(unsigned long));
             i+= quartered - j;
+            printf("\ni %d",i);
             j=0;
         }
         if(diff <= 2*quartered){
             memcpy(&product[i],&pos1[j],(quartered-j)* sizeof(unsigned long));
             i+=quartered -j;
+            printf("\ni %d",i);
             j=0;
         }
         if(diff <= 3*quartered){
             memcpy(&product[i],&pos2[j],(quartered-j) * sizeof(unsigned long));
             i+=quartered-j;
+            printf("\ni %d",i);
             j=0;
         }
+        printf("\ni %d j %d",i,j);
         memcpy(&product[i],&xz2[j],(quartered-j) * sizeof(unsigned long));
-        
+        printBigNum("Mult product: ",product,lenDest);
 
         free(wy);free(wz);free(xy);free(xz);
         free(pos1);free(pos2);
     }
     else{
-        unsigned long long result = a[0]*b[0];
-        unsigned long smallResult = result % (unsigned long) pow(256,sizeof(unsigned long));
-        unsigned long bigResult = result >> sizeof(unsigned long) * 8;
+        unsigned long long result = (unsigned long long)a[0]*b[0];
+        printf("\nMult result llu %llu ",result);
+        unsigned long smallResult = (unsigned long) (result & 0xffffffffUL);
+        printf("\nSmall result %lu ",smallResult);
+        unsigned long bigResult = (unsigned long) (result >> sizeof(unsigned long) * 8);
+        printf("\nBig result %lu ",bigResult);
         product[0] = bigResult;
         product[1] = smallResult;
+        printBigNum("Product: ",product,2);
     }
     return product;
 }
 
 unsigned long* bigNumModMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult){
     unsigned long *multResult = bigNumMult(a,lenA,b,lenB,lenDest*2);
-    printf("\n multResult %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu",multResult[0],multResult[1],multResult[2],multResult[3],multResult[4],multResult[5],multResult[6],multResult[7],multResult[8],multResult[9],multResult[10],multResult[11],multResult[12],multResult[13],multResult[14],multResult[15]);
     unsigned long *modResult = bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,lenDest);
     free(multResult);
     return modResult;
 }
 
 unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult, int lenDest){
+    printBigNum("Starting a ",a,lenA);
     unsigned long *product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
         perror("\nCalloc error during mod");
@@ -223,16 +240,20 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
             pI = lenDest - lenA + j;
             if(j==i){
                 carry[j] = a[j] >> bitDepth;
-                if(pI>-1) product[pI] = a[j] % (unsigned long) pow(2,8*sizeof(unsigned long)-bitDepth);
+                if(pI>-1) a[pI] = a[j] % (unsigned long) pow(2,8*sizeof(unsigned long)-bitDepth);
             }
             else{
                 carry[j] = a[j];
-                if(pI>-1) product[pI] = 0;
+                if(pI>-1) a[pI] = 0;
             }
         }
+        printBigNum("Big num bit mod product",product,lenDest);
+        printBigNum("Big num bit mod carr",carry,i+1);
         realCarry = bigNumMultByLittle(carry,i+1,carryMult,i+2);
-        addedCarry = bigNumAdd(realCarry,i+2,product,lenA,lenA);
+        printBigNum("real Carry",realCarry,i+2);
+        addedCarry = bigNumAdd(realCarry,i+2,a,lenA,lenA);
         memcpy(a,addedCarry, lenA * sizeof(unsigned long));
+        printBigNum("Big num bit mod a ",a,lenA);
         for(int k=0;k<=i;k++){
             if(k==i && a[k]>>bitDepth==0 || a[k]==0) i--;
         }
@@ -241,48 +262,6 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
     memcpy(product,&a[lenA-lenDest],lenDest*sizeof(unsigned long));
     return product;
 }
-
-/*unsigned long* bigNumBitModNeg(long long *a, int lenA,int bitMod,int carryMult, int lenDest){
-    
-    unsigned long *product = calloc(lenDest,sizeof(unsigned long));
-    if(!product){
-        perror("\nCalloc error during mod");
-        exit(1);
-    }
-    int i = lenA - bitMod/32; //Do we need to mod the number, if so how many chunks do we need to mod
-    if(i<0){
-        memcpy(product,a,lenA*sizeof(unsigned long));
-        return product;
-    }
-    unsigned long *carry, *realCarry,*addedCarry;
-    while(i>=0){//Repeat until no more modding is require, 1 iteration on 0xfffff will require another mod
-        int bitDepth = bitMod%(8*sizeof(long long)); //How far to go into the first chunk
-        carry = calloc(i+1,sizeof(unsigned long)); //Allocate enough chunks
-        if(!carry){
-            perror("\nCalloc error during mod");
-            exit(1);
-        }
-        for(int j=0;j<=i;j++){ //Go through all the remaining chunks
-            if(j==i){
-                carry[j] = a[j] >> bitDepth;
-                product[j] = a[j] % (unsigned long) pow(2,8*sizeof(long long)-bitDepth);
-            }
-            else{
-                carry[j] = a[j];
-                product[j] = 0;
-            }
-        }
-        realCarry = bigNumMultByLittle(carry,i+1,carryMult,i+2);
-        addedCarry = bigNumAdd(realCarry,i+2,product,lenA,lenA);
-        memcpy(a,addedCarry, lenA * sizeof(unsigned long));
-        for(int k=0;k<=i;k++){
-            if(k==i && a[k]>>bitDepth==0 || a[k]==0) i--;
-        }
-        free(carry);free(realCarry);free(addedCarry);
-    }
-    memcpy(product,&a[lenA-lenDest],lenDest*sizeof(unsigned long));
-    return product;
-}*/
 
 
 
