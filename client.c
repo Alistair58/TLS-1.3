@@ -29,11 +29,7 @@ int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
-    unsigned long a[] = {0,0,0,0,0,0,0,4143054848};
-    unsigned long* test = createBigNum(a,8);
-    printBigNum("Starting a: ",a,8);
-    unsigned long* res = bigNumModMult(a,8,a,8,8,255,19);
-    //sendClientHello(-1,addr,buffer);
+    sendClientHello(-1,addr,buffer);
     /*if(connectToServer(&addr,&sock)==0){
         sendClientHello(sock,addr,buffer);
         close(sock);

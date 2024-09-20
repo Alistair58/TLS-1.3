@@ -44,15 +44,15 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
 
 unsigned long* X25519(unsigned long *p,unsigned long *q){
     int bit;
-    unsigned long *x1,*x2,*z1,*z2,*pSub2;
+    unsigned long *x1,*x2,*z1,*z2,*nSub2;
     x1 = calloc(8,sizeof(unsigned long)); x2 = calloc(8,sizeof(unsigned long));
     z1 = calloc(8,sizeof(unsigned long)); z2 = calloc(8,sizeof(unsigned long));
-    pSub2 = calloc(8,sizeof(unsigned long));
-    memcpy(x2,p,8*sizeof(unsigned long));memcpy(pSub2,p,8*sizeof(unsigned long));
-    pSub2[7] &= 0xFFFFFFEB; //Manually sub 2;
+    nSub2 = calloc(8,sizeof(unsigned long));
+    memcpy(x2,p,8*sizeof(unsigned long));memcpy(nSub2,curve25519Params.n,8*sizeof(unsigned long));
+    nSub2[7] &= 0xFFFFFFEB; //Manually sub 2;
     q[0] &= 0xfffffff8; //q[0] & 11111 ... 1000 - set last 3 bits = 0 so it is multiple of 8
     q[7] = (q[7] & 0x7fffffff) | 0x40000000; //Remove MSB and set next bit to 1 so it runs in constant time
-    if(!x1 || !x2 || !z1 || !z2 || !pSub2){
+    if(!x1 || !x2 || !z1 || !z2 || !nSub2){
         perror("\nMalloc error during X25519");
         exit(1);
     }
@@ -74,11 +74,12 @@ unsigned long* X25519(unsigned long *p,unsigned long *q){
 
     }
     printf("\n Done");
-    unsigned long *invZ1 = bigNumModInv(z1,8,pSub2,8,8,255,19);
+    unsigned long *invZ1 = bigNumModInv(z1,8,nSub2,8,8,255,19);
+    printBigNum("Inverse ",invZ1,8);
     unsigned long *result = bigNumModMult(invZ1,8,x1,8,8,255,19);
     
     memcpy(p,result,8*sizeof(unsigned long));
-    free(result);free(invZ1);free(x1);free(x2);free(z1);free(z2);free(pSub2);
+    free(result);free(invZ1);free(x1);free(x2);free(z1);free(z2);free(nSub2);
     return p;
 }
 
