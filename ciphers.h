@@ -19,7 +19,7 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
     unsigned long mod;
     if(n==NULL) mod = pow(256,sizeof(unsigned long))-1; //Can only get up to 256^unsigned long -2
     else mod = n[0];
-    while(tickCount<= targetTime){
+    while(chunkWriteCount<=chunks){
     
         GetCursorPos(&point);
         x = point.x;
@@ -30,11 +30,16 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
         else{
             product += x + y;
         }
-        if((time-(targetTime - tickCount)) >= time*(chunkWriteCount/(chunks+2))){ //+2 means that chunks aren't written at the end and so can't be missed
+        if((time-(int)(targetTime - tickCount)) >= time*(chunkWriteCount/(chunks+2))){ //+2 means that chunks aren't written at the end and so can't be missed
+            int timeProg = time-(int)(targetTime - tickCount);
+            //TIME PROG PRINTS OUT ZERO
+            printf("\ntime %d chunkWriteCount %d chunks+2 %d",time,chunkWriteCount,chunks+2);
+            int timeNeeded = (int) time*((float) chunkWriteCount/(chunks+2));
+            printf("\nchunkWriteCount-1 %d timeProgressed %d timeNeeded %d product %lu",chunkWriteCount-1,timeProg,timeNeeded,product);
             bigIntArr[chunkWriteCount-1] = product;
             chunkWriteCount ++;
             mod = pow(256,sizeof(unsigned long))-1;
-            if(chunkWriteCount == chunks) break;
+            if(chunkWriteCount > chunks) break;
         }
         tickCount = GetTickCount64();
     }

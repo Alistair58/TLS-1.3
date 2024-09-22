@@ -280,7 +280,7 @@ unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, int littleNum,int l
     unsigned long carry = 0;
     for(int i=lenA-1;i>-1;i--){
         unsigned long long result = a[i]*littleNum;
-        thisChunk = result+carry % (unsigned long) pow(256,sizeof(unsigned long));
+        thisChunk = (result+carry) % (unsigned long) pow(256,sizeof(unsigned long));
         carry = result >> sizeof(unsigned long) * 8;  
         product[i] = thisChunk;
         if(i==0 && carry){
@@ -404,8 +404,8 @@ unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int len
         exit(1);
     }
     while(chunk > 0){ 
-        printBigNum("R: ",r,lenP);
-        printBigNum("Inv: ",inv,lenP);
+        //printBigNum("R: ",r,lenP);
+        //printBigNum("Inv: ",inv,lenP);
         if(p[chunk] & 1 ==1){
             if(!started){
                 started = true;

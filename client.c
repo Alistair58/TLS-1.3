@@ -82,7 +82,9 @@ int sendClientHello(int sock, struct sockaddr_in addr, char* buffer){
     unsigned long *ECDHKey = calloc(8,sizeof(unsigned long));
     printf("\nGenerating random number. Please move your mouse until generation is completed");
     randomNumber(clientRandom,1,NULL);
+    printf("\n new one");
     randomNumber(privateDH,8,curve25519Params.n);
+    printBigNum("Private random number ",privateDH,8);
     printf("\nGeneration completed");
 
     ECDHKey = X25519(curve25519Params.G[0],privateDH);
