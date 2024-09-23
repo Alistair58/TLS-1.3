@@ -60,6 +60,7 @@ struct ClientHello
     unsigned long clientRandom;
     int cipherSuites[5][2]; // TLS 1.3 only supports 5 cipher suites
     int supportedGroups[10];
+    int signatureAlgorithms[16];
 };
 
 struct CurveGroupParams{
@@ -84,6 +85,6 @@ curve25519Params = {
     {{0,         0,         0,         0,         0,         0,         0,         9         },
     {0x20AE19A1,0xB8A086B4,0xE01EDD2C,0x7748D14C,0x923D4D7E,0x6D7C61B2,0x29E9C5A2,0x7ECED3D9}
     },
-    {0x10,      0,         0,         0,         0x14def9de,0xa2f79cd6,0x5812631a,0x5cf5d3ed } //G has order 2^252 + 0x14def9dea2f79cd65812631a5cf5d3ed
+    {0x10000000,      0,         0,         0,         0x14def9de,0xa2f79cd6,0x5812631a,0x5cf5d3ed } //G has order 2^252 + 0x14def9dea2f79cd65812631a5cf5d3ed
     //Cofactor 8
 };

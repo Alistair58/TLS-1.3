@@ -216,46 +216,41 @@ unsigned long* bigNumModMult(unsigned long *a,int lenA, unsigned long *b,int len
 }
 
 unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult, int lenDest){
-    //printBigNum("Starting a ",a,lenA);
     unsigned long *product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
         perror("\nCalloc error during mod");
         exit(1);
     }
-    int i = lenA - bitMod/32; //Do we need to mod the number, if so how many chunks do we need to mod
+    int i = (int)((float)lenA - (float)bitMod/32); //Do we need to mod the number, if so how many chunks do we need to mod
     if(i<0){
         memcpy(product,a,lenA*sizeof(unsigned long));
         return product;
     }
     unsigned long *carry, *realCarry,*addedCarry;
     do{//Repeat until no more modding is require, 1 iteration on 0xfffff will require another mod
-        int bitDepth = bitMod%8*sizeof(unsigned long); //How far to go into the first chunk
+        int bitDepth = bitMod%32; //How far to go into the first chunk
         carry = calloc(i+1,sizeof(unsigned long)); //Allocate enough chunks
         if(!carry){
             perror("\nCalloc error during mod");
             exit(1);
         }
-        int pI;
-        for(int j=0;j<=i;j++){ //Go through all the remaining chunks
+        for(int j=0;j<=i;j++){ //Go through all the chunks that are too big
             if(j==i){
                 carry[j] = a[j] >> bitDepth;
-                a[j] = a[j] % (unsigned long) pow(2,8*sizeof(unsigned long)-bitDepth);
+                a[j] = a[j] % (unsigned long) pow(2,bitDepth);
             }
             else{
                 carry[j] = a[j];
                 a[j] = 0;
             }
         }
-        //printf("\n i %d",i);
-        ////printBigNum("Big num bit mod product",product,lenDest);
-        //printBigNum("Big num bit mod carr",carry,i+1);
+
         realCarry = bigNumMultByLittle(carry,i+1,carryMult,i+2);
-        //printBigNum("real Carry",realCarry,i+2);
-        //printBigNum("Big num bit mod a ",a,lenA);
+
         addedCarry = bigNumAdd(realCarry,i+2,a,lenA,lenA);
         memcpy(a,addedCarry, lenA * sizeof(unsigned long));
-        //printBigNum("Big num a and carry added together",a,lenA);
-        if(a[i] < pow(2,8*sizeof(unsigned long)-bitDepth) && a[i-1] == 0) break;
+
+        if(a[i] < pow(2,bitDepth) && a[i-1] == 0) break;
         free(carry);free(realCarry);free(addedCarry);
         
     }
@@ -278,11 +273,13 @@ unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, int littleNum,int l
     }
     unsigned long thisChunk = 0;
     unsigned long carry = 0;
+    int pI;
     for(int i=lenA-1;i>-1;i--){
+        pI = lenDest - (lenA-i);
         unsigned long long result = a[i]*littleNum;
         thisChunk = (result+carry) % (unsigned long) pow(256,sizeof(unsigned long));
         carry = result >> sizeof(unsigned long) * 8;  
-        product[i] = thisChunk;
+        product[pI] = thisChunk;
         if(i==0 && carry){
             free(product);
             perror("\nMultiplication overflow");

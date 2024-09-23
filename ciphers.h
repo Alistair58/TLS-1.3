@@ -30,11 +30,11 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
         else{
             product += x + y;
         }
-        if((time-(int)(targetTime - tickCount)) >= time*(chunkWriteCount/(chunks+2))){ //+2 means that chunks aren't written at the end and so can't be missed
-            int timeProg = time-(int)(targetTime - tickCount);
+        if((targetTime - tickCount) <= time*((float)(chunks-chunkWriteCount)/(chunks+1))){ //+1 means chunks aren't written at start or end
+            int timeProg = (int)(targetTime - tickCount);
             //TIME PROG PRINTS OUT ZERO
             printf("\ntime %d chunkWriteCount %d chunks+2 %d",time,chunkWriteCount,chunks+2);
-            int timeNeeded = (int) time*((float) chunkWriteCount/(chunks+2));
+            int timeNeeded = (int)time*((float)(chunks-chunkWriteCount+1)/(chunks+1));
             printf("\nchunkWriteCount-1 %d timeProgressed %d timeNeeded %d product %lu",chunkWriteCount-1,timeProg,timeNeeded,product);
             bigIntArr[chunkWriteCount-1] = product;
             chunkWriteCount ++;
