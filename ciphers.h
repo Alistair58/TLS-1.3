@@ -7,7 +7,7 @@ void montgomeryLadder(unsigned long *x1, unsigned long *x2, unsigned long *z1, u
 
 
 int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A chunk is 32 bits
-    int time = 2500;
+    int time = 1000;
     unsigned long long product; //Unsigned long would mean the mod would never work and would output 0
     int x;
     int y;

@@ -61,6 +61,7 @@ struct ClientHello
     int cipherSuites[5][2]; // TLS 1.3 only supports 5 cipher suites
     int supportedGroups[10];
     int signatureAlgorithms[16];
+    unsigned long keyExchange[8];
 };
 
 struct CurveGroupParams{

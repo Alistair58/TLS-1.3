@@ -12,7 +12,7 @@
 
 int connectToServer(struct sockaddr_in* addr, int* sock);
 int sendClientHello(int sock,struct sockaddr_in addr,char* buffer,int lenBuff,struct ClientHello clientHello);
-int generateClientHello(struct ClientHello clientHello);
+struct ClientHello generateClientHello();
 int waitForServerHello(int sock, char *buffer, int lenBuff);
 //gcc client.c -o client.exe -g -l ws2_32
 
@@ -30,9 +30,8 @@ printf("\nClient received: %s",buffer);
 int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
-    struct ClientHello clientHello;
     char buffer[1024];
-    generateClientHello(clientHello);
+    struct ClientHello clientHello = generateClientHello();
     if(connectToServer(&addr,&sock)==0){
         sendClientHello(sock,addr,buffer,1024,clientHello);
         waitForServerHello(sock,buffer,1024);
@@ -75,11 +74,11 @@ int connectToServer(struct sockaddr_in * addr, int* sock){
     return 0;
 }
 
-int generateClientHello(struct ClientHello clientHello){
+struct ClientHello generateClientHello(){
+    struct ClientHello clientHello;
     int cipherSuites[1][2] =   {{0x13,TLS_AES_128_GCM_SHA256}};
     int curveGroups[1] = {x25519};
     int signatureAlgorithms[1] = {rsa_pss_pss_sha256};
-    //unsigned long dhKey = ECDH(secp256r);
     unsigned long *clientRandom = calloc(1,sizeof(unsigned long));
     unsigned long *privateDH = calloc(8,sizeof(unsigned long));
     unsigned long *ECDHKey = calloc(8,sizeof(unsigned long));
@@ -87,36 +86,37 @@ int generateClientHello(struct ClientHello clientHello){
     randomNumber(clientRandom,1,NULL);
     randomNumber(privateDH,8,curve25519Params.n);
     printf("\nGeneration completed");
-
+    printBigNum("Client random ",clientRandom,1);
+    printf("\nClient random %lu ",clientRandom[0]);
     ECDHKey = X25519(curve25519Params.G[0],privateDH);
     printf("ECDHKey: %lu %lu %lu %lu %lu %lu %lu %lu",ECDHKey[0],ECDHKey[1],ECDHKey[2],ECDHKey[3],ECDHKey[4],ECDHKey[5],ECDHKey[6],ECDHKey[7]);
 
     
     clientHello.clientRandom = clientRandom[0];
-    memcpy(clientHello.cipherSuites,cipherSuites,sizeof(cipherSuites));
-    memcpy(clientHello.supportedGroups,curveGroups ,sizeof(curveGroups));
-    memcpy(clientHello.signatureAlgorithms,signatureAlgorithms,sizeof(signatureAlgorithms));
-    return 0;
-      
+    memcpy(&clientHello.cipherSuites,&cipherSuites,sizeof(cipherSuites));
+    memcpy(&clientHello.supportedGroups,&curveGroups ,sizeof(curveGroups));
+    memcpy(&clientHello.signatureAlgorithms,&signatureAlgorithms,sizeof(signatureAlgorithms));
+    memcpy(&clientHello.keyExchange,ECDHKey,8*sizeof(unsigned long));
+    return clientHello;
 }
 
 int sendClientHello(int sock,struct sockaddr_in addr,char *buffer,int lenBuff,struct ClientHello clientHello){
-    memset(&buffer,0,lenBuff); //Remove any rubbish from buffer
+    memset(buffer,0,lenBuff); //Remove any rubbish from buffer
     int i=0;
-    sprintf(buffer,"%lu",clientHello.clientRandom);
-    i+= 11; //10 digits plus space
-    sprintf(&buffer[i],"%x %x",clientHello.cipherSuites[0][0],clientHello.cipherSuites[0][1]);
-    i+= 10; // 0x13 0x01
-    sprintf(&buffer[i],"%x",clientHello.supportedGroups[0]);
-    i+= 7; // 0x001D
-    sprintf(&buffer[i],"%x",clientHello.signatureAlgorithms[0]);
-    // 0x0401
-    printf("\n Sent: %s",buffer);
+    sprintf(buffer,"08%08x04%02x%02x04%04x04%04x40%08x%08x%08x%08x%08x%08x%08x%08x", //Length in characters before each chunk
+    clientHello.clientRandom,
+    clientHello.cipherSuites[0][0],clientHello.cipherSuites[0][1],
+    clientHello.supportedGroups[0],clientHello.signatureAlgorithms[0],
+    clientHello.keyExchange[0],clientHello.keyExchange[1],
+    clientHello.keyExchange[2],clientHello.keyExchange[3],
+    clientHello.keyExchange[4],clientHello.keyExchange[5],
+    clientHello.keyExchange[6],clientHello.keyExchange[7]);
+    printf("\nSent: %s",buffer);
     send(sock,buffer,strlen(buffer),0);
 }
 
 int waitForServerHello(int sock, char *buffer, int lenBuff){
-    memset(&buffer,0,sizeof(buffer)); 
-    recv(sock,buffer,sizeof(buffer),0);
+    memset(buffer,0,lenBuff); 
+    recv(sock,buffer,lenBuff,0);
     printf("\nClient received: %s",buffer);
 }
