@@ -63,6 +63,27 @@ struct ClientHello
     int signatureAlgorithms[16];
     unsigned long keyExchange[8];
 };
+struct Certificate{
+    char CA[50];
+    unsigned long publicKey[8];
+    unsigned long CASignature[8];
+    unsigned long serverSignature[8];
+};
+struct ServerHello
+{
+    unsigned long serverRandom;
+    int cipherSuite[2]; // TLS 1.3 only supports 5 cipher suites
+    int curveGroup;
+    int signatureAlgorithm;
+    int supportedGroups[10];
+    struct Certificate certificate; 
+    unsigned long keyExchange[8];
+    unsigned long MAC[8]; //Sort of server finished
+};
+
+
+
+
 
 struct CurveGroupParams{
     unsigned long p[8];

@@ -81,22 +81,20 @@ struct ClientHello generateClientHello(){
     int signatureAlgorithms[1] = {rsa_pss_pss_sha256};
     unsigned long *clientRandom = calloc(1,sizeof(unsigned long));
     unsigned long *privateDH = calloc(8,sizeof(unsigned long));
-    unsigned long *ECDHKey = calloc(8,sizeof(unsigned long));
     printf("\nGenerating random number. Please move your mouse until generation is completed");
     randomNumber(clientRandom,1,NULL);
     randomNumber(privateDH,8,curve25519Params.n);
     printf("\nGeneration completed");
-    printBigNum("Client random ",clientRandom,1);
     printf("\nClient random %lu ",clientRandom[0]);
-    ECDHKey = X25519(curve25519Params.G[0],privateDH);
-    printf("ECDHKey: %lu %lu %lu %lu %lu %lu %lu %lu",ECDHKey[0],ECDHKey[1],ECDHKey[2],ECDHKey[3],ECDHKey[4],ECDHKey[5],ECDHKey[6],ECDHKey[7]);
+    unsigned long *ECDHKey  = X25519(curve25519Params.G[0],privateDH);
+    printf("\nClient Public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",ECDHKey[0],ECDHKey[1],ECDHKey[2],ECDHKey[3],ECDHKey[4],ECDHKey[5],ECDHKey[6],ECDHKey[7]);
 
-    
     clientHello.clientRandom = clientRandom[0];
     memcpy(&clientHello.cipherSuites,&cipherSuites,sizeof(cipherSuites));
     memcpy(&clientHello.supportedGroups,&curveGroups ,sizeof(curveGroups));
     memcpy(&clientHello.signatureAlgorithms,&signatureAlgorithms,sizeof(signatureAlgorithms));
     memcpy(&clientHello.keyExchange,ECDHKey,8*sizeof(unsigned long));
+    free(clientRandom);free(privateDH);free(ECDHKey);
     return clientHello;
 }
 
