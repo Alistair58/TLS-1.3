@@ -75,7 +75,6 @@ struct ServerHello
     int cipherSuite[2]; // TLS 1.3 only supports 5 cipher suites
     int curveGroup;
     int signatureAlgorithm;
-    int supportedGroups[10];
     struct Certificate certificate; 
     unsigned long keyExchange[8];
     unsigned long MAC[8]; //Sort of server finished

@@ -24,7 +24,7 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
         GetCursorPos(&point);
         x = point.x;
         y = point.y;
-        if(product){ //If not zero
+        if(product && x && y){ //If not zero
             product = (product * x * y)% mod;
         }
         else{
@@ -33,9 +33,7 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
         if((targetTime - tickCount) <= time*((float)(chunks-chunkWriteCount)/(chunks+1))){ //+1 means chunks aren't written at start or end
             int timeProg = (int)(targetTime - tickCount);
             //TIME PROG PRINTS OUT ZERO
-            printf("\ntime %d chunkWriteCount %d chunks+2 %d",time,chunkWriteCount,chunks+2);
             int timeNeeded = (int)time*((float)(chunks-chunkWriteCount+1)/(chunks+1));
-            printf("\nchunkWriteCount-1 %d timeProgressed %d timeNeeded %d product %lu",chunkWriteCount-1,timeProg,timeNeeded,product);
             bigIntArr[chunkWriteCount-1] = product;
             chunkWriteCount ++;
             mod = pow(256,sizeof(unsigned long))-1;
@@ -47,13 +45,14 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
     return 0;
 }
 
-unsigned long* X25519(unsigned long *p,unsigned long *q){
+unsigned long* X25519(unsigned long *p,unsigned long *inpQ){
     int bit;
-    unsigned long *x1,*x2,*z1,*z2,*nSub2;
+    unsigned long *x1,*x2,*z1,*z2,*nSub2,*q;
     x1 = calloc(8,sizeof(unsigned long)); x2 = calloc(8,sizeof(unsigned long));
     z1 = calloc(8,sizeof(unsigned long)); z2 = calloc(8,sizeof(unsigned long));
-    nSub2 = calloc(8,sizeof(unsigned long));
+    nSub2 = calloc(8,sizeof(unsigned long));q = calloc(8,sizeof(unsigned long));
     memcpy(x2,p,8*sizeof(unsigned long));memcpy(nSub2,curve25519Params.n,8*sizeof(unsigned long));
+    memcpy(q,inpQ,8*sizeof(unsigned long));
     nSub2[7] &= 0xFFFFFFEB; //Manually sub 2;
     q[0] &= 0xfffffff8; //q[0] & 11111 ... 1000 - set last 3 bits = 0 so it is multiple of 8
     q[7] = (q[7] & 0x7fffffff) | 0x40000000; //Remove MSB and set next bit to 1 so it runs in constant time
