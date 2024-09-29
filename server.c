@@ -110,6 +110,10 @@ struct ServerHello generateServerHello(unsigned long *privateDHRandom){
     printf("\nGenerating random number. Please move your mouse until generation is completed");
     randomNumber(serverRandom,1,NULL);
     randomNumber(privateDHRandom,8,curve25519Params.n);
+    /*unsigned long arr[] = {0,0,0,0,0,0,0,5};
+    unsigned long *TEMP = createBigNum(arr,8);
+    memcpy(privateDHRandom,TEMP,8*sizeof(unsigned long));
+    free(TEMP);*/
     printf("\nGeneration completed");
     printf("\nServer random %lu Server Private DH Random: %lu %lu %lu %lu %lu %lu %lu %lu ",serverRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
     privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);
