@@ -47,16 +47,16 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
 
 unsigned long* X25519(unsigned long *p,unsigned long *inpQ){
     int bit;
-    unsigned long *x1,*x2,*z1,*z2,*nSub2,*q;
+    unsigned long *x1,*x2,*z1,*z2,*pSub2,*q;
     x1 = calloc(8,sizeof(unsigned long)); x2 = calloc(8,sizeof(unsigned long));
     z1 = calloc(8,sizeof(unsigned long)); z2 = calloc(8,sizeof(unsigned long));
-    nSub2 = calloc(8,sizeof(unsigned long));q = calloc(8,sizeof(unsigned long));
-    memcpy(x2,p,8*sizeof(unsigned long));memcpy(nSub2,curve25519Params.n,8*sizeof(unsigned long));
+    pSub2 = calloc(8,sizeof(unsigned long));q = calloc(8,sizeof(unsigned long));
+    memcpy(x2,p,8*sizeof(unsigned long));memcpy(pSub2,curve25519Params.p,8*sizeof(unsigned long));
     memcpy(q,inpQ,8*sizeof(unsigned long));
-    nSub2[7] &= 0xFFFFFFEB; //Manually sub 2;
+    pSub2[7] -=2; 
     //q[7] &= 0xfffffff8; //q[0] & 11111 ... 1000 - set last 3 bits = 0 so it is multiple of 8
     //q[0] = (q[0] & 0x7fffffff) | 0x40000000; //Remove MSB and set next bit to 1 so it runs in constant time
-    if(!x1 || !x2 || !z1 || !z2 || !nSub2){
+    if(!x1 || !x2 || !z1 || !z2 || !pSub2){
         perror("\nMalloc error during X25519");
         exit(1);
     }
@@ -77,11 +77,12 @@ unsigned long* X25519(unsigned long *p,unsigned long *inpQ){
 
     }
     printf("\n Done");
-    unsigned long *invZ1 = bigNumModInv(z1,8,nSub2,8,8,255,19);
-    printBigNum("Inverse ",invZ1,8);
+    printBigNum("Last X1 ",x1,8);
+    unsigned long *invZ1 = bigNumModInv(z1,8,pSub2,8,8,255,19);
+    
     unsigned long *result = bigNumModMult(invZ1,8,x1,8,8,255,19);
     free(invZ1);free(x1);
-    free(x2);free(z1);free(z2);free(nSub2);free(q);
+    free(x2);free(z1);free(z2);free(pSub2);free(q);
     return result;
 }
 
@@ -102,11 +103,11 @@ void montgomeryLadder(unsigned long *x1, unsigned long *x2, unsigned long *z1, u
     unsigned long *r1 = bigNumModAdd(x1,8,z1,8,8,255,19); //x1 + z1
     //printBigNum("r1: ",r1,8);
     
-    unsigned long *r2 = bigNumModSub(x1,8,z1,8,8,255,19,curve25519Params.p,8); //x1- z1
+    unsigned long *r2 = bigNumModSub(x1,8,z1,8,8,curve25519Params.p,8); //x1- z1
     //printBigNum("r2: ",r2,8);
     unsigned long *r3 = bigNumModAdd(x2,8,z2,8,8,255,19); //x2 + z2
     //printBigNum("r3: ",r3,8);
-    unsigned long *r4= bigNumModSub(x2,8,z2,8,8,255,19,curve25519Params.p,8); //x2- z2
+    unsigned long *r4= bigNumModSub(x2,8,z2,8,8,curve25519Params.p,8); //x2- z2
     //printBigNum("r4: ",r4,8);
     unsigned long *r5= bigNumModMult(r1,8,r1,8,8,255,19); //(x1+z1)^2
     //printBigNum("r5: ",r5,8);
@@ -118,24 +119,24 @@ void montgomeryLadder(unsigned long *x1, unsigned long *x2, unsigned long *z1, u
     //printBigNum("r8: ",r8,8);
     unsigned long *r9 = bigNumModAdd(r7,8,r8,8,8,255,19); // 2(x1x2 − z1z2)
     //printBigNum("r9: ",r9,8);
-    unsigned long *r10 = bigNumModSub(r7,8,r8,8,8,255,19,curve25519Params.p,8); // 2(x1z2 -x2z1)
+    unsigned long *r10 = bigNumModSub(r7,8,r8,8,8,curve25519Params.p,8); // 2(x1z2 -x2z1)
     //printBigNum("r10: ",r10,8);
     unsigned long *r11 = bigNumModMult(r10,8,r10,8,8,255,19);// 4(x1z2 -x2z1)^2
     //printBigNum("r11: ",r11,8);
-    unsigned long *r12 = bigNumModSub(r5,8,r6,8,8,255,19,curve25519Params.p,8); // 4x1z1
+    unsigned long *r12 = bigNumModSub(r5,8,r6,8,8,curve25519Params.p,8); // 4x1z1
     //printBigNum("r12: ",r12,8);
     unsigned long *r13 = bigNumModMultByLittle(r12,8,121665,8,255,19); // (A-2)x1z1
     //printBigNum("r13: ",r13,8);
     unsigned long *r14 = bigNumModAdd(r13,8,r5,8,8,255,19); // x1^2 + Ax1z1 + z1^2
     //printBigNum("r14: ",r14,8);
     unsigned long *newZ1 = bigNumModMult(r12,8,r14,8,8,255,19); //4x1z1 (x1^2 + Ax1z1 + z1^2)
-    printBigNum("newZ1: ",newZ1,8);
+   // printBigNum("newZ1: ",newZ1,8);
     unsigned long *newX1 = bigNumModMult(r5,8,r6,8,8,255,19); //(x1^2 − z1^2)^2
-    printBigNum("newX1: ",newX1,8);
+    //printBigNum("newX1: ",newX1,8);
     unsigned long *newZ2 = bigNumModMult(r11,8,x,8,8,255,19); //4x(x1z2-x2z1)^2
-    printBigNum("newZ2: ",newZ2,8);
+    //printBigNum("newZ2: ",newZ2,8);
     unsigned long *newX2 = bigNumModMult(r9,8,r9,8,8,255,19); //4(x1x2 - z1z2)^2
-    printBigNum("newX2: ",newX2,8);
+    //printBigNum("newX2: ",newX2,8);
     memcpy(x1,newX1,8*sizeof(unsigned long));memcpy(x2,newX2,8*sizeof(unsigned long));
     
     memcpy(z1,newZ1,8*sizeof(unsigned long));memcpy(z2,newZ2,8*sizeof(unsigned long));

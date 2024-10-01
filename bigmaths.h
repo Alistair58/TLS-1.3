@@ -4,6 +4,7 @@ unsigned long* multiAdd(unsigned long *a,int lenA,unsigned long *b, int lenB, un
 unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest);
 unsigned long* bigNumModMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult);
 unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest);
+unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,unsigned long *p,int lenP);
 unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult, int lenDest);
 unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int lenP, int lenDest,int bitMod,int carryMult);
 unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, int littleNum,int lenDest);
@@ -335,11 +336,11 @@ unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,in
     return result;
 }
 
-unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult,unsigned long *p,int lenP){
+unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,unsigned long *p,int lenP){
     long long temp;
-    long carry=0;
-    printBigNum("a",a,lenA);
-    printBigNum("b",b,lenB);
+    bool carry,prevCarry;
+    //printBigNum("a",a,lenA);
+    //printBigNum("b",b,lenB);
     unsigned long *result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
         perror("\nCalloc error during subtraction");
@@ -358,29 +359,29 @@ unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB
         if(iB<0) op2 = 0;
         else op2 = b[iB];
         
-        temp = (long long) op1- (long long) op2+carry; //If you don't cast, you don't get any negatives
-        carry = temp >> (sizeof(unsigned long)*8); //check for negative number
-        printf("Op1 %lu Op2, %lu carry %ld result %lld",op1,op2,carry,temp);
+        temp = (long long) op1- (long long) op2; //If you don't cast, you don't get any negatives
+        prevCarry = carry;
+        carry = (long long) (temp+((carry)?-1:0)) >> (sizeof(unsigned long)*8); //If this is negative or any previous digits have been negative
         if(carry){
-            if(i!=0){
-                temp += pow(2,sizeof(unsigned long)*8); //Make it positive
-                result[i] = temp;
-            }
-            else{
+            //if(i!=0){
+                temp += p[i]; //Make it positive
+           // }
+            /*else{
                 /*256 - 19 = 237
                 512 mod (237) = 38 (=2*19)
-                -512 mod(237) = 237-38*/
+                -512 mod(237) = 237-38
                 temp *= -1;
                 result[i] = temp;
-                unsigned long* mod = bigNumBitMod(result,lenDest,bitMod,carryMult,lenDest);
-                unsigned long* trueResult = bigNumSub(p,lenP,mod,lenDest,lenDest);
+                printBigNum("pre mod result",result,lenDest);
+                unsigned long* trueResult = bigNumSub(p,lenP,result,lenDest,lenDest);
                 memcpy(result,trueResult,lenDest*sizeof(unsigned long));
-                free(mod);free(trueResult);
-            }
+                free(trueResult);
+            }*/
         }
-        else result[i] = temp;
+        else if(prevCarry)temp--;
+        result[i] = temp;
     }
-
+    //printBigNum("Result: ",result,lenDest);
     return result;
 }
 
@@ -388,17 +389,20 @@ unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int len
     //inv a = a^p-2
     int chunk = lenP - 1;
     bool started = false;
+    unsigned long *pCpy = calloc(lenP,sizeof(unsigned long));
     unsigned long *inv = calloc(lenA,sizeof(unsigned long));
     unsigned long *r = calloc(lenA,sizeof(unsigned long));
-    memcpy(r,a,lenA*sizeof(unsigned long));
+    
     unsigned long *temp1,*temp2;
     unsigned long *modTemp1,*modTemp2;
-    if(!r || !inv){
+    if(!r || !inv || !pCpy){
         perror("\nCalloc error during inverse");
         exit(1);
     }
+    memcpy(r,a,lenA*sizeof(unsigned long));
+    memcpy(pCpy,p,lenP*sizeof(unsigned long));
     while(chunk > 0){ 
-        if(p[chunk] & 1 ==1){
+        if(pCpy[chunk] & 1 ==1){
             if(!started){
                 started = true;
                 memcpy(inv,r,sizeof(unsigned long)*lenA);
@@ -406,12 +410,12 @@ unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int len
             else{
                 temp1 = bigNumMult(inv,lenA,r,lenA,lenA*2);
                 modTemp1 = bigNumBitMod(temp1,lenA*2,bitMod,carryMult,lenA);
-                memcpy(inv,modTemp1,lenP * sizeof(unsigned long));
+                memcpy(inv,modTemp1,lenA * sizeof(unsigned long));
                 free(temp1); free(modTemp1);
             }
         }
-        p[chunk] >>= 1;
-        if(p[chunk]==0) chunk--;
+        pCpy[chunk] >>= 1;
+        if(pCpy[chunk]==0) chunk--;
         temp2 = bigNumMult(r,lenA,r,lenA,lenA*2);
         modTemp2 = bigNumBitMod(temp2,lenA*2,bitMod,carryMult,lenA);
         memcpy(r,modTemp2,lenA * sizeof(unsigned long));

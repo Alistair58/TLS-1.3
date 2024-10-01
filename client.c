@@ -32,13 +32,22 @@ int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
+    /*unsigned long num1[] = {0,0,0,0,1,2,0,6};
+    unsigned long num2[] = {0,0,0,0,2,1,0,3};
+    unsigned long *testNum1 = createBigNum(num1,8);
+    unsigned long *testNum2 = createBigNum(num2,8);
+    unsigned long *result = bigNumModSub(num2,8,num1,8,8,curve25519Params.p,8);
+    printBigNum("P: ",curve25519Params.p,8);*/
+    
     unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
     struct ClientHello clientHello = generateClientHello(privateDHRandom);
     if(connectToServer(&addr,&sock)==0){
+        printBigNum("P before",curve25519Params.p,8);
         sendClientHello(sock,addr,buffer,1024,clientHello);
         struct ServerHello serverHello = waitForServerHello(sock,buffer,1024);
         unsigned long *privateECDHKey = generatePrivateECDH(serverHello.keyExchange,privateDHRandom);
         close(sock);
+        printBigNum("P after",curve25519Params.p,8);
         printf("\nDisconnected from server.");
         free(privateECDHKey);free(privateDHRandom);
     }
@@ -87,10 +96,10 @@ struct ClientHello generateClientHello(unsigned long *privateDHRandom){
     printf("\nGenerating random number. Please move your mouse until generation is completed");
     randomNumber(clientRandom,1,NULL);
     randomNumber(privateDHRandom,8,curve25519Params.n);
-   // unsigned long arr[] = {0,0,0,0,0,0,0,4};
-    //unsigned long *TEMP = createBigNum(arr,8);
-    //memcpy(privateDHRandom,TEMP,8*sizeof(unsigned long));
-    //free(TEMP);
+    unsigned long arr[] = {0,0,0,0,0,0,0,4};
+    unsigned long *TEMP = createBigNum(arr,8);
+    memcpy(privateDHRandom,TEMP,8*sizeof(unsigned long));
+    free(TEMP);
     printf("\nGeneration completed");
     printf("\nClient random %lu Client private DH Random: %lu %lu %lu %lu %lu %lu %lu %lu",clientRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
     privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);
