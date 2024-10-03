@@ -121,6 +121,7 @@ void montgomeryLadder(unsigned long *x1, unsigned long *x2, unsigned long *z1, u
     //printBigNum("r9: ",r9,8);
     unsigned long *r10 = bigNumModSub(r7,8,r8,8,8,curve25519Params.p,8); // 2(x1z2 -x2z1)
     //printBigNum("r10: ",r10,8);
+    //MOD DOESN'T WORK FOR BIG NUMBERS
     unsigned long *r11 = bigNumModMult(r10,8,r10,8,8,255,19);// 4(x1z2 -x2z1)^2
     //printBigNum("r11: ",r11,8);
     unsigned long *r12 = bigNumModSub(r5,8,r6,8,8,curve25519Params.p,8); // 4x1z1

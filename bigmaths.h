@@ -211,7 +211,11 @@ unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,i
 
 unsigned long* bigNumModMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult){
     unsigned long *multResult = bigNumMult(a,lenA,b,lenB,lenDest*2);
+    //Multiplication works - tested
+    //Mod might work - hard to tell
     unsigned long *modResult = bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,lenDest);
+    //((1313454604*2^224+1181031284*2^192+3085259558*2^160+1799379996*2^128+2147483647*2^96+1724*2^64+2942037868*2^32+3350119311)^2)%(2^255-19)
+    //It says first digit is 1558472168 but my first digit is 369177677 - need to test with smaller numbers
     free(multResult);
     return modResult;
 }
@@ -227,8 +231,9 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
         memcpy(product,a,lenA*sizeof(unsigned long));
         return product;
     }
-    unsigned long *carry, *realCarry,*addedCarry;
+    unsigned long *carry, *realCarry,*addedCarry,doubleCarry;
     do{//Repeat until no more modding is require, 1 iteration on 0xfffff will require another mod
+        doubleCarry = 0;
         int bitDepth = bitMod%32; //How far to go into the first chunk
         carry = calloc(i+1,sizeof(unsigned long)); //Allocate enough chunks
         if(!carry){
@@ -237,11 +242,13 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
         }
         for(int j=0;j<=i;j++){ //Go through all the chunks that are too big
             if(j==i){
-                carry[j] = a[j] >> bitDepth;
-                a[j] -= carry[j] << bitDepth;
+                carry[j] = (a[j] >> bitDepth) + doubleCarry;
+                a[j] -= (carry[j]-doubleCarry) << bitDepth;
             }
             else{
-                carry[j] = a[j];
+                 //Double carry ensures that the positioning of array elements is correct
+                carry[j] = (a[j] >> bitDepth) + doubleCarry; //e.g. if you are doing bitDepth 31 and there is a {...,2} {1} carry this should be represented as {0,21}
+                doubleCarry = a[j] - (a[j] >> bitDepth);
                 a[j] = 0;
             }
         }
@@ -388,6 +395,7 @@ unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB
 unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int lenP, int lenDest,int bitMod,int carryMult){
     //inv a = a^p-2
     int chunk = lenP - 1;
+    int chunkDepth = 0;
     bool started = false;
     unsigned long *pCpy = calloc(lenP,sizeof(unsigned long));
     unsigned long *inv = calloc(lenA,sizeof(unsigned long));
@@ -401,7 +409,7 @@ unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int len
     }
     memcpy(r,a,lenA*sizeof(unsigned long));
     memcpy(pCpy,p,lenP*sizeof(unsigned long));
-    while(chunk > 0){ 
+    while(chunk > -1){ 
         if(pCpy[chunk] & 1 ==1){
             if(!started){
                 started = true;
@@ -415,7 +423,11 @@ unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int len
             }
         }
         pCpy[chunk] >>= 1;
-        if(pCpy[chunk]==0) chunk--;
+        chunkDepth++;
+        if(chunkDepth==32){
+            chunk--;
+            chunkDepth=0;
+        }
         temp2 = bigNumMult(r,lenA,r,lenA,lenA*2);
         modTemp2 = bigNumBitMod(temp2,lenA*2,bitMod,carryMult,lenA);
         memcpy(r,modTemp2,lenA * sizeof(unsigned long));

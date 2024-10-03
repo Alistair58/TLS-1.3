@@ -17,16 +17,6 @@ struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff);
 unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH);
 //gcc client.c -o client.exe -g -l ws2_32
 
-/*
-USEFUL
-memset(&buffer,0,sizeof(buffer)); //Remove any rubbish from buffer
-strcpy(buffer,"Client Test Message");
-send(sock,buffer,strlen(buffer),0);
-
-memset(&buffer,0,sizeof(buffer)); 
-recv(sock,buffer,sizeof(buffer),0);
-printf("\nClient received: %s",buffer);
-*/
 
 int main(int argc, char** argv) {
     int sock;
@@ -42,12 +32,10 @@ int main(int argc, char** argv) {
     unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
     struct ClientHello clientHello = generateClientHello(privateDHRandom);
     if(connectToServer(&addr,&sock)==0){
-        printBigNum("P before",curve25519Params.p,8);
         sendClientHello(sock,addr,buffer,1024,clientHello);
         struct ServerHello serverHello = waitForServerHello(sock,buffer,1024);
         unsigned long *privateECDHKey = generatePrivateECDH(serverHello.keyExchange,privateDHRandom);
         close(sock);
-        printBigNum("P after",curve25519Params.p,8);
         printf("\nDisconnected from server.");
         free(privateECDHKey);free(privateDHRandom);
     }
@@ -96,7 +84,7 @@ struct ClientHello generateClientHello(unsigned long *privateDHRandom){
     printf("\nGenerating random number. Please move your mouse until generation is completed");
     randomNumber(clientRandom,1,NULL);
     randomNumber(privateDHRandom,8,curve25519Params.n);
-    unsigned long arr[] = {0,0,0,0,0,0,0,4};
+    unsigned long arr[] = {12345678,0,0,0,0,0,0,4};
     unsigned long *TEMP = createBigNum(arr,8);
     memcpy(privateDHRandom,TEMP,8*sizeof(unsigned long));
     free(TEMP);
