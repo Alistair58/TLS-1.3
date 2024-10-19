@@ -22,14 +22,14 @@ int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
-    /*unsigned long num1[] = {0,0,0,0,1,2,0,6};
-    unsigned long num2[] = {0,0,0,0,2,1,0,3};
-    unsigned long *testNum1 = createBigNum(num1,8);
-    unsigned long *testNum2 = createBigNum(num2,8);
-    unsigned long *result = bigNumModSub(num2,8,num1,8,8,curve25519Params.p,8);
-    printBigNum("P: ",curve25519Params.p,8);*/
+    unsigned long num1[] = {5,4294967290,12345};
+    unsigned long *testNum1 = createBigNum(num1,3);
+    unsigned long num2[] = {6,4294967291,54321};
+    unsigned long *testNum2 = createBigNum(num2,3);
+    unsigned long *result = bigNumMult(testNum1,3,testNum2,3,10);
+    printBigNum("Result: ",result,10);
     
-    unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
+    /*unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
     struct ClientHello clientHello = generateClientHello(privateDHRandom);
     if(connectToServer(&addr,&sock)==0){
         sendClientHello(sock,addr,buffer,1024,clientHello);
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
         close(sock);
         printf("\nDisconnected from server.");
         free(privateECDHKey);free(privateDHRandom);
-    }
+    }*/
     return 0;
 }
 
