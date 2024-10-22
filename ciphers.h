@@ -54,8 +54,8 @@ unsigned long* X25519(unsigned long *p,unsigned long *inpQ){
     memcpy(x2,p,8*sizeof(unsigned long));memcpy(pSub2,curve25519Params.p,8*sizeof(unsigned long));
     memcpy(q,inpQ,8*sizeof(unsigned long));
     pSub2[7] -=2; 
-    //q[7] &= 0xfffffff8; //q[0] & 11111 ... 1000 - set last 3 bits = 0 so it is multiple of 8
-    //q[0] = (q[0] & 0x7fffffff) | 0x40000000; //Remove MSB and set next bit to 1 so it runs in constant time
+    q[7] &= 0xfffffff8; //q[0] & 11111 ... 1000 - set last 3 bits = 0 so it is multiple of 8 - small group confinement
+    q[0] = (q[0] & 0x7fffffff) | 0x40000000; //Remove MSB and set next bit to 1 so it runs in constant time
     if(!x1 || !x2 || !z1 || !z2 || !pSub2){
         perror("\nMalloc error during X25519");
         exit(1);
@@ -63,14 +63,8 @@ unsigned long* X25519(unsigned long *p,unsigned long *inpQ){
     x1[7] = z2[7] = 1;
     for(int i=1; i<256;i++){ //Start at bit 255       
         bit = (q[i >> 5] >> (31-(i & 31))) & 1; //i>>5 divides by 32 and tell us which chunk we want; i&31 shifts by the chunk i mod 32
-        //bit does work - don't check again
         swapPoints(x1,x2,8,bit); //Swap if bit is 1
         swapPoints(z1,z2,8,bit); //Run anyway for constant time
-        //if(bit) printf(" i: %d bit: %d last 31: %d",i,bit,i & 31);
-        //printBigNum("X1: ",x1,8);
-        //printBigNum("X2: ",x2,8);
-        //printBigNum("z1: ",z1,8);
-        //printBigNum("z2: ",z2,8);
         montgomeryLadder(x1,x2,z1,z2,p);
         
         swapPoints(x1,x2,8,bit); //Swap back

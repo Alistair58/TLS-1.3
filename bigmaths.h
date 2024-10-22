@@ -7,8 +7,8 @@ unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,in
 unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,unsigned long *p,int lenP);
 unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult, int lenDest);
 unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int lenP, int lenDest,int bitMod,int carryMult);
-unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, int littleNum,int lenDest);
-unsigned long* bigNumModMultByLittle(unsigned long *a,int lenA, int littleNum,int lenDest,int bitMod, int carryMult);
+unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, unsigned long littleNum,int lenDest);
+unsigned long* bigNumModMultByLittle(unsigned long *a,int lenA,unsigned long littleNum,int lenDest,int bitMod, int carryMult);
 
 
 
@@ -205,7 +205,7 @@ unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,i
         //printf("\nMult result llu %llu ",result);
         unsigned long smallResult = (unsigned long) (result & 0xffffffffUL);
        // printf("\nSmall result %lu ",smallResult);
-        unsigned long bigResult = (unsigned long) (result >> sizeof(unsigned long) * 8);
+        unsigned long bigResult = (unsigned long) (result >> 32);
         //printf("\nBig result %lu ",bigResult);
         product[0] = bigResult;
         product[1] = smallResult;
@@ -244,20 +244,21 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
         }
         for(int j=0;j<=i;j++){ //Go through all the chunks that are too big
             if(j==i){
-                carry[j] = (a[j] >> bitDepth) + doubleCarry;
+                carry[j] = (unsigned long long) (a[j] >> bitDepth) + doubleCarry;
                 a[j] -= (a[j] >> bitDepth) << bitDepth; //get rid of the big bit
             }
             else{
                  //Double carry ensures that the positioning of array elements is correct
-                carry[j] = (a[j] >> bitDepth) + doubleCarry; //e.g. if you are doing bitDepth 31 and there is a {...2},{1} carry this should be represented as {0,2*2^1 + 1}
+                carry[j] = (unsigned long long) (a[j] >> bitDepth) + doubleCarry; //e.g. if you are doing bitDepth 31 and there is a {...2},{1} carry this should be represented as {0,2*2^1 + 1}
                 doubleCarry = (a[j] - ((a[j] >> bitDepth)<<bitDepth)) * (1<<(32-bitDepth));
                 a[j] = 0;
             }
         }
+        int lenRealCarry = (!(bitMod%32))?2:1; //Doesn't work with addition and ternary operator
+        lenRealCarry += i;
+        realCarry = bigNumMultByLittle(carry,i+1,carryMult,lenRealCarry);
 
-        realCarry = bigNumMultByLittle(carry,i+1,carryMult,i+2);
-
-        addedCarry = bigNumAdd(realCarry,i+2,a,lenA,lenA);
+        addedCarry = bigNumAdd(realCarry,lenRealCarry,a,lenA,lenA);
         memcpy(a,addedCarry, lenA * sizeof(unsigned long));
 
         if(a[i] < pow(2,bitDepth) && (i==0 || a[i-1] == 0)) break;
@@ -271,7 +272,7 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
 
 
 
-unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, int littleNum,int lenDest){
+unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, unsigned long littleNum,int lenDest){
     if(lenDest<lenA){
         perror("\nStorage destination for multiplication is too small");
         exit(1);
@@ -284,23 +285,29 @@ unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, int littleNum,int l
     unsigned long thisChunk = 0;
     unsigned long carry = 0;
     int pI;
-    for(int i=lenA-1;i>-1;i--){
+    for(int i=lenA-1;i>-1;i--){ //TODO - doesn't take into account lenDest and so overflows on any possible overflow
         pI = lenDest - (lenA-i);
-        unsigned long long result = a[i]*littleNum;
-        thisChunk = (result+carry) % (unsigned long) pow(256,sizeof(unsigned long));
-        carry = result >> sizeof(unsigned long) * 8;  
+        unsigned long long result = (unsigned long long)a[i]*littleNum + carry;
+        thisChunk = result & 0xffffffff;
+        carry = result >> 32;  
         product[pI] = thisChunk;
         if(i==0 && carry){
-            free(product);
-            perror("\nMultiplication overflow");
-            exit(1);
+            if(lenDest>lenA){
+                product[pI-1] = carry;
+            }
+            else{
+                free(product);
+                perror("\nMultiplication overflow");
+                exit(1);
+            }
+            
         }
     }
     return product;
     
 }
 
-unsigned long* bigNumModMultByLittle(unsigned long *a,int lenA, int littleNum,int lenDest,int bitMod, int carryMult){
+unsigned long* bigNumModMultByLittle(unsigned long *a,int lenA, unsigned long littleNum,int lenDest,int bitMod, int carryMult){
     unsigned long *multResult = bigNumMultByLittle(a,lenA,littleNum,lenDest*2);
     unsigned long *modResult = bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,lenDest);
     free(multResult);
@@ -331,9 +338,9 @@ unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,in
         if(iB<0) op2 = 0;
         else op2 = b[iB];
         temp = (long long) op1-op2+carry;
-        carry = temp >> (sizeof(long long)*8 -1); //check for negative number
-        if(carry!=0){
-            temp &= temp &= 0xffffffff;
+        carry = temp >> (sizeof(unsigned long)*8); //check for negative number
+        if(carry){
+            temp &= 0xffffffff;
             if(i==0){
                 free(result);
                 perror("\nFirst argument must be smaller than second for subtraction");
@@ -346,8 +353,11 @@ unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,in
 }
 
 unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,unsigned long *p,int lenP){
-    long long temp;
-    bool carry,prevCarry;
+    //Answer is guaranteed in range (2^bitmod-carryMult,-(2^bitmod-carryMult))
+    //As the inputs have already been modded
+    // -25 mod 256 = 231 = 256 -25
+    //
+    long long temp=0,carry=0;
     unsigned long *result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
         perror("\nCalloc error during subtraction");
@@ -366,15 +376,69 @@ unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB
         if(iB<0) op2 = 0;
         else op2 = b[iB];
         
-        temp = (long long) op1- (long long) op2; //If you don't cast, you don't get any negatives
-        prevCarry = carry;
-        carry = (long long) (temp+((prevCarry)?-1:0)) >> (sizeof(unsigned long)*8); //If this is negative or any previous digits have been negative
+        temp = (long long) op1- (long long) op2 + (long long) carry; //If you don't cast, you don't get any negatives
+        carry = (long long) temp >> 32; //If this is negative or any previous digits have been negative
+        
         if(carry){
-            temp += p[i]; //Make it positive
+            int iP = lenP - (lenDest-i);
+            if(iP<0){
+                free(result);free(a);free(b);
+                perror("Error? - bigNumModSub");
+                exit(1);
+            }
+            if(i==0){
+                int j=255,bit=0; //Turn it positive and subtract it from p
+                unsigned long notted,chunk;
+                while(bit==0){
+                    if(j<32){
+                        bit = (temp >> (31-(j & 31))) & 1;
+                    }
+                    else{
+                        bit = (result[j >> 5] >> (31-(j & 31))) & 1;
+                    }
+                    j--;
+                    
+                }
+                while(j>=0){
+                    if(j<32){
+                        chunk = (temp >> (31-(j & 31)));
+                        notted = ~(chunk << (31-(j & 31)));
+                    }
+                    else{
+                        chunk = (result[j >> 5] >> (31-(j & 31)));
+                        notted = ~(chunk << (31-(j & 31)));
+                        notted -= (pow(2,(31-(j & 31)))-1); //Remove the following bits which have been turned to 1s
+                        // 0110110111
+                        // 0110110000
+                        // 1001001111
+                        // 1001000000
+                    }
+                    
+                    if(j%32 != 31){
+                        result[j >> 5] = notted + (result[j>>5]&((unsigned long)pow(2,(31-(j & 31)))-1));
+                        j-= (j&31)+1;
+                    }
+                    else{
+                        result[j >> 5] = notted; 
+                        j-= 32;
+                    }
+                    
+                }
+                unsigned long *modded = bigNumSub(p,lenP,result,lenDest,lenDest); //Will be positive
+                memcpy(result,modded,lenDest*sizeof(unsigned long));
+                free(modded);
 
+            }
+            else{
+                temp -= (long long) carry << 32; //Make it positive
+                result[i] = temp;
+            }
         }
-        else if(prevCarry)temp--;
-        result[i] = temp;
+        else{
+            result[i] = temp;
+        }
+        
+        
     }
     return result;
 }
