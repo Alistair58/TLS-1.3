@@ -26,6 +26,9 @@
         "random": "c",
         "string.h": "c",
         "numbers": "c",
-        "ws2tcpip.h": "c"
+        "ws2tcpip.h": "c",
+        "array": "cpp",
+        "string_view": "cpp",
+        "span": "cpp"
     }
 }

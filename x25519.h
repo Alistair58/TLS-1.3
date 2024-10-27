@@ -1,56 +1,23 @@
-#include <sysinfoapi.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include "bigmaths.h"
-int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n);
+#include "structs.h"
+
+
 unsigned long* X25519(unsigned long* p,unsigned long *q);
 void swapPoints(unsigned long *a1, unsigned long *a2,int lenA, int bit);
 void montgomeryLadder(unsigned long *x1, unsigned long *x2, unsigned long *z1, unsigned long *z2,unsigned long *x);
 
 
-int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A chunk is 32 bits
-    int time = 1000;
-    unsigned long long product; //Unsigned long would mean the mod would never work and would output 0
-    int x;
-    int y;
-    POINT point;
-    ULONGLONG tickCount = GetTickCount64();
-    ULONGLONG targetTime = tickCount +time; //2.5 seconds later
-    product = (tickCount) % (unsigned long)(pow(256,sizeof(unsigned long))-1); //mod 4 bytes
-    int chunkWriteCount = 1;
-    unsigned long mod;
-    if(n==NULL) mod = pow(256,sizeof(unsigned long))-1; //Can only get up to 256^unsigned long -2
-    else mod = n[0];
-    while(chunkWriteCount<=chunks){
-    
-        GetCursorPos(&point);
-        x = point.x;
-        y = point.y;
-        if(product && x && y){ //If not zero
-            product = (product * x * y)% mod;
-        }
-        else{
-            product += x + y;
-        }
-        if((targetTime - tickCount) <= time*((float)(chunks-chunkWriteCount)/(chunks+1))){ //+1 means chunks aren't written at start or end
-            int timeProg = (int)(targetTime - tickCount);
-            //TIME PROG PRINTS OUT ZERO
-            int timeNeeded = (int)time*((float)(chunks-chunkWriteCount+1)/(chunks+1));
-            bigIntArr[chunkWriteCount-1] = product;
-            chunkWriteCount ++;
-            mod = pow(256,sizeof(unsigned long))-1;
-            if(chunkWriteCount > chunks) break;
-        }
-        tickCount = GetTickCount64();
-    }
-    
-    return 0;
-}
+
 
 unsigned long* X25519(unsigned long *p,unsigned long *inpQ){
     int bit;
     unsigned long *x1,*x2,*z1,*z2,*pSub2,*q;
-    x1 = calloc(8,sizeof(unsigned long)); x2 = calloc(8,sizeof(unsigned long));
-    z1 = calloc(8,sizeof(unsigned long)); z2 = calloc(8,sizeof(unsigned long));
-    pSub2 = calloc(8,sizeof(unsigned long));q = calloc(8,sizeof(unsigned long));
+    x1 = (unsigned long*) calloc(8,sizeof(unsigned long)); x2 = (unsigned long*) calloc(8,sizeof(unsigned long));
+    z1 = (unsigned long*) calloc(8,sizeof(unsigned long)); z2 = (unsigned long*) calloc(8,sizeof(unsigned long));
+    pSub2 = (unsigned long*) calloc(8,sizeof(unsigned long));q = (unsigned long*) calloc(8,sizeof(unsigned long));
     memcpy(x2,p,8*sizeof(unsigned long));memcpy(pSub2,curve25519Params.p,8*sizeof(unsigned long));
     memcpy(q,inpQ,8*sizeof(unsigned long));
     pSub2[7] -=2; 
@@ -71,8 +38,6 @@ unsigned long* X25519(unsigned long *p,unsigned long *inpQ){
         swapPoints(z1,z2,8,bit); 
 
     }
-    printf("\n Done");
-    printBigNum("Last X1 ",x1,8);
     unsigned long *invZ1 = bigNumModInv(z1,8,pSub2,8,8,255,19);
     
     unsigned long *result = bigNumModMult(invZ1,8,x1,8,8,255,19);

@@ -5,10 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <winuser.h>
-#include <math.h>
 #include "structs.h"
-#include "ciphers.h"
+#include "random.h"
+#include "x25519.h"
 
 int connectToServer(struct sockaddr_in* addr, int* sock);
 int sendClientHello(int sock,struct sockaddr_in addr,char* buffer,int lenBuff,struct ClientHello clientHello);
@@ -28,6 +27,9 @@ int main(int argc, char** argv) {
         sendClientHello(sock,addr,buffer,1024,clientHello);
         struct ServerHello serverHello = waitForServerHello(sock,buffer,1024);
         unsigned long *privateECDHKey = generatePrivateECDH(serverHello.keyExchange,privateDHRandom);
+
+        //AES IN GCM
+        
         close(sock);
         printf("\nDisconnected from server.");
         free(privateECDHKey);free(privateDHRandom);

@@ -8,7 +8,9 @@
 #include <winuser.h>
 #include <math.h>
 #include "structs.h"
-#include "ciphers.h"
+#include "random.h"
+#include "x25519.h"
+
 int startServer(struct sockaddr_in * addr,int* sock);
 struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff);
 struct ServerHello generateServerHello(unsigned long *privateDHRandom);
