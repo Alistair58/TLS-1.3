@@ -8,6 +8,7 @@
 #include "structs.h"
 #include "random.h"
 #include "x25519.h"
+#include "aes.h"
 
 int connectToServer(struct sockaddr_in* addr, int* sock);
 int sendClientHello(int sock,struct sockaddr_in addr,char* buffer,int lenBuff,struct ClientHello clientHello);
@@ -21,7 +22,9 @@ int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
-    unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
+    printf("%x", polynomialModMult(0x57,0x13)); 
+    //printf("%d",multiplicativeInverse(0x95));
+    /*unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
     struct ClientHello clientHello = generateClientHello(privateDHRandom);
     if(connectToServer(&addr,&sock)==0){
         sendClientHello(sock,addr,buffer,1024,clientHello);
@@ -33,7 +36,7 @@ int main(int argc, char** argv) {
         close(sock);
         printf("\nDisconnected from server.");
         free(privateECDHKey);free(privateDHRandom);
-    }
+    }*/
     return 0;
 }
 

@@ -1,8 +1,6 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include "bigmaths.h"
-#include "structs.h"
 
 
 unsigned long* X25519(unsigned long* p,unsigned long *q);

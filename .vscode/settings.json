@@ -29,6 +29,8 @@
         "ws2tcpip.h": "c",
         "array": "cpp",
         "string_view": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "semaphore": "cpp",
+        "valarray": "cpp"
     }
 }
