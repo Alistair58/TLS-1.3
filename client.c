@@ -22,7 +22,8 @@ int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
-    printf("%x", polynomialModMult(0x57,0x13)); 
+    //printf("%x",polynomialDiv(0xa0,0x40));
+    printf("%x %x", polynomialModMult(0x60,0x16),multiplicativeInverse(0x60)); 
     //printf("%d",multiplicativeInverse(0x95));
     /*unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
     struct ClientHello clientHello = generateClientHello(privateDHRandom);
