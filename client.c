@@ -23,7 +23,17 @@ int main(int argc, char** argv) {
     struct sockaddr_in addr;
     char buffer[1024];
     //printf("%x",polynomialDiv(0xa0,0x40));
-    printf("%x %x", polynomialModMult(0x60,0x16),multiplicativeInverse(0x60)); 
+    unsigned long keyArr[] = {1,2,3,4,5,6,7,8};
+    unsigned long *key = createBigNum(keyArr,8);
+    unsigned long dataArr[] = {0,0,0,0,0,0,10,20};
+    unsigned long *data = createBigNum(dataArr,8);
+    unsigned long *dest = calloc(8,sizeof(unsigned long));
+    printBigNum("Data",data,8);
+    aesEncrypt(key,data,dest);
+    printBigNum("Encrypted",dest,8);
+    aesDecrypt(key,dest,dest);
+    printBigNum("Decrypted",dest,8);
+    free(key);free(data);free(dest);
     //printf("%d",multiplicativeInverse(0x95));
     /*unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
     struct ClientHello clientHello = generateClientHello(privateDHRandom);
