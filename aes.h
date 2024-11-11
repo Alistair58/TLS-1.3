@@ -79,7 +79,7 @@ void aesEncrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
     byte keyExp[120][4] = {{0}}; //Even though keyExpLen is const it needs a number to initialise array
     byte state[8][4] = {{0}};
     for(int i=0;i<numCols;i++){//Initialise state
-        byte col[] = {((byte)data[i]),((byte)data[i]>>8),((byte)data[i]>>16),((byte) data[i]>>24)};
+        byte col[] = {((byte)data[i]),((byte)(data[i]>>8)),((byte)(data[i]>>16)),((byte) (data[i]>>24))}; //little endian
         memcpy(state[i],col,4*sizeof(byte));
     }
     keyExpansion(key,keyExp);
@@ -87,9 +87,9 @@ void aesEncrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
     for(int i=1 ; i<numRounds ; i++ ) aesRound(state,keyExp,i) ;
     finalRound(state,keyExp);
 
-    for(int i=0;i<8;i++){//Copy to dest
+    for(int i=0;i<numCols;i++){//Copy to dest
         dest[i] = (unsigned long) state[i][0] | (unsigned long) state[i][1]<<8 
-                | (unsigned long) state[i][2]<<16 | (unsigned long) state[i][0]<<24;
+                | (unsigned long) state[i][2]<<16 | (unsigned long) state[i][3]<<24;
     }
 }
 
@@ -97,7 +97,7 @@ void aesDecrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
     byte invKeyExp[120][4] = {{0}}; //Even though keyExpLen is const it needs a number to initialise array
     byte state[8][4] = {{0}};
     for(int i=0;i<numCols;i++){//Initialise state
-        byte col[] = {((byte)data[i]),((byte)data[i]>>8),((byte)data[i]>>16),((byte) data[i]>>24)};
+        byte col[] = {((byte)(data[i])),((byte)(data[i]>>8)),((byte)(data[i]>>16)),((byte) (data[i]>>24))};
         memcpy(state[i],col,4*sizeof(byte));
     }
     invKeyExpansion(key,invKeyExp);
@@ -105,9 +105,9 @@ void aesDecrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
     for(int i=numRounds-1 ; i>0;i--) invAesRound(state,invKeyExp,i) ;
     invFinalRound(state,invKeyExp);
 
-    for(int i=0;i<8;i++){//Copy to dest
+    for(int i=0;i<numCols;i++){//Copy to dest
         dest[i] = (unsigned long) state[i][0] | (unsigned long) state[i][1]<<8 
-                | (unsigned long) state[i][2]<<16 | (unsigned long) state[i][0]<<24;
+                | (unsigned long) state[i][2]<<16 | (unsigned long) state[i][3]<<24;
     }
 }
 
