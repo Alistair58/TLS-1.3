@@ -22,8 +22,15 @@ int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
-    //printf("%x",polynomialDiv(0xa0,0x40));
-    unsigned long keyArr[] = {1,2,3,4,5,6,7,8};
+    // byte c[] = {2,1,1,3}; 
+    // byte d[] = {0x0E,0x09,0x0D,0x0B};
+    // byte result[] = {0,0,0,0};
+    // vectorModMult(c,d,result);
+    // printf("Result %d %d %d %d",result[0],result[1],result[2],result[3]);
+    byte result1 = polynomialModMult(0x57,0x83);
+    byte result2 = polynomialModMult(0x57,0x13);
+    printf("Results %x %x",result1,result2);
+    /*unsigned long keyArr[] = {1,2,3,4,5,6,7,8};
     unsigned long *key = createBigNum(keyArr,8);
     unsigned long dataArr[] = {0,0,0,0,0,0,10,20};
     unsigned long *data = createBigNum(dataArr,8);
@@ -33,7 +40,7 @@ int main(int argc, char** argv) {
     printBigNum("Encrypted",dest,8);
     aesDecrypt(key,dest,dest);
     printBigNum("Decrypted",dest,8);
-    free(key);free(data);free(dest);
+    free(key);free(data);free(dest);*/
     //printf("%d",multiplicativeInverse(0x95));
     /*unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
     struct ClientHello clientHello = generateClientHello(privateDHRandom);

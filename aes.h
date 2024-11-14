@@ -28,6 +28,7 @@ void mixColumn(byte state[numCols][4]);
 void invMixColumn(byte state[numCols][4]);
 void shiftRow(byte state[numCols][4]);
 void invShiftRow(byte state[numCols][4]);
+byte rCon(byte i);
 
 
 byte sBox[] = {
@@ -121,7 +122,7 @@ void invKeyExpansion(unsigned long *key,byte invKeyExp[keyExpLen][4]){
 
 void keyExpansion(unsigned long *key,byte keyExp[keyExpLen][4]){
     for(int i = 0; i < keyLen; i++){
-        byte keyExp4Bytes[] = {((byte) key[i]>>24),((byte)key[i]>>16),((byte)key[i]>>8),((byte)key[i])};
+        byte keyExp4Bytes[] = {((byte) (key[i])),((byte) (key[i]>>8)),((byte) (key[i]>>16)),((byte)(key[i]>>24))}; //keeping with little endian
         memcpy(keyExp[i],keyExp4Bytes,4*sizeof(byte)); 
     }
     for(int i = keyLen; i < numCols * (numRounds + 1); i++){
@@ -133,7 +134,7 @@ void keyExpansion(unsigned long *key,byte keyExp[keyExpLen][4]){
         memcpy(temp,keyExp[i-1],4*sizeof(byte));
         if(i% keyLen == 0){ //If a multiple of keyLen do some mixing
             byte *rotated = rotate(temp);
-            byte roundConst[] = {pow(2,((i/keyLen)-1)),0,0,0};//RC[i] = x^(i-1)
+            byte roundConst[] = {rCon(i/keyLen),0,0,0};//RC[i] = x^(i-1) in GF 2^8
             for(int j=0;j<4;j++){
                 temp[j] = sBox[rotated[j]] ^ roundConst[j];
             }
@@ -155,12 +156,13 @@ void keyExpansion(unsigned long *key,byte keyExp[keyExpLen][4]){
 
 byte* rotate(byte *inp){
     byte *result = (byte*) calloc(4,sizeof(byte));
+    int index = 0;
     if(!result){
         perror("Calloc error during rotate");
         exit(1);
     }
     for(int i=0;i<4;i++){
-        result[i] = inp[(i-1)%4];
+        result[i] = inp[(i+1)%4];
     }
     return result;
 }
@@ -308,4 +310,12 @@ byte xtime(byte inp){ //Multiply by a single x as in paper
         product ^= 0x1b;
     }
     return (byte) product;
+}
+
+byte rCon(byte i){
+    byte product = 1;
+    for(int j=1;j<i;j++){ //Not constant time - but does not leak any information
+        product = xtime(product);
+    }
+    return product;
 }
