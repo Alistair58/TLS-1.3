@@ -9,26 +9,26 @@ const int numRows = 4; //constant for all block sizes
 const int keyLen = 8; // Number of 4-byte vectors long the key is
 const int keyExpLen = 120; //numCols * (numRounds+1);
 
-void aesEncrypt(unsigned long *key,unsigned long *data, unsigned long* dest);
-void aesDecrypt(unsigned long *key,unsigned long *data, unsigned long* dest);
-void keyExpansion(unsigned long *key,byte keyExp[keyExpLen][4]);
-void invKeyExpansion(unsigned long *key,byte invKeyExp[keyExpLen][4]);
-byte* rotate(byte *inp);
-void addRoundKey(byte state[numCols][4], byte keyExp[keyExpLen][4],int roundNum);
-void aesRound(byte state[numCols][4], byte keyExp[keyExpLen][4],int roundNum);
-void finalRound(byte state[numCols][4], byte keyExp[keyExpLen][4]);
-void invAesRound(byte state[numCols][4], byte invKeyExp[keyExpLen][4],int roundNum);
-void invFinalRound(byte state[numCols][4], byte invKeyExp[keyExpLen][4]);
-byte polynomialModMult(byte x, byte y);
-byte xtime(byte inp);
-void vectorModMult(byte *col1, byte *col2,byte *dest);
-void byteSub(byte state[numCols][4]);
-void invByteSub(byte state[numCols][4]);
-void mixColumn(byte state[numCols][4]);
+void aesEncrypt(unsigned long *key,unsigned long *data, unsigned long* dest);//
+void aesDecrypt(unsigned long *key,unsigned long *data, unsigned long* dest);//
+void keyExpansion(unsigned long *key,byte keyExp[keyExpLen][4]);//
+void invKeyExpansion(unsigned long *key,byte invKeyExp[keyExpLen][4]);//
+byte* rotate(byte *inp);//
+void addRoundKey(byte state[numCols][4], byte keyExp[keyExpLen][4],int roundNum);//
+void aesRound(byte state[numCols][4], byte keyExp[keyExpLen][4],int roundNum);//
+void finalRound(byte state[numCols][4], byte keyExp[keyExpLen][4]);//
+void invAesRound(byte state[numCols][4], byte invKeyExp[keyExpLen][4],int roundNum);//
+void invFinalRound(byte state[numCols][4], byte invKeyExp[keyExpLen][4]);//
+byte polynomialModMult(byte x, byte y);//
+byte xtime(byte inp);//
+void vectorModMult(byte *col1, byte *col2,byte *dest);//
+void byteSub(byte state[numCols][4]);//
+void invByteSub(byte state[numCols][4]);//
+void mixColumn(byte state[numCols][4]);//
 void invMixColumn(byte state[numCols][4]);
 void shiftRow(byte state[numCols][4]);
 void invShiftRow(byte state[numCols][4]);
-byte rCon(byte i);
+byte rCon(byte i);//
 
 
 byte sBox[] = {
@@ -255,7 +255,7 @@ void invShiftRow(byte state[numCols][4]){
     byte row2[4] = {0};
     byte row3[4] = {0};
     for(int i=0;i<numCols;i++){
-        row1[i] = state[(i-1)%numCols][1];
+        row1[i] = state[(i-1)%numCols][1];//TODO MODULO NEG NUM
         row2[i] = state[(i-3)%numCols][2];
         row3[i] = state[(i-4)%numCols][3];
     }
@@ -267,15 +267,16 @@ void invShiftRow(byte state[numCols][4]){
 }
 
 byte polynomialModMult(byte x, byte y){
-    int product = (int) (x&1)?x:0;
+    //int product = (int) (y&1)?y:0;
+    int product = 0;
     int bit = 0;
     byte r = x;
-    for(int i=1;i<8;i++){
+    for(int i=0;i<8;i++){
         bit = (y >> i) & 1;
-        r = xtime(r);
         if(bit){
             product ^= r;
         }
+        r = xtime(r);
     }
     return product;
 }
