@@ -102,10 +102,9 @@ void aesDecrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
         memcpy(state[i],col,4*sizeof(byte));
     }
     invKeyExpansion(key,invKeyExp);
-    addRoundKey(state,invKeyExp,numRounds); //First round is just the key
+    addRoundKey(state,invKeyExp,numRounds); 
     for(int i=numRounds-1 ; i>0;i--) invAesRound(state,invKeyExp,i) ;
     invFinalRound(state,invKeyExp);
-
     for(int i=0;i<numCols;i++){//Copy to dest
         dest[i] = (unsigned long) state[i][0] | (unsigned long) state[i][1]<<8 
                 | (unsigned long) state[i][2]<<16 | (unsigned long) state[i][3]<<24;
@@ -116,7 +115,7 @@ void invKeyExpansion(unsigned long *key,byte invKeyExp[keyExpLen][4]){
     keyExpansion(key,invKeyExp);
     byte d[] = {0x0E,0x09,0x0D,0x0B}; //MixColumn but for our funny sized key expansion
     for(int i=1;i<numRounds;i++){
-        vectorModMult(d,invKeyExp[i],invKeyExp[i]);
+        vectorModMult(d,invKeyExp[numCols*i],invKeyExp[numCols*i]);
     }
 }
 
@@ -235,9 +234,9 @@ void invMixColumn(byte state[numCols][4]){
 }
 
 void shiftRow(byte state[numCols][4]){
-    byte row1[4] = {0};
-    byte row2[4] = {0};
-    byte row3[4] = {0};
+    byte row1[8] = {0}; //yes should be numCols but compiler needs to know how big it is - will add dynamic memory later
+    byte row2[8] = {0};
+    byte row3[8] = {0};
     for(int i=numCols-1;i>-1;i--){
         row1[i] = state[(i+1)%numCols][1];
         row2[i] = state[(i+3)%numCols][2];
@@ -251,13 +250,13 @@ void shiftRow(byte state[numCols][4]){
 }
 
 void invShiftRow(byte state[numCols][4]){
-    byte row1[4] = {0};
-    byte row2[4] = {0};
-    byte row3[4] = {0};
+    byte row1[8] = {0};
+    byte row2[8] = {0};
+    byte row3[8] = {0};
     for(int i=0;i<numCols;i++){
-        row1[i] = state[(i-1)%numCols][1];//TODO MODULO NEG NUM
-        row2[i] = state[(i-3)%numCols][2];
-        row3[i] = state[(i-4)%numCols][3];
+        row1[i] = state[(i+numCols-1)%numCols][1];
+        row2[i] = state[(i+numCols-3)%numCols][2];
+        row3[i] = state[(i+numCols-4)%numCols][3];
     }
     for(int i=0;i<numCols;i++){
         state[i][1] = row1[i];
