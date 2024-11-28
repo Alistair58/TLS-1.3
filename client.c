@@ -15,6 +15,7 @@ int sendClientHello(int sock,struct sockaddr_in addr,char* buffer,int lenBuff,st
 struct ClientHello generateClientHello(unsigned long *privateDHRandom);
 struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff);
 unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH);
+void sendMessage(int sock,char *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg);
 //gcc client.c -o client.exe -g -l ws2_32
 
 
@@ -22,36 +23,22 @@ int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
-    // byte c[] = {2,1,1,3}; 
-    // byte d[] = {0x0E,0x09,0x0D,0x0B};
-    // byte e[] = {0xf2, 0x0a, 0x22, 0x5c};
-    // byte result[] = {0,0,0,0};
-    // vectorModMult(c,e,result);
-    // printf("Result %x %x %x %x",result[0],result[1],result[2],result[3]);
-    unsigned long keyArr[] = {1,2,3,4,5,6,7,8};
-    unsigned long *key = createBigNum(keyArr,8);
-    unsigned long dataArr[] = {0,0,0,0,0,1073741824,10,20};
-    unsigned long *data = createBigNum(dataArr,8);
-    unsigned long *dest = calloc(8,sizeof(unsigned long));
-    printBigNum("Data",data,8);
-    aesEncrypt(key,data,dest);
-    printBigNum("Encrypted",dest,8);
-    aesDecrypt(key,dest,dest);
-    printBigNum("Decrypted",dest,8);
-    free(key);free(data);free(dest);
-    /*unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
+
+    unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
     struct ClientHello clientHello = generateClientHello(privateDHRandom);
     if(connectToServer(&addr,&sock)==0){
         sendClientHello(sock,addr,buffer,1024,clientHello);
         struct ServerHello serverHello = waitForServerHello(sock,buffer,1024);
         unsigned long *privateECDHKey = generatePrivateECDH(serverHello.keyExchange,privateDHRandom);
 
-        //AES IN GCM
+        char *testMessage = "Hello world!";
+        sendMessage(sock,buffer,1024,privateECDHKey,testMessage,12);
+        //TODO GCM
         
         close(sock);
         printf("\nDisconnected from server.");
         free(privateECDHKey);free(privateDHRandom);
-    }*/
+    }
     return 0;
 }
 
@@ -169,7 +156,7 @@ struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff){
         if(j==0){ //Has to be outside other statement for 1st iteration
             memcpy(temp,&buffer[i],2*sizeof(char)); //Read size of next chunk
             temp[2] = '\0';
-            j = (int)strtol(temp,NULL,16);
+            j = (int)strtol(temp,NULL,16); //j is the size of the next chunk
             if(!j) break;
             len = j; //len remains constant while j decreases
             count++;
@@ -200,4 +187,21 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
     privateECDHKey[0],privateECDHKey[1],privateECDHKey[2],privateECDHKey[3],
     privateECDHKey[4],privateECDHKey[5],privateECDHKey[6],privateECDHKey[7]);
     return privateECDHKey;
+}
+
+void sendMessage(int sock,char *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg){
+    memset(buffer,0,lenBuff);
+    if(lenBuff < lenMsg){
+        perror("\nBuffer is too small for message");
+        exit(1);
+    }
+    for(int i=0;i<ceil(lenMsg/256);i++){
+        unsigned long block[8] = {0};
+        for(int j=0;j<32;j++){
+            block[j>>2] |= msg[i*32 + j] << ((j%4)*8); //append message to block
+        }
+        aesEncrypt(key,block,block);
+        memcpy(&buffer[i*32],block,32); //32 byte block
+    }
+    send(sock,buffer,strlen(buffer),0); //probably should send some sort of header
 }

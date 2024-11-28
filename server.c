@@ -10,12 +10,14 @@
 #include "structs.h"
 #include "random.h"
 #include "x25519.h"
+#include "aes.h"
 
 int startServer(struct sockaddr_in * addr,int* sock);
 struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff);
 struct ServerHello generateServerHello(unsigned long *privateDHRandom);
 unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
+void receiveMessage(int sock,char *buffer, int lenBuff, unsigned long *key);
 //gcc server.c -o server.exe -l ws2_32
 
 int main(int argc, char** argv) {
@@ -37,7 +39,8 @@ int main(int argc, char** argv) {
             struct ServerHello serverHello = generateServerHello(privateDHRandom); 
             sendServerHello(client_sock,serverHello,buffer,1024);
             unsigned long *privateECDHKey = generatePrivateECDH(clientHello.keyExchange,privateDHRandom);
-            
+            receiveMessage(client_sock,buffer,1024,privateECDHKey);
+            printf("Buffer %s",buffer);
             close(client_sock);
             printf("%s","\nClient disconnected");
             free(privateECDHKey);
@@ -200,3 +203,16 @@ int startServer(struct sockaddr_in * addr, int* sock){
     return 0;
 }
 
+void receiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
+    memset(buffer,0,lenBuff); //Remove any rubbish from buffer
+    recv(sock,buffer,lenBuff,0);
+    for(int i=0;i<floor(lenBuff/256);i++){
+        unsigned long block[8] = {0};
+        for(int j=0;j<32;j++){
+            block[j>>2] |= buffer[i*32 + j] << ((j%4)*8); //append message to block - j&3 == j%4?
+        }
+        aesDecrypt(key,block,block);
+        memcpy(&buffer[i*32],block,32); //32 byte block
+    }
+    buffer[lenBuff-1] = '\0';
+}
