@@ -113,9 +113,11 @@ void aesDecrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
 
 void invKeyExpansion(unsigned long *key,byte invKeyExp[keyExpLen][4]){
     keyExpansion(key,invKeyExp);
-    byte d[] = {0x0E,0x09,0x0D,0x0B}; //MixColumn but for our funny sized key expansion
+    byte d[] = {0x0E,0x09,0x0D,0x0B}; //little endian
     for(int i=1;i<numRounds;i++){
-        vectorModMult(d,invKeyExp[numCols*i],invKeyExp[numCols*i]);
+        for(int j=0;j<numCols;j++){
+            vectorModMult(d,invKeyExp[numCols*i+j],invKeyExp[numCols*i+j]);
+        }
     }
 }
 
