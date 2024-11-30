@@ -12,6 +12,8 @@
 #include "x25519.h"
 #include "aes.h"
 
+typedef unsigned char uchar;
+
 int startServer(struct sockaddr_in * addr,int* sock);
 struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff);
 struct ServerHello generateServerHello(unsigned long *privateDHRandom);
@@ -39,8 +41,9 @@ int main(int argc, char** argv) {
             struct ServerHello serverHello = generateServerHello(privateDHRandom); 
             sendServerHello(client_sock,serverHello,buffer,1024);
             unsigned long *privateECDHKey = generatePrivateECDH(clientHello.keyExchange,privateDHRandom);
+
             receiveMessage(client_sock,buffer,1024,privateECDHKey);
-            printf("Buffer %s",buffer);
+            printf("\nReceived %s",buffer);
             close(client_sock);
             printf("%s","\nClient disconnected");
             free(privateECDHKey);
@@ -96,7 +99,7 @@ struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff){
         temp[(len-j)%8] = buffer[i];
         j--;
     }
-    printf("\nclientRandom %08x cipher suites %02x%02x supported groups %04x signature algorithms %04x key exchange %lu %lu %lu %lu %lu %lu %lu %lu", //Length in characters before each chunk
+    printf("\nclientRandom %08x cipher suites %02x%02x supported groups %04x signature algorithms %04x client key exchange %lu %lu %lu %lu %lu %lu %lu %lu", //Length in characters before each chunk
     clientHello.clientRandom,
     clientHello.cipherSuites[0][0],clientHello.cipherSuites[0][1],
     clientHello.supportedGroups[0],clientHello.signatureAlgorithms[0],
@@ -118,12 +121,12 @@ struct ServerHello generateServerHello(unsigned long *privateDHRandom){
     randomNumber(serverRandom,1,NULL);
     randomNumber(privateDHRandom,8,curve25519Params.n);
     printf("\nGeneration completed");
-    printf("\nServer random %lu Server Private DH Random: %lu %lu %lu %lu %lu %lu %lu %lu ",serverRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
-    privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);
+    // printf("\nServer random %lu Server Private DH Random: %lu %lu %lu %lu %lu %lu %lu %lu ",serverRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
+    // privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);
     unsigned long *publicECDHKey = X25519(curve25519Params.G[0],privateDHRandom);
-    printf("\nServer Public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",
-    publicECDHKey[0],publicECDHKey[1],publicECDHKey[2],publicECDHKey[3],
-    publicECDHKey[4],publicECDHKey[5],publicECDHKey[6],publicECDHKey[7]);
+    // printf("\nServer Public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",
+    // publicECDHKey[0],publicECDHKey[1],publicECDHKey[2],publicECDHKey[3],
+    // publicECDHKey[4],publicECDHKey[5],publicECDHKey[6],publicECDHKey[7]);
 
     
     serverHello.serverRandom = serverRandom[0];
@@ -134,11 +137,11 @@ struct ServerHello generateServerHello(unsigned long *privateDHRandom){
 }
 
 unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH){
-    printf("\nClient public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu Private DH: %lu %lu %lu %lu %lu %lu %lu %lu ",
-    keyExchange[0],keyExchange[1],keyExchange[2],keyExchange[3],
-    keyExchange[4],keyExchange[5],keyExchange[6],keyExchange[7],
-    privateDH[0],privateDH[1],privateDH[2],privateDH[3],
-    privateDH[4],privateDH[5],privateDH[6],privateDH[7]);
+    // printf("\nClient public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu Private DH: %lu %lu %lu %lu %lu %lu %lu %lu ",
+    // keyExchange[0],keyExchange[1],keyExchange[2],keyExchange[3],
+    // keyExchange[4],keyExchange[5],keyExchange[6],keyExchange[7],
+    // privateDH[0],privateDH[1],privateDH[2],privateDH[3],
+    // privateDH[4],privateDH[5],privateDH[6],privateDH[7]);
     unsigned long *privateECDHKey = X25519(keyExchange,privateDH);
     printf("\nServer Private ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",
     privateECDHKey[0],privateECDHKey[1],privateECDHKey[2],privateECDHKey[3],
@@ -156,7 +159,7 @@ int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int l
     serverHello.keyExchange[2],serverHello.keyExchange[3],
     serverHello.keyExchange[4],serverHello.keyExchange[5],
     serverHello.keyExchange[6],serverHello.keyExchange[7]);
-    printf("\nSent serverRandom %08x cipher suite %02x%02x supported group %04x signature algorithm %04x key exchange %lu %lu %lu %lu %lu %lu %lu %lu", //Length in characters before each chunk
+    printf("\nSent serverRandom %08x cipher suite %02x%02x supported group %04x signature algorithm %04x server key exchange %lu %lu %lu %lu %lu %lu %lu %lu", //Length in characters before each chunk
     serverHello.serverRandom,
     serverHello.cipherSuite[0],serverHello.cipherSuite[1],
     serverHello.curveGroup,serverHello.signatureAlgorithm,
@@ -205,14 +208,21 @@ int startServer(struct sockaddr_in * addr, int* sock){
 
 void receiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
     memset(buffer,0,lenBuff); //Remove any rubbish from buffer
-    recv(sock,buffer,lenBuff,0);
-    for(int i=0;i<floor(lenBuff/256);i++){
-        unsigned long block[8] = {0};
-        for(int j=0;j<32;j++){
-            block[j>>2] |= buffer[i*32 + j] << ((j%4)*8); //append message to block - j&3 == j%4?
-        }
-        aesDecrypt(key,block,block);
-        memcpy(&buffer[i*32],block,32); //32 byte block
+    if(!recv(sock,buffer,lenBuff,0) || buffer[0]==0){
+        printf("\nNo message received from the client");
     }
-    buffer[lenBuff-1] = '\0';
+    else{
+        buffer[lenBuff-1] = '\0';
+        printf("\nBuffer received %s",buffer);
+        for(int i=0;i<floor((float)lenBuff/256);i++){
+            unsigned long block[8] = {0};
+            for(int j=0;j<32;j++){
+                block[j>>2] |= ((uchar)buffer[i*32 + j]) << ((j&3)*8); //append message to block - if it is signed it causes a big mess
+            }
+            aesDecrypt(key,block,block);
+            memcpy(&buffer[i*32],block,32); //32 byte block
+        }
+        buffer[lenBuff-1] = '\0';
+    }
+    
 }

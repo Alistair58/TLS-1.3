@@ -31,6 +31,7 @@
         "string_view": "cpp",
         "span": "cpp",
         "semaphore": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "unistd.h": "c"
     }
 }

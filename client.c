@@ -10,12 +10,14 @@
 #include "x25519.h"
 #include "aes.h"
 
+typedef unsigned char uchar;
+
 int connectToServer(struct sockaddr_in* addr, int* sock);
 int sendClientHello(int sock,struct sockaddr_in addr,char* buffer,int lenBuff,struct ClientHello clientHello);
 struct ClientHello generateClientHello(unsigned long *privateDHRandom);
 struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff);
 unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH);
-void sendMessage(int sock,char *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg);
+void sendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg);
 //gcc client.c -o client.exe -g -l ws2_32
 
 
@@ -85,10 +87,10 @@ struct ClientHello generateClientHello(unsigned long *privateDHRandom){
     randomNumber(clientRandom,1,NULL);
     randomNumber(privateDHRandom,8,curve25519Params.n);
     printf("\nGeneration completed");
-    printf("\nClient random %lu Client private DH Random: %lu %lu %lu %lu %lu %lu %lu %lu",clientRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
-    privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);
+   // printf("\nClient random %lu Client private DH Random: %lu %lu %lu %lu %lu %lu %lu %lu",clientRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
+   // privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);
     unsigned long *ECDHKey  = X25519(curve25519Params.G[0],privateDHRandom);
-    printf("\nClient Public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",ECDHKey[0],ECDHKey[1],ECDHKey[2],ECDHKey[3],ECDHKey[4],ECDHKey[5],ECDHKey[6],ECDHKey[7]);
+    //printf("\nClient Public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",ECDHKey[0],ECDHKey[1],ECDHKey[2],ECDHKey[3],ECDHKey[4],ECDHKey[5],ECDHKey[6],ECDHKey[7]);
 
     clientHello.clientRandom = clientRandom[0];
     memcpy(&clientHello.cipherSuites,&cipherSuites,sizeof(cipherSuites));
@@ -109,7 +111,7 @@ int sendClientHello(int sock,struct sockaddr_in addr,char *buffer,int lenBuff,st
     clientHello.keyExchange[2],clientHello.keyExchange[3],
     clientHello.keyExchange[4],clientHello.keyExchange[5],
     clientHello.keyExchange[6],clientHello.keyExchange[7]);
-    printf("\nSent clientRandom %08x cipher suites %02x%02x supported groups %04x signature algorithms %04x key exchange %lu %lu %lu %lu %lu %lu %lu %lu", //Length in characters before each chunk
+    printf("\nSent clientRandom %08x cipher suites %02x%02x supported groups %04x signature algorithms %04x client key exchange %lu %lu %lu %lu %lu %lu %lu %lu", //Length in characters before each chunk
     clientHello.clientRandom,
     clientHello.cipherSuites[0][0],clientHello.cipherSuites[0][1],
     clientHello.supportedGroups[0],clientHello.signatureAlgorithms[0],
@@ -165,7 +167,7 @@ struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff){
         temp[(len-j)%8] = buffer[i];
         j--;
     }
-    printf("\nReceived serverRandom %08x cipher suite %02x%02x supported group %04x signature algorithm %04x key exchange %lu %lu %lu %lu %lu %lu %lu %lu", //Length in characters before each chunk
+    printf("\nReceived serverRandom %08x cipher suite %02x%02x supported group %04x signature algorithm %04x Server key exchange %lu %lu %lu %lu %lu %lu %lu %lu", //Length in characters before each chunk
     serverHello.serverRandom,
     serverHello.cipherSuite[0],serverHello.cipherSuite[1],
     serverHello.curveGroup,serverHello.signatureAlgorithm,
@@ -177,11 +179,11 @@ struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff){
 }
 
 unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH){
-    printf("\nServer public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu Private DH: %lu %lu %lu %lu %lu %lu %lu %lu ",
-    keyExchange[0],keyExchange[1],keyExchange[2],keyExchange[3],
-    keyExchange[4],keyExchange[5],keyExchange[6],keyExchange[7],
-    privateDH[0],privateDH[1],privateDH[2],privateDH[3],
-    privateDH[4],privateDH[5],privateDH[6],privateDH[7]);
+    // printf("\nServer public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu Private DH: %lu %lu %lu %lu %lu %lu %lu %lu ",
+    // keyExchange[0],keyExchange[1],keyExchange[2],keyExchange[3],
+    // keyExchange[4],keyExchange[5],keyExchange[6],keyExchange[7],
+    // privateDH[0],privateDH[1],privateDH[2],privateDH[3],
+    // privateDH[4],privateDH[5],privateDH[6],privateDH[7]);
     unsigned long *privateECDHKey = X25519(keyExchange,privateDH);
     printf("\nClient Private ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",
     privateECDHKey[0],privateECDHKey[1],privateECDHKey[2],privateECDHKey[3],
@@ -189,19 +191,24 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
     return privateECDHKey;
 }
 
-void sendMessage(int sock,char *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg){
+void sendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg){
     memset(buffer,0,lenBuff);
     if(lenBuff < lenMsg){
         perror("\nBuffer is too small for message");
         exit(1);
     }
-    for(int i=0;i<ceil(lenMsg/256);i++){
+    for(int i=0;i<ceil((float)lenMsg/256);i++){
         unsigned long block[8] = {0};
         for(int j=0;j<32;j++){
-            block[j>>2] |= msg[i*32 + j] << ((j%4)*8); //append message to block
+            if (i*32 + j <lenMsg) block[j>>2] |= msg[i*32 + j] << ((j&3)*8); //append message to block
         }
         aesEncrypt(key,block,block);
         memcpy(&buffer[i*32],block,32); //32 byte block
     }
-    send(sock,buffer,strlen(buffer),0); //probably should send some sort of header
+    send(sock,buffer,lenBuff,0); //probably should send some sort of header
+    buffer[lenBuff-1] = '\0';
+    printf("\nSent encrypted: ");
+    for(int i=0;i<lenBuff;i++){
+        printf("%c",buffer[i]); //if you print the string it stops at a 0
+    }
 }
