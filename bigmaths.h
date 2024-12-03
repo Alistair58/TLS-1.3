@@ -96,8 +96,6 @@ unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,i
     b = [b1,b2]
     a*b = [a1*b1,a1*b2+a2*b1,a2*b2]
     */
-   ////printBigNum("Starting mult a: ",a,lenA);
-   ////printBigNum("Starting mult b: ",b,lenB);
     int longest = max(lenA,lenB);
     if(lenDest<lenA+lenB){
         free(a); free(b);

@@ -19,7 +19,7 @@ struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff);
 struct ServerHello generateServerHello(unsigned long *privateDHRandom);
 unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
-void receiveMessage(int sock,char *buffer, int lenBuff, unsigned long *key);
+void ecbReceiveMessage(int sock,char *buffer, int lenBuff, unsigned long *key);
 //gcc server.c -o server.exe -l ws2_32
 
 int main(int argc, char** argv) {
@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
             sendServerHello(client_sock,serverHello,buffer,1024);
             unsigned long *privateECDHKey = generatePrivateECDH(clientHello.keyExchange,privateDHRandom);
 
-            receiveMessage(client_sock,buffer,1024,privateECDHKey);
+            ecbReceiveMessage(client_sock,buffer,1024,privateECDHKey);
             printf("\nReceived %s",buffer);
             close(client_sock);
             printf("%s","\nClient disconnected");
@@ -206,7 +206,7 @@ int startServer(struct sockaddr_in * addr, int* sock){
     return 0;
 }
 
-void receiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
+void ecbReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
     memset(buffer,0,lenBuff); //Remove any rubbish from buffer
     if(!recv(sock,buffer,lenBuff,0) || buffer[0]==0){
         printf("\nNo message received from the client");

@@ -17,7 +17,7 @@ int sendClientHello(int sock,struct sockaddr_in addr,char* buffer,int lenBuff,st
 struct ClientHello generateClientHello(unsigned long *privateDHRandom);
 struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff);
 unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH);
-void sendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg);
+void ecbSendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg);
 //gcc client.c -o client.exe -g -l ws2_32
 
 
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
         unsigned long *privateECDHKey = generatePrivateECDH(serverHello.keyExchange,privateDHRandom);
 
         char *testMessage = "Hello world!";
-        sendMessage(sock,buffer,1024,privateECDHKey,testMessage,12);
+        ecbSendMessage(sock,buffer,1024,privateECDHKey,testMessage,12);
         //TODO GCM
         
         close(sock);
@@ -191,7 +191,7 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
     return privateECDHKey;
 }
 
-void sendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg){
+void ecbSendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg){
     memset(buffer,0,lenBuff);
     if(lenBuff < lenMsg){
         perror("\nBuffer is too small for message");
