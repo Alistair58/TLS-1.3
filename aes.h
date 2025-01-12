@@ -87,7 +87,6 @@ void aesEncrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
     addRoundKey(state,keyExp,0); //First round is just the key
     for(int i=1 ; i<numRounds ; i++ ) aesRound(state,keyExp,i) ;
     finalRound(state,keyExp);
-
     for(int i=0;i<numCols;i++){//Copy to dest
         dest[i] = (unsigned long) state[i][0] | (unsigned long) state[i][1]<<8 
                 | (unsigned long) state[i][2]<<16 | (unsigned long) state[i][3]<<24;

@@ -19,7 +19,7 @@ void printBigNum(char *text, unsigned long *n, int lenN){
         printf(" %lu",n[i]);
     }
 }
-//NOTE - Numbers are stored with MSB at index 0
+//NOTE - Numbers are stored with MSB at index 0 -> Big Endian
 
 unsigned long* createBigNum(unsigned long *a, int len){ //MUST REMEMBER TO FREE IF USING THIS
     unsigned long* p = calloc(len,sizeof(unsigned long));
