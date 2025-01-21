@@ -1,51 +1,65 @@
 #include "random.h"
 #include "aes.h"
 
-struct gcmResult{
+typedef unsigned char uchar;
+
+typedef struct gcmResult{
     unsigned long *iv;
-    unsigned long **blocks;
+    uchar *ciphertext;
     unsigned long *tag;
-};
-void gcm(char *plaintext, int lenPlaintext, unsigned long *key, gcmResult *dest);
+} gcmResult;
+
+void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key, gcmResult *dest);
 void gf256Mult(unsigned long *x,unsigned long *y, unsigned long *out);
 void increment(unsigned long *iv);
-void plaintextXOR(unsigned long *key, char *plaintext, int blockNum);
+void plaintextXOR(unsigned long *key, uchar *plaintext, int blockNum);
 void bigNumXOR(unsigned long *inp1, unsigned long *inp2,int length);
 void polyMult(unsigned long *x,unsigned long *y,unsigned long *out);
 void modGf256(unsigned long *dividend,unsigned long *out);
-void polyShift(unsigned long *inp,int shiftBy,unsigned long *out);
+void polyLeftShift(unsigned long *inp,int shiftBy,unsigned long *out);
 
 //GCM supports 128 bit block sizes but my AES implementation uses 256 bit blocks and so I've altered
 //this GCM to use 256 bit blocks which means that multiplication now takes place in GF(2^256) instead of GF(2^128)
 
 //If there is no destination parameter, it will store the result in the first argument
 
-void gcm(char *plaintext, int lenPlaintext, unsigned long *key, gcmResult *dest){
+//Encrypt and decrypt with this function
+void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest){
     unsigned long *temp = (unsigned long*) calloc(8,sizeof(unsigned long));
     unsigned long *prevBlock = (unsigned long*) calloc(8,sizeof(unsigned long));
     unsigned long *h = (unsigned long*) calloc(8,sizeof(unsigned long));
-    unsigned long *iv = (unsigned long*) calloc(8,sizeof(unsigned long));
-    randomNumber(iv,8,NULL);
-    int numBlocks = ceil((float)lenPlaintext/256);
+    unsigned long *iv,**blocks; //iv changes but the gcmResult one doesn't
+    if(!dest->iv){ //If the user hasn't supplied an iv
+        iv = (unsigned long*) calloc(8,sizeof(unsigned long));
+        dest->iv = (unsigned long*) calloc(8,sizeof(unsigned long));
+        if(!iv || !dest->iv ) goto callocError;
+        randomNumber(iv,8,NULL);
+    }
+    else{
+        memcpy(iv,dest->iv,8*sizeof(unsigned long));
+    }
+    
+    int numBlocks = ceil((float)lenPlaintext/32);
     if(!temp || !h || !iv || !prevBlock){
         goto callocError;
     }
     aesEncrypt(key,temp,h); //temp will start off with all zeros
-    dest->iv = (unsigned long*) calloc(8,sizeof(unsigned long));
-    if(!dest->iv){
+    
+    dest->ciphertext = (uchar*) calloc(32*numBlocks,sizeof(uchar)); 
+    if(!dest->ciphertext){
         goto callocError;
     }
     memcpy(dest->iv,iv,8*sizeof(unsigned long));
-    dest->blocks = (unsigned long**) calloc(numBlocks,sizeof(unsigned long*));
+    blocks = (unsigned long**) calloc(numBlocks,sizeof(unsigned long*));
     for(int i=0;i<numBlocks;i++){
-        dest->blocks[i] = (unsigned long*) calloc(8,sizeof(unsigned long));
-        if(!dest->blocks[i]) goto callocError;
+        blocks[i] = (unsigned long*) calloc(8,sizeof(unsigned long));
+        if(!blocks[i]) goto callocError;
     }
     for(int i=0;i<numBlocks;i++){
         increment(iv);
         aesEncrypt(key,iv,temp);//encrypt current IV
         plaintextXOR(temp,plaintext,i);//xor with plaintext block to get encrypted block
-        memcpy(dest->blocks[i],temp,8*sizeof(unsigned long));//Save encrypted block
+        memcpy(blocks[i],temp,8*sizeof(unsigned long));//Save encrypted block
         bigNumXOR(temp,prevBlock,8); //prevBlock will be all 0s on first iteration which works
         gf256Mult(temp,h,prevBlock);//multiply by h
     }
@@ -53,7 +67,20 @@ void gcm(char *plaintext, int lenPlaintext, unsigned long *key, gcmResult *dest)
     gf256Mult(prevBlock,h,prevBlock);
     aesEncrypt(key,dest->iv,temp); //counter 0
     bigNumXOR(prevBlock,temp,8);
+    if(!dest->tag){
+        dest->tag = (unsigned long*) calloc(8,sizeof(unsigned long));
+        if(!dest->tag) goto callocError;
+    } //TODO check tag if receiving
     memcpy(dest->tag,prevBlock,8*sizeof(unsigned long));
+    
+    for(int i=0;i<numBlocks;i++){ //256 bit blocks = 32 chars
+        for(int j=0;j<8;j++){//32 bit chunks = 4 chars
+            dest->ciphertext[i>>5 + j*4 + 0] = (uchar) blocks[i][j]>>24;
+            dest->ciphertext[i>>5 + j*4 + 1] = (uchar) blocks[i][j]>>16 & 0xff;
+            dest->ciphertext[i>>5 + j*4 + 2] = (uchar) blocks[i][j]>>8  & 0xff;
+            dest->ciphertext[i>>5 + j*4 + 3] = (uchar) blocks[i][j]     & 0xff;
+        }
+    }
 
     callocError:
         goto freeMem;
@@ -67,11 +94,11 @@ void gcm(char *plaintext, int lenPlaintext, unsigned long *key, gcmResult *dest)
         if(prevBlock) free(prevBlock);
         if(dest->iv) free(dest->iv);
         if(dest->tag) free(dest->tag);
-        if(dest->blocks){
+        if(blocks){
             for(int i=0;i<numBlocks;i++){
-                if(dest->blocks[i]) free(dest->blocks[i]);
+                if(blocks[i]) free(blocks[i]);
             }
-            free(dest->blocks);
+            free(blocks);
         }
 
     
@@ -100,7 +127,7 @@ void modGf256(unsigned long *dividend,unsigned long *out){ //16 long input
     }
     for(int i=0;i<256;i++){ //the dividend is 512 bits long but we stop when we get in the finite field (<divisor)
         if(dividend[i>>5]>>(31 - (i&31)) & 1){
-            polyShift(divisor,(255-i),temp);
+            polyLeftShift(divisor,(255-i),temp);
             bigNumXOR(dividend,temp,16);
         }
     }
@@ -118,8 +145,8 @@ void polyMult(unsigned long *x,unsigned long *y,unsigned long *out){
         perror("GCM calloc error");
         exit(1);
     }
-    for(int i=255;i>=0;i++){ //LSB to MSB
-        polyShift(x,(255-i),temp); //do it anyway - constant time complexity
+    for(int i=255;i>=0;i--){ //LSB to MSB
+        polyLeftShift(x,(255-i),temp); //do it anyway - constant time complexity
         if(y[i>>5]>>(31 - (i&31)) & 1) bigNumXOR(product,temp,16);
         else bigNumXOR(temp,temp,16); //completely useless - constant time
     }
@@ -127,22 +154,25 @@ void polyMult(unsigned long *x,unsigned long *y,unsigned long *out){
     free(temp);
 }
 
-void polyShift(unsigned long *inp,int shiftBy,unsigned long *out){ //8 long in 16 long out
-    unsigned long prev = 0;
+void polyLeftShift(unsigned long *inp,int shiftBy,unsigned long *out){ //8 long in 16 long out
+    unsigned long carry = 0;
+    unsigned long long shifted = 0;
     
     int wholeMoves = shiftBy/32; //whole chunk shifts
     int partMoves = shiftBy&31; //smaller shifts (<32 bit shifts)
     for(int i=0;i<8;i++){
-        out[i+shiftBy] = inp[shiftBy];
+        out[8+i-wholeMoves] = inp[i];
     }
-    for(int i=0;i<16;i++){
-        out[i] = (out[i]<<partMoves) ^ prev;
+    for(int i=15;i>=0;i--){
+        shifted = out[i]<<partMoves;
+        out[i] =  (shifted&0xffffffff) ^ carry;
+        carry = shifted >> 32;
     }
 }
 
 void increment(unsigned long *iv){
     for(int i=7;i>=0;i--){
-        if(iv[i] == (1<<64 - 1)) iv[i] = 0;
+        if(iv[i] == ULONG_MAX) iv[i] = 0;
         else{
             iv[i]++;
             return;
@@ -152,7 +182,7 @@ void increment(unsigned long *iv){
     exit(1);
 }
 
-void plaintextXOR(unsigned long *key, char *plaintext, int blockNum){
+void plaintextXOR(unsigned long *key, uchar *plaintext, int blockNum){
     for(int i=0;i<8;i++){ //Order doesn't matter - this is MSB to LSB and start of text to end
         key[i] ^= (plaintext[blockNum*16 + 4*i] + plaintext[blockNum*16 + 4*i + 1]
                             + plaintext[blockNum*16 + 4*i + 2] + plaintext[blockNum*16 + 4*i + 3]);

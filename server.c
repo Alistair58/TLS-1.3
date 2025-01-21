@@ -8,9 +8,8 @@
 #include <winuser.h>
 #include <math.h>
 #include "structs.h"
-#include "random.h"
 #include "x25519.h"
-#include "aes.h"
+#include "gcm.h" //includes aes.h and random.h
 
 typedef unsigned char uchar;
 
@@ -224,5 +223,4 @@ void ecbReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
         }
         buffer[lenBuff-1] = '\0';
     }
-    
 }

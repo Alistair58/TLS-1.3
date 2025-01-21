@@ -6,9 +6,8 @@
 #include <string.h>
 #include <unistd.h>
 #include "structs.h"
-#include "random.h"
 #include "x25519.h"
-#include "aes.h"
+#include "gcm.h" //includes aes.h and random.h
 
 typedef unsigned char uchar;
 
@@ -18,6 +17,7 @@ struct ClientHello generateClientHello(unsigned long *privateDHRandom);
 struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff);
 unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH);
 void ecbSendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg);
+void gcmSendMessage(int sock,uchar *buff,int lenBuff,unsigned long *key,char *msg,int lenMsg);
 //gcc client.c -o client.exe -g -l ws2_32
 
 
@@ -34,8 +34,7 @@ int main(int argc, char** argv) {
         unsigned long *privateECDHKey = generatePrivateECDH(serverHello.keyExchange,privateDHRandom);
 
         char *testMessage = "Hello world!";
-        ecbSendMessage(sock,buffer,1024,privateECDHKey,testMessage,12);
-        //TODO GCM
+        gcmSendMessage(sock,buffer,1024,privateECDHKey,testMessage,12);
         
         close(sock);
         printf("\nDisconnected from server.");
@@ -205,10 +204,41 @@ void ecbSendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *
         aesEncrypt(key,block,block);
         memcpy(&buffer[i*32],block,32); //32 byte block
     }
-    send(sock,buffer,lenBuff,0); //probably should send some sort of header
+    send(sock,buffer,lenBuff,0); //TODO make a header
     buffer[lenBuff-1] = '\0';
     printf("\nSent encrypted: ");
     for(int i=0;i<lenBuff;i++){
         printf("%c",buffer[i]); //if you print the string it stops at a 0
+    }
+}
+
+void gcmSendMessage(int sock,uchar *buff,int lenBuff,unsigned long *key,char *msg,int lenMsg){
+    gcmResult result;
+    result.iv = 0;
+    result.tag = 0;
+    int numBlocks = ceil((float)lenMsg/32);
+    //3 hex digits for length of the messgae (4096 max length)
+    //followed by 32*numBlocks chars of encrypted message
+    //Followed by 32 hex characters of iv
+    //Followed by 32 hex characters of tag
+    //Null terminator
+    int lenToSend = 32*numBlocks+68;
+    if(lenBuff < lenToSend){
+        perror("Buffer is too small for gcm");
+        exit(1);
+    }
+     
+    gcm(msg,lenMsg,key,&result);
+    
+    sprintf(buff,"%03x",numBlocks*32);
+    memcpy(&buff[3],result.ciphertext,32*numBlocks);
+    sprintf(&buff[32*numBlocks+3],"%08x%08x%08x%08x%08x%08x%08x%08x",result.iv[0],result.iv[1],result.iv[2],result.iv[3],result.iv[4],result.iv[5],result.iv[6],result.iv[7]);
+    sprintf(&buff[32*numBlocks+35],"%08x%08x%08x%08x%08x%08x%08x%08x",result.tag[0],result.tag[1],result.tag[2],result.tag[3],result.tag[4],result.tag[5],result.tag[6],result.tag[7]);
+    buff[lenToSend-1] = '\0';
+    send(sock,buff,lenToSend,0);
+
+    printf("\nSent gcm encrypted: ");
+    for(int i=0;i<lenBuff;i++){
+        printf("%c",buff[i]); //if you print the string it stops at a 0
     }
 }

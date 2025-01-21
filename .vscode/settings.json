@@ -32,6 +32,7 @@
         "span": "cpp",
         "semaphore": "cpp",
         "valarray": "cpp",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "stdio.h": "c"
     }
 }
