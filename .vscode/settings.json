@@ -33,6 +33,7 @@
         "semaphore": "cpp",
         "valarray": "cpp",
         "unistd.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "x25519.h": "c"
     }
 }

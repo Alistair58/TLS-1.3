@@ -248,7 +248,7 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
             else{
                  //Double carry ensures that the positioning of array elements is correct
                 carry[j] = (unsigned long long) (a[j] >> bitDepth) + doubleCarry; //e.g. if you are doing bitDepth 31 and there is a {...2},{1} carry this should be represented as {0,2*2^1 + 1}
-                doubleCarry = (a[j] - ((a[j] >> bitDepth)<<bitDepth)) * (1<<(32-bitDepth));
+                doubleCarry = (a[j] - ((a[j] >> bitDepth)<<bitDepth)) * (1ul<<(32-bitDepth));
                 a[j] = 0;
             }
         }
@@ -259,7 +259,7 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
         addedCarry = bigNumAdd(realCarry,lenRealCarry,a,lenA,lenA);
         memcpy(a,addedCarry, lenA * sizeof(unsigned long));
 
-        if(a[i] < pow(2,bitDepth) && (i==0 || a[i-1] == 0)) break;
+        if(a[i] < (1<<bitDepth) && (i==0 || a[i-1] == 0)) break;
         free(carry);free(realCarry);free(addedCarry);
         
     }
@@ -405,7 +405,7 @@ unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB
                     else{
                         chunk = (result[j >> 5] >> (31-(j & 31)));
                         notted = ~(chunk << (31-(j & 31)));
-                        notted -= (pow(2,(31-(j & 31)))-1); //Remove the following bits which have been turned to 1s
+                        notted -= ((1ul<<(31-(j & 31)))-1); //Remove the following bits which have been turned to 1s
                         // 0110110111
                         // 0110110000
                         // 1001001111
@@ -413,7 +413,7 @@ unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB
                     }
                     
                     if(j%32 != 31){
-                        result[j >> 5] = notted + (result[j>>5]&((unsigned long)pow(2,(31-(j & 31)))-1));
+                        result[j >> 5] = notted + (result[j>>5]&((unsigned long)(1ul<<(31-(j & 31)))-1));
                         j-= (j&31)+1;
                     }
                     else{

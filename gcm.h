@@ -28,11 +28,12 @@ void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
     unsigned long *temp = (unsigned long*) calloc(8,sizeof(unsigned long));
     unsigned long *prevBlock = (unsigned long*) calloc(8,sizeof(unsigned long));
     unsigned long *h = (unsigned long*) calloc(8,sizeof(unsigned long));
-    unsigned long *iv,**blocks; //iv changes but the gcmResult one doesn't
+    unsigned long **blocks; 
+    unsigned long *iv = (unsigned long*) calloc(8,sizeof(unsigned long));//iv changes but the gcmResult one doesn't
+    if(!iv) goto callocError;
     if(!dest->iv){ //If the user hasn't supplied an iv
-        iv = (unsigned long*) calloc(8,sizeof(unsigned long));
         dest->iv = (unsigned long*) calloc(8,sizeof(unsigned long));
-        if(!iv || !dest->iv ) goto callocError;
+        if(!dest->iv ) goto callocError;
         randomNumber(iv,8,NULL);
     }
     else{
@@ -75,12 +76,14 @@ void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
     
     for(int i=0;i<numBlocks;i++){ //256 bit blocks = 32 chars
         for(int j=0;j<8;j++){//32 bit chunks = 4 chars
-            dest->ciphertext[i>>5 + j*4 + 0] = (uchar) blocks[i][j]>>24;
-            dest->ciphertext[i>>5 + j*4 + 1] = (uchar) blocks[i][j]>>16 & 0xff;
-            dest->ciphertext[i>>5 + j*4 + 2] = (uchar) blocks[i][j]>>8  & 0xff;
-            dest->ciphertext[i>>5 + j*4 + 3] = (uchar) blocks[i][j]     & 0xff;
+            dest->ciphertext[(i>>5) + j*4 + 0] = (uchar) (blocks[i][j]>>24);
+            dest->ciphertext[(i>>5) + j*4 + 1] = (uchar) ((blocks[i][j]>>16) & 0xff);
+            dest->ciphertext[(i>>5) + j*4 + 2] = (uchar) ((blocks[i][j]>>8)  & 0xff);
+            dest->ciphertext[(i>>5) + j*4 + 3] = (uchar) ((blocks[i][j])     & 0xff);
         }
     }
+
+
 
     callocError:
         goto freeMem;
@@ -92,8 +95,6 @@ void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
         if(h) free(h);
         if(iv) free(iv);
         if(prevBlock) free(prevBlock);
-        if(dest->iv) free(dest->iv);
-        if(dest->tag) free(dest->tag);
         if(blocks){
             for(int i=0;i<numBlocks;i++){
                 if(blocks[i]) free(blocks[i]);
@@ -110,8 +111,8 @@ void gf256Mult(unsigned long *x,unsigned long *y, unsigned long *out){
         perror("GCM calloc error");
         exit(1);
     }
-    polyMult(x,y,temp);
-    modGf256(temp,out);
+    polyMult(x,y,temp); //8,8 -> 16
+    modGf256(temp,out); //16 -> 8
     free(temp);
 }
 
@@ -131,12 +132,12 @@ void modGf256(unsigned long *dividend,unsigned long *out){ //16 long input
             bigNumXOR(dividend,temp,16);
         }
     }
-    memcpy(out,dividend,8*sizeof(unsigned long)); //the remainder
+    memcpy(out,&dividend[8],8*sizeof(unsigned long)); //the remainder
     free(temp);
 
 }
 
-void polyMult(unsigned long *x,unsigned long *y,unsigned long *out){
+void polyMult(unsigned long *x,unsigned long *y,unsigned long *out){ //8 long * 8 long -> 16 long
     unsigned long *product = (unsigned long*) calloc(16,sizeof(unsigned long));
     unsigned long *temp = (unsigned long*) calloc(16,sizeof(unsigned long));
     if(!temp || !product){
@@ -150,6 +151,7 @@ void polyMult(unsigned long *x,unsigned long *y,unsigned long *out){
         if(y[i>>5]>>(31 - (i&31)) & 1) bigNumXOR(product,temp,16);
         else bigNumXOR(temp,temp,16); //completely useless - constant time
     }
+    memcpy(out,product,16*sizeof(unsigned long));
     free(product);
     free(temp);
 }

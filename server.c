@@ -1,15 +1,4 @@
-#include <stdio.h>
-#include <stdbool.h>
-#include <winsock2.h>
-#include <WS2tcpip.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <winuser.h>
-#include <math.h>
-#include "structs.h"
-#include "x25519.h"
-#include "gcm.h" //includes aes.h and random.h
+#include "shared.h"
 
 typedef unsigned char uchar;
 
@@ -18,7 +7,7 @@ struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff);
 struct ServerHello generateServerHello(unsigned long *privateDHRandom);
 unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
-void ecbReceiveMessage(int sock,char *buffer, int lenBuff, unsigned long *key);
+
 //gcc server.c -o server.exe -l ws2_32
 
 int main(int argc, char** argv) {
@@ -41,8 +30,7 @@ int main(int argc, char** argv) {
             sendServerHello(client_sock,serverHello,buffer,1024);
             unsigned long *privateECDHKey = generatePrivateECDH(clientHello.keyExchange,privateDHRandom);
 
-            ecbReceiveMessage(client_sock,buffer,1024,privateECDHKey);
-            printf("\nReceived %s",buffer);
+            gcmReceiveMessage(client_sock,buffer,1024,privateECDHKey);
             close(client_sock);
             printf("%s","\nClient disconnected");
             free(privateECDHKey);
@@ -205,22 +193,3 @@ int startServer(struct sockaddr_in * addr, int* sock){
     return 0;
 }
 
-void ecbReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
-    memset(buffer,0,lenBuff); //Remove any rubbish from buffer
-    if(!recv(sock,buffer,lenBuff,0) || buffer[0]==0){
-        printf("\nNo message received from the client");
-    }
-    else{
-        buffer[lenBuff-1] = '\0';
-        printf("\nBuffer received %s",buffer);
-        for(int i=0;i<floor((float)lenBuff/256);i++){
-            unsigned long block[8] = {0};
-            for(int j=0;j<32;j++){
-                block[j>>2] |= ((uchar)buffer[i*32 + j]) << ((j&3)*8); //append message to block - if it is signed it causes a big mess
-            }
-            aesDecrypt(key,block,block);
-            memcpy(&buffer[i*32],block,32); //32 byte block
-        }
-        buffer[lenBuff-1] = '\0';
-    }
-}
