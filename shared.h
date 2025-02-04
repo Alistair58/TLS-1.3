@@ -79,7 +79,28 @@ void gcmSendMessage(int sock,uchar *buff,int lenBuff,unsigned long *key,char *ms
     }
      
     gcm(msg,lenMsg,key,&result);
-    
+
+    //Testing gcm
+    printf("\nSent gcm encrypted: ");
+    for(int i=0;i<numBlocks*32;i++){
+        printf("%c",result.ciphertext[i]); 
+    }
+
+    gcmResult result2;
+    result2.iv = (unsigned long*) calloc(8,sizeof(unsigned long));
+    memcpy(result2.iv,result.iv,8*sizeof(unsigned long));
+    result2.tag = (unsigned long*) calloc(8,sizeof(unsigned long));
+    gcm(result.ciphertext,lenMsg,key,&result2);
+    printf("\nDecrypted: ");
+    for(int i=0;i<numBlocks*32;i++){
+        printf("%c",result2.ciphertext[i]); 
+    }
+   
+
+
+
+    //Real stuff
+    /*
     sprintf(buff,"%03x",numBlocks*32);
     memcpy(&buff[3],result.ciphertext,32*numBlocks);
     sprintf(&buff[32*numBlocks+3],"%08x%08x%08x%08x%08x%08x%08x%08x",result.iv[0],result.iv[1],result.iv[2],result.iv[3],result.iv[4],result.iv[5],result.iv[6],result.iv[7]);
@@ -90,7 +111,7 @@ void gcmSendMessage(int sock,uchar *buff,int lenBuff,unsigned long *key,char *ms
     printf("\nSent gcm encrypted: ");
     for(int i=0;i<lenBuff;i++){
         printf("%c",buff[i]); //if you print the string it stops at a 0
-    }
+    }*/
 
     free(result.tag);
     free(result.iv);
@@ -106,10 +127,9 @@ void gcmReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
     }
     else{
         gcmResult result;
-        
         buffer[lenBuff-1] = '\0';
-        printf("\nBuffer received %s",buffer);
-        char *endPtr = &buffer[3];
+        printf("\nBuffer received %s",buffer); //Won't always print everything as it will stop at a 0
+         char *endPtr = &buffer[3];
         int lenMsg = strtoul(buffer,&endPtr,16);
         result.iv = (unsigned long*) calloc(8,sizeof(unsigned long));
         result.tag  = (unsigned long*) calloc(8,sizeof(unsigned long));

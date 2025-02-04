@@ -14,6 +14,7 @@ void gf256Mult(unsigned long *x,unsigned long *y, unsigned long *out);
 void increment(unsigned long *iv);
 void plaintextXOR(unsigned long *key, uchar *plaintext, int blockNum);
 void bigNumXOR(unsigned long *inp1, unsigned long *inp2,int length);
+void bigNumXORDest(unsigned long *dest,unsigned long *inp1, unsigned long *inp2,int length);
 void polyMult(unsigned long *x,unsigned long *y,unsigned long *out);
 void modGf256(unsigned long *dividend,unsigned long *out);
 void polyLeftShift(unsigned long *inp,int shiftBy,unsigned long *out);
@@ -56,11 +57,18 @@ void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
         blocks[i] = (unsigned long*) calloc(8,sizeof(unsigned long));
         if(!blocks[i]) goto callocError;
     }
+    bool reverse = dest->tag!=0; //If we are in reverse we already have a tag to "work towards"
     for(int i=0;i<numBlocks;i++){
         increment(iv);
         aesEncrypt(key,iv,temp);//encrypt current IV
         plaintextXOR(temp,plaintext,i);//xor with plaintext block to get encrypted block
         memcpy(blocks[i],temp,8*sizeof(unsigned long));//Save encrypted block
+        if(reverse){//If we are going in reverse we need to XOR the plaintext (the ciphertext we were given) in order to compute the same tag
+            for(int j=0;j<8;j++){//32 bit chunks = 4 chars
+                temp[j] = ((plaintext[i*32 + 4*j]<<24) + (plaintext[i*32 + 4*j + 1]<<16)
+                            + (plaintext[i*32 + 4*j + 2]<<8) + plaintext[i*32 + 4*j + 3]);
+            }
+        }
         bigNumXOR(temp,prevBlock,8); //prevBlock will be all 0s on first iteration which works
         gf256Mult(temp,h,prevBlock);//multiply by h
     }
@@ -84,9 +92,18 @@ void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
     }
 
 
-
+    goto freeMem;
     callocError:
-        goto freeMem;
+        if(temp) free(temp);
+        if(h) free(h);
+        if(iv) free(iv);
+        if(prevBlock) free(prevBlock);
+        if(blocks){
+            for(int i=0;i<numBlocks;i++){
+                if(blocks[i]) free(blocks[i]);
+            }
+            free(blocks);
+        }
         perror("GCM calloc error");
         exit(1);
     
@@ -186,13 +203,18 @@ void increment(unsigned long *iv){
 
 void plaintextXOR(unsigned long *key, uchar *plaintext, int blockNum){
     for(int i=0;i<8;i++){ //Order doesn't matter - this is MSB to LSB and start of text to end
-        key[i] ^= (plaintext[blockNum*16 + 4*i] + plaintext[blockNum*16 + 4*i + 1]
-                            + plaintext[blockNum*16 + 4*i + 2] + plaintext[blockNum*16 + 4*i + 3]);
+        key[i] ^= ((plaintext[blockNum*32 + 4*i]<<24) + (plaintext[blockNum*32 + 4*i + 1]<<16)
+                            + (plaintext[blockNum*32 + 4*i + 2]<<8) + plaintext[blockNum*32 + 4*i + 3]);
     }
 }
 
 void bigNumXOR(unsigned long *inp1, unsigned long *inp2,int length){
     for(int i=0;i<length;i++){
         inp1[i] ^= inp2[i];
+    }
+}
+void bigNumXORDest(unsigned long *dest,unsigned long *inp1, unsigned long *inp2,int length){
+    for(int i=0;i<length;i++){
+        dest[i] = inp1[i] ^ inp2[i];
     }
 }
