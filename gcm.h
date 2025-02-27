@@ -9,7 +9,7 @@ typedef struct gcmResult{
     unsigned long *tag;
 } gcmResult;
 
-void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key, gcmResult *dest);
+bool gcm(uchar *plaintext, int lenPlaintext, unsigned long *key, gcmResult *dest);
 void gf256Mult(unsigned long *x,unsigned long *y, unsigned long *out);
 void increment(unsigned long *iv);
 void plaintextXOR(unsigned long *key, uchar *plaintext, int blockNum);
@@ -25,7 +25,7 @@ void polyLeftShift(unsigned long *inp,int shiftBy,unsigned long *out);
 //If there is no destination parameter, it will store the result in the first argument
 
 //Encrypt and decrypt with this function
-void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest){
+bool gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest){
     unsigned long *temp = (unsigned long*) calloc(8,sizeof(unsigned long));
     unsigned long *prevBlock = (unsigned long*) calloc(8,sizeof(unsigned long));
     unsigned long *h = (unsigned long*) calloc(8,sizeof(unsigned long));
@@ -65,8 +65,8 @@ void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
         memcpy(blocks[i],temp,8*sizeof(unsigned long));//Save encrypted block
         if(reverse){//If we are going in reverse we need to XOR the plaintext (the ciphertext we were given) in order to compute the same tag
             for(int j=0;j<8;j++){//32 bit chunks = 4 chars
-                temp[j] = ((plaintext[i*32 + 4*j]<<24) + (plaintext[i*32 + 4*j + 1]<<16)
-                            + (plaintext[i*32 + 4*j + 2]<<8) + plaintext[i*32 + 4*j + 3]);
+                temp[j] = ((plaintext[(i<<5) + 4*j]<<24) | (plaintext[(i<<5) + 4*j + 1]<<16)
+                            | (plaintext[(i<<5) + 4*j + 2]<<8) | plaintext[(i<<5) + 4*j + 3]);
             }
         }
         bigNumXOR(temp,prevBlock,8); //prevBlock will be all 0s on first iteration which works
@@ -79,18 +79,34 @@ void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
     if(!dest->tag){
         dest->tag = (unsigned long*) calloc(8,sizeof(unsigned long));
         if(!dest->tag) goto callocError;
-    } //TODO check tag if receiving
-    memcpy(dest->tag,prevBlock,8*sizeof(unsigned long));
+        memcpy(dest->tag,prevBlock,8*sizeof(unsigned long));
+    } 
+    else{
+        //Checking tag against what was received
+        printf("\nReceived tag: ");
+        for(int i=0;i<8;i++){
+            printf("%lu",dest->tag[i]);
+        }
+        printf("\nRecomputed tag: ");
+        for(int i=0;i<8;i++){
+            printf("%lu",prevBlock[i]);
+        }
+        for(int i=0;i<8;i++){
+            if(dest->tag[i] != prevBlock[i]){
+                printf("\nGCM tag does not match.\nMessage has been altered during transit");
+                return false;
+            }
+        }
+    }
     
     for(int i=0;i<numBlocks;i++){ //256 bit blocks = 32 chars
         for(int j=0;j<8;j++){//32 bit chunks = 4 chars
-            dest->ciphertext[(i>>5) + j*4 + 0] = (uchar) (blocks[i][j]>>24);
-            dest->ciphertext[(i>>5) + j*4 + 1] = (uchar) ((blocks[i][j]>>16) & 0xff);
-            dest->ciphertext[(i>>5) + j*4 + 2] = (uchar) ((blocks[i][j]>>8)  & 0xff);
-            dest->ciphertext[(i>>5) + j*4 + 3] = (uchar) ((blocks[i][j])     & 0xff);
+            dest->ciphertext[(i<<5) + j*4    ] = (uchar) (blocks[i][j]>>24);
+            dest->ciphertext[(i<<5) + j*4 + 1] = (uchar) ((blocks[i][j]>>16) & 0xff);
+            dest->ciphertext[(i<<5) + j*4 + 2] = (uchar) ((blocks[i][j]>>8)  & 0xff);
+            dest->ciphertext[(i<<5) + j*4 + 3] = (uchar) ((blocks[i][j])     & 0xff);
         }
     }
-
 
     goto freeMem;
     callocError:
@@ -118,7 +134,7 @@ void gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
             }
             free(blocks);
         }
-
+    return true;
     
 }   
 

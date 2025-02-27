@@ -72,7 +72,7 @@ void gcmSendMessage(int sock,uchar *buff,int lenBuff,unsigned long *key,char *ms
     //Followed by 32 hex characters of iv
     //Followed by 32 hex characters of tag
     //Null terminator
-    int lenToSend = 32*numBlocks+68;
+    int lenToSend = 32*numBlocks+132;
     if(lenBuff < lenToSend){
         perror("Buffer is too small for gcm");
         exit(1);
@@ -80,38 +80,22 @@ void gcmSendMessage(int sock,uchar *buff,int lenBuff,unsigned long *key,char *ms
      
     gcm(msg,lenMsg,key,&result);
 
-    //Testing gcm
-    printf("\nSent gcm encrypted: ");
-    for(int i=0;i<numBlocks*32;i++){
-        printf("%c",result.ciphertext[i]); 
-    }
 
-    gcmResult result2;
-    result2.iv = (unsigned long*) calloc(8,sizeof(unsigned long));
-    memcpy(result2.iv,result.iv,8*sizeof(unsigned long));
-    result2.tag = (unsigned long*) calloc(8,sizeof(unsigned long));
-    gcm(result.ciphertext,lenMsg,key,&result2);
-    printf("\nDecrypted: ");
-    for(int i=0;i<numBlocks*32;i++){
-        printf("%c",result2.ciphertext[i]); 
-    }
-   
-
-
-
-    //Real stuff
-    /*
     sprintf(buff,"%03x",numBlocks*32);
     memcpy(&buff[3],result.ciphertext,32*numBlocks);
     sprintf(&buff[32*numBlocks+3],"%08x%08x%08x%08x%08x%08x%08x%08x",result.iv[0],result.iv[1],result.iv[2],result.iv[3],result.iv[4],result.iv[5],result.iv[6],result.iv[7]);
-    sprintf(&buff[32*numBlocks+35],"%08x%08x%08x%08x%08x%08x%08x%08x",result.tag[0],result.tag[1],result.tag[2],result.tag[3],result.tag[4],result.tag[5],result.tag[6],result.tag[7]);
+    sprintf(&buff[32*numBlocks+67],"%08x%08x%08x%08x%08x%08x%08x%08x",result.tag[0],result.tag[1],result.tag[2],result.tag[3],result.tag[4],result.tag[5],result.tag[6],result.tag[7]);
     buff[lenToSend-1] = '\0';
     send(sock,buff,lenToSend,0);
 
     printf("\nSent gcm encrypted: ");
     for(int i=0;i<lenBuff;i++){
         printf("%c",buff[i]); //if you print the string it stops at a 0
-    }*/
+    }
+    printf("\nSend tag: ");
+    for(int i=0;i<8;i++){
+        printf("%lu",result.tag[i]);
+    }
 
     free(result.tag);
     free(result.iv);
@@ -129,8 +113,10 @@ void gcmReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
         gcmResult result;
         buffer[lenBuff-1] = '\0';
         printf("\nBuffer received %s",buffer); //Won't always print everything as it will stop at a 0
-         char *endPtr = &buffer[3];
-        int lenMsg = strtoul(buffer,&endPtr,16);
+        char temp = buffer[3];
+        buffer[3] = '\0';
+        int lenMsg = strtoul(buffer,NULL,16);
+        buffer[3] = temp;
         result.iv = (unsigned long*) calloc(8,sizeof(unsigned long));
         result.tag  = (unsigned long*) calloc(8,sizeof(unsigned long));
         uchar *message = (uchar*) calloc(lenMsg,sizeof(uchar));
@@ -142,17 +128,29 @@ void gcmReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
             exit(1);
         }
         for(int i=0;i<lenMsg;i++){
+            //Copy ciphertext into message
             message[i] = buffer[i+3];
         }
-        for(int i=0;i<32;i++){
-            result.iv[i>>2] |= ((uchar)buffer[3+lenMsg+i]) << ((3 - (i&3))*8); 
-            result.tag[i>>2] |= ((uchar)buffer[35+lenMsg+i]) << ((3 - (i&3))*8); 
+        for(int i=0;i<8;i++){
+            //Turn hex strings into unsigned long arrays
+            //8 chars for every item
+            //8 lots of 8 chars
+            //TODO make better strtoul
+            temp = buffer[3+lenMsg+(i<<3)+8];
+            buffer[3+lenMsg+(i<<3)+8] = '\0';
+            result.iv[i] = strtoul(&buffer[3+lenMsg+(i<<3)],NULL,16); //stroul sets the end point, you do not; you must provide it with null terminated string
+            buffer[3+lenMsg+(i<<3)+8] = temp;
+            temp = buffer[67+lenMsg+(i<<3)+8];
+            buffer[67+lenMsg+(i<<3)+8] = '\0';
+            result.tag[i] = strtoul(&buffer[67+lenMsg+(i<<3)],NULL,16); 
+            buffer[67+lenMsg+(i<<3)+8] = temp;
+            //The tag is checked by gcm
         }
-        gcm(message,lenMsg,key,&result);
-
-        printf("\nGcm decrypted: ");
-        for(int i=0;i<lenMsg;i++){
-            printf("%c",result.ciphertext[i]); //if you print the string it stops at a 0
+        if(gcm(message,lenMsg,key,&result)){
+            printf("\nGcm decrypted: ");
+            for(int i=0;i<lenMsg;i++){
+                printf("%c",result.ciphertext[i]); //if you print the string it stops at a 0
+            }
         }
 
         free(result.tag);
