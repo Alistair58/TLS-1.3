@@ -11,6 +11,15 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
 
 //gcc client.c -o client.exe -g -l ws2_32
 
+//Note:
+//Everything uses unsigned longs which are intended to be 32 bits
+//They are 32 bits on this system but so are ints
+
+//TODO
+//Add signatures
+//Make messages more formal/conform to TLS-1.3
+//Send everything in hex
+//Add finished (a MAC over the handshake)
 
 int main(int argc, char** argv) {
     int sock;

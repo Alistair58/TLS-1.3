@@ -1,15 +1,18 @@
 unsigned long* createBigNum(unsigned long *a, int len);
 unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, int lenDest);
+unsigned long* bigNumSubLittle(unsigned long *a,int lenA, unsigned long b,int lenDest);
 unsigned long* multiAdd(unsigned long *a,int lenA,unsigned long *b, int lenB, unsigned long *c,int lenC, int lenDest);
 unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest);
 unsigned long* bigNumModMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult);
 unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest);
+unsigned long* bigNumSubLittle(unsigned long *a,int lenA, unsigned long b,int lenDest);
 unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,unsigned long *p,int lenP);
 unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult, int lenDest);
 unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int lenP, int lenDest,int bitMod,int carryMult);
 unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, unsigned long littleNum,int lenDest);
 unsigned long* bigNumModMultByLittle(unsigned long *a,int lenA,unsigned long littleNum,int lenDest,int bitMod, int carryMult);
-
+unsigned long* bigNumRShift(unsigned long *a,int lenA,int shift);
+void bigNumRShiftRe(unsigned long *a,int lenA,int shift); //Re for reuse - it doesn't return a new pointer; it carries out operations on a
 
 
 
@@ -74,6 +77,39 @@ unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, 
     }
     return sum;
 }
+
+unsigned long* bigNumAddLittle(unsigned long *a,int lenA, unsigned long b, int lenDest){
+    unsigned long long temp;
+    int carry=0;
+    if(lenDest < lenA){
+        perror("\nStorage destination for addition is too small");
+        exit(1);
+    }
+    unsigned long *sum = calloc(lenDest,sizeof(unsigned long));
+    if(!sum){
+        perror("\nCalloc error during addition");
+        exit(1);
+    }
+    int iA;
+    for(int i= lenDest-1;i>-1;i--){
+        iA = lenA - (lenDest-i);
+        unsigned long op1 = (iA<0)?0:a[iA];
+        unsigned long op2 = (i==lenDest-1)?b:0;
+        temp = (unsigned long long) op1+op2+carry;
+        carry = temp >> (sizeof(unsigned long)*8);
+        if(carry>0){
+            temp &= 0xffffffff;
+            if(i==0){
+                free(sum);
+                perror("\nAddition overflow");
+                exit(1);
+            }
+        }    
+        sum[i] = temp;
+    }
+    return sum;
+}
+
 
 unsigned long* bigNumModAdd(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult){
     unsigned long *addResult = bigNumAdd(a,lenA,b,lenB,lenDest+1);
@@ -350,6 +386,35 @@ unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,in
     return result;
 }
 
+
+unsigned long* bigNumSubLittle(unsigned long *a,int lenA, unsigned long b,int lenDest){
+    long long temp;
+    int carry=0;
+    unsigned long *result = calloc(lenDest,sizeof(unsigned long));
+    if(!result){
+        perror("\nCalloc error during subtraction");
+        exit(1);
+    }
+    int iA;
+    for(int i= lenDest-1;i>-1;i--){
+        iA = lenA - (lenDest-i);
+        unsigned long op1 = (iA<0)?0:a[iA];
+        unsigned long op2 = (i==lenDest-1)?b:0;
+        temp = (long long) op1-op2+carry;
+        carry = temp >> (sizeof(unsigned long)*8); //check for negative number
+        if(carry){
+            temp &= 0xffffffff;
+            if(i==0){
+                free(result);
+                perror("\nFirst argument must be smaller than second for subtraction");
+                exit(1);
+            }
+        }    
+        result[i] = temp;
+    }
+    return result;
+}
+
 unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,unsigned long *p,int lenP){
     //Answer is guaranteed in range (2^bitmod-carryMult,-(2^bitmod-carryMult))
     //As the inputs have already been modded
@@ -477,4 +542,45 @@ unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int len
         
     }
     return r;
+}
+
+unsigned long *bigNumRShift(unsigned long *a,int lenA,int shift){ 
+    if(shift>=32){
+        perror("\nShift must be less than 32");
+        exit(1);
+    }
+    unsigned long *result = calloc(lenA,sizeof(unsigned long));
+    if(!result){
+        perror("\nCalloc error during bigNumRShift");
+        exit(1);
+    }
+    unsigned long carry = 0,temp;
+    unsigned long carryBitMask = ((1<<(shift))-1);
+    for(int i=0;i<lenA;i++){
+        temp = a[i] & carryBitMask; //Save the LSBs
+        result[i] = a[i] >> shift; 
+        if(carry) result[i] &= carry << (32-shift); //add in the previous LSBs
+        carry = temp;
+    }
+    return result;
+}
+
+void bigNumRShiftRe(unsigned long *a,int lenA,int shift){  
+    if(shift>=32){
+        perror("\nShift must be less than 32");
+        exit(1);
+    }
+    unsigned long *result = calloc(lenA,sizeof(unsigned long));
+    if(!result){
+        perror("\nCalloc error during bigNumRShift");
+        exit(1);
+    }
+    unsigned long carry = 0,temp;
+    unsigned long carryBitMask = ((1<<(shift))-1);
+    for(int i=0;i<lenA;i++){
+        temp = a[i] & carryBitMask; //Save the LSBs
+        a[i] >>= shift; 
+        if(carry) a[i] &= carry << (32-shift); //add in the previous LSBs
+        carry = temp;
+    }
 }

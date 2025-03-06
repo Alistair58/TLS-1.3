@@ -1,6 +1,3 @@
-#include "random.h"
-#include "aes.h"
-
 typedef unsigned char uchar;
 
 typedef struct gcmResult{

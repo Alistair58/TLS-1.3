@@ -9,7 +9,10 @@
 #include <math.h>
 #include "structs.h"
 #include "x25519.h"
-#include "gcm.h"  //includes aes.h,random.h
+#include "aes.h"
+#include "random.h"
+#include "gcm.h" 
+#include "rsa.h"
 
 void ecbSendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg);
 void ecbReceiveMessage(int sock,char *buffer, int lenBuff, unsigned long *key);
