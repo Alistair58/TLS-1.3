@@ -1,8 +1,18 @@
+#define LESS_THAN 1
+#define GREATER_THAN 2
+#define EQUAL 0
+
+typedef unsigned char uint8;
+
+//Re is for reuse - it doesn't return a new pointer; it carries out operations on "a" (the first argument)
+//NOTE - Numbers are stored with MSB at index 0 -> Big Endian
+
 unsigned long* createBigNum(unsigned long *a, int len);
 unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, int lenDest);
 unsigned long* bigNumSubLittle(unsigned long *a,int lenA, unsigned long b,int lenDest);
 unsigned long* multiAdd(unsigned long *a,int lenA,unsigned long *b, int lenB, unsigned long *c,int lenC, int lenDest);
 unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest);
+void bigNumMultRe(unsigned long *a,int lenA, unsigned long *b,int lenB);
 unsigned long* bigNumModMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult);
 unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest);
 unsigned long* bigNumSubLittle(unsigned long *a,int lenA, unsigned long b,int lenDest);
@@ -12,8 +22,12 @@ unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int len
 unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, unsigned long littleNum,int lenDest);
 unsigned long* bigNumModMultByLittle(unsigned long *a,int lenA,unsigned long littleNum,int lenDest,int bitMod, int carryMult);
 unsigned long* bigNumRShift(unsigned long *a,int lenA,int shift);
-void bigNumRShiftRe(unsigned long *a,int lenA,int shift); //Re for reuse - it doesn't return a new pointer; it carries out operations on a
-
+void bigNumRShiftRe(unsigned long *a,int lenA,int shift); 
+unsigned long* bigNumLShift(unsigned long *a,int lenA,int shift);
+void bigNumLShiftRe(unsigned long *a,int lenA,int shift); 
+uint8 bigNumCmp(unsigned long *a,int lenA,unsigned long *b,int lenB);
+unsigned long *bigNumMod(unsigned long *a,int lenA,unsigned long *n,int lenN);
+void bigNumModRe(unsigned long *a,int lenA,unsigned long *n,int lenN);
 
 
 void printBigNum(char *text, unsigned long *n, int lenN){
@@ -22,7 +36,7 @@ void printBigNum(char *text, unsigned long *n, int lenN){
         printf(" %lu",n[i]);
     }
 }
-//NOTE - Numbers are stored with MSB at index 0 -> Big Endian
+
 
 unsigned long* createBigNum(unsigned long *a, int len){ //MUST REMEMBER TO FREE IF USING THIS
     unsigned long* p = calloc(len,sizeof(unsigned long));
@@ -124,6 +138,13 @@ unsigned long*  multiAdd(unsigned long *a,int lenA,unsigned long *b, int lenB, u
     unsigned long* sum2 = bigNumAdd(sum1,lenDest,c,lenC,lenDest);
     free(sum1);
     return sum2;
+}
+
+void bigNumMultRe(unsigned long *a,int lenA, unsigned long *b,int lenB){ //Multiply a and b and store in a
+    unsigned long *res = bigNumMult(a,lenA,b,lenB,lenA);
+    a = realloc(a,lenA*sizeof(unsigned long)); //bigNumMult may pad A if necessary
+    memcpy(a,res,lenA*sizeof(unsigned long));
+    free(res);
 }
 
 //TODO - Currently not actually any more efficient than long multiplication - see book to work out what to reuse
@@ -566,21 +587,87 @@ unsigned long *bigNumRShift(unsigned long *a,int lenA,int shift){
 }
 
 void bigNumRShiftRe(unsigned long *a,int lenA,int shift){  
+    unsigned long *result = bigNumRShift(a,lenA,shift);
+    memcpy(a,result,lenA*sizeof(unsigned long));
+    free(result);
+}
+
+unsigned long* bigNumLShift(unsigned long *a,int lenA,int shift){
     if(shift>=32){
         perror("\nShift must be less than 32");
         exit(1);
     }
     unsigned long *result = calloc(lenA,sizeof(unsigned long));
     if(!result){
-        perror("\nCalloc error during bigNumRShift");
+        perror("\nCalloc error during bigNumLShift");
         exit(1);
     }
-    unsigned long carry = 0,temp;
-    unsigned long carryBitMask = ((1<<(shift))-1);
-    for(int i=0;i<lenA;i++){
-        temp = a[i] & carryBitMask; //Save the LSBs
-        a[i] >>= shift; 
-        if(carry) a[i] &= carry << (32-shift); //add in the previous LSBs
-        carry = temp;
+    unsigned long carry = 0;
+    unsigned long long temp;
+    for(int i=lenA-1;i>=0;i--){
+        temp = ((unsigned long long) a[i]) << shift; 
+        result[i] = ((unsigned long) (temp & ULONG_MAX)) & carry;
+        carry = (unsigned long) (temp >> 32);
     }
+    if(carry){
+        perror("\nOverflow error on bigNumLShift");
+        exit(1);
+    }
+    return result;
+}
+
+
+void bigNumLShiftRe(unsigned long *a,int lenA,int shift){
+    unsigned long *result = bigNumLShift(a,lenA,shift);
+    memcpy(a,result,lenA*sizeof(unsigned long));
+    free(result);
+}
+
+uint8 bigNumCmp(unsigned long *a,int lenA,unsigned long *b,int lenB){
+    int lenLongest = max(lenA,lenB);
+    int iA,iB;
+    unsigned long op1,op2;
+    for(int i=0;i<lenLongest;i++){
+        iA = lenA - (lenLongest-i);
+        iB = lenB - (lenLongest-i);
+        op1 = (iA<0)?0:a[iA];
+        op2 = (iB<0)?0:b[iB];
+        if(op1<op2) return LESS_THAN;
+        else if(op1>op2) return GREATER_THAN;
+    }
+    return EQUAL;
+}
+
+unsigned long *bigNumMod(unsigned long *a,int lenA,unsigned long *n,int lenN){ //a % n
+    //TODO Need to test
+    //Long division
+    unsigned long *curr = (unsigned long*) calloc(lenN+1,sizeof(unsigned long));
+    if(!curr){
+        perror("\nCalloc error during bigNumMod");
+        exit(1);
+    }
+    int bits = lenA*32;
+    for(int i=0;i<bits;i++){
+        bigNumLShiftRe(curr,lenN+1,1);
+        curr[lenN] |= ((a[i>>32] >> (31 - (i&31))) & 1); //set LSB of curr to be the current bit in a
+        uint8 cmpRes = bigNumCmp(curr,lenN+1,n,lenN);
+        if(cmpRes == GREATER_THAN){
+            bigNumSubRe(curr,lenN+1,n,lenN);
+            //Don't need to actually work out the quotient
+        }
+    }
+    curr = realloc(curr,lenN*sizeof(unsigned long));
+    return curr; //Return the left over carry which will be the remainder
+}
+
+
+void bigNumModRe(unsigned long *a,int lenA,unsigned long *n,int lenN){ //a % n
+    if(lenA<lenN){
+        perror("\nInsufficient space for bigNumMod");
+        exit(1);
+    }
+    unsigned long *result = bigNumMod(a,lenA,n,lenN);
+    memset(a,0,lenA*sizeof(unsigned long));
+    memcpy(&a[lenA-lenN],result,lenN*sizeof(unsigned long));
+    free(result);
 }
