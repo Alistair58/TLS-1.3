@@ -15,17 +15,24 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
 //Everything uses unsigned longs which are intended to be 32 bits
 //They are 32 bits on this system but so are ints
 
-//TODO
+//TODO High-Level
 //Add signatures
 //Make messages more formal/conform to TLS-1.3
 //Send everything in hex
 //Add finished (a MAC over the handshake)
 
+//TODO Low-Level
+//Test square and multiply
+//Write rest of RSA
+//Test long divison mod in bigmaths.h
+//Test RSA
+//Write SHA
+//Test SHA
+//create PKI
 int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
-
     unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
     struct ClientHello clientHello = generateClientHello(privateDHRandom);
     if(connectToServer(&addr,&sock)==0){
@@ -40,6 +47,7 @@ int main(int argc, char** argv) {
         printf("\nDisconnected from server.");
         free(privateECDHKey);free(privateDHRandom);
     }
+    
     return 0;
 }
 

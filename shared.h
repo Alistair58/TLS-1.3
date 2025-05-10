@@ -7,12 +7,20 @@
 #include <unistd.h>
 #include <winuser.h>
 #include <math.h>
+#include <errno.h>
+#define callocError(functionName) char errorMsg[20+sizeof(functionName)]; \
+    sprintf(errorMsg,"\nCalloc error in \"%s\"",functionName); \
+    errno = ENOMEM; \
+    perror(errorMsg); \
+    exit(ERROR_NOT_ENOUGH_MEMORY);
 #include "structs.h"
 #include "x25519.h"
 #include "aes.h"
 #include "random.h"
 #include "gcm.h" 
 #include "rsa.h"
+
+
 
 void ecbSendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg);
 void ecbReceiveMessage(int sock,char *buffer, int lenBuff, unsigned long *key);

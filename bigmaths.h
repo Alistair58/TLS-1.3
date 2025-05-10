@@ -3,34 +3,39 @@
 #define EQUAL 0
 
 typedef unsigned char uint8;
+typedef unsigned long* bignum;
 
 //Re is for reuse - it doesn't return a new pointer; it carries out operations on "a" (the first argument)
 //NOTE - Numbers are stored with MSB at index 0 -> Big Endian
 
-unsigned long* createBigNum(unsigned long *a, int len);
-unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, int lenDest);
-unsigned long* bigNumSubLittle(unsigned long *a,int lenA, unsigned long b,int lenDest);
-unsigned long* multiAdd(unsigned long *a,int lenA,unsigned long *b, int lenB, unsigned long *c,int lenC, int lenDest);
-unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest);
-void bigNumMultRe(unsigned long *a,int lenA, unsigned long *b,int lenB);
-unsigned long* bigNumModMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult);
-unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest);
-unsigned long* bigNumSubLittle(unsigned long *a,int lenA, unsigned long b,int lenDest);
-unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,unsigned long *p,int lenP);
-unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult, int lenDest);
-unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int lenP, int lenDest,int bitMod,int carryMult);
-unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, unsigned long littleNum,int lenDest);
-unsigned long* bigNumModMultByLittle(unsigned long *a,int lenA,unsigned long littleNum,int lenDest,int bitMod, int carryMult);
-unsigned long* bigNumRShift(unsigned long *a,int lenA,int shift);
-void bigNumRShiftRe(unsigned long *a,int lenA,int shift); 
-unsigned long* bigNumLShift(unsigned long *a,int lenA,int shift);
-void bigNumLShiftRe(unsigned long *a,int lenA,int shift); 
-uint8 bigNumCmp(unsigned long *a,int lenA,unsigned long *b,int lenB);
-unsigned long *bigNumMod(unsigned long *a,int lenA,unsigned long *n,int lenN);
-void bigNumModRe(unsigned long *a,int lenA,unsigned long *n,int lenN);
+bignum createBigNum(bignum a, int len);
+bignum bigNumAdd(bignum a,int lenA, bignum b, int lenB, int lenDest);
+bignum bigNumSubLittle(bignum a,int lenA, unsigned long b,int lenDest);
+bignum multiAdd(bignum a,int lenA,bignum b, int lenB, bignum c,int lenC, int lenDest);
+bignum bigNumBitModAdd(bignum a,int lenA, bignum b,int lenB,int lenDest,int bitMod, int carryMult);
+bignum bigNumMult(bignum a,int lenA, bignum b,int lenB,int lenDest);
+void bigNumMultRe(bignum a,int lenA, bignum b,int lenB);
+bignum bigNumBitModMult(bignum a,int lenA, bignum b,int lenB,int lenDest,int bitMod, int carryMult);
+bignum bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN);
+bignum bigNumModMultRe(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN);
+bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest);
+void bigNumSubRe(bignum a,int lenA,bignum b,int lenB);
+bignum bigNumSubLittle(bignum a,int lenA, unsigned long b,int lenDest);
+bignum bigNumModSub(bignum a,int lenA, bignum b,int lenB,int lenDest,bignum p,int lenP);
+bignum bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult, int lenDest);
+bignum bigNumBitModInv(bignum a, int lenA,bignum p, int lenP, int lenDest,int bitMod,int carryMult);
+bignum bigNumMultByLittle(bignum a,int lenA, unsigned long littleNum,int lenDest);
+bignum bigNumBitModMultByLittle(bignum a,int lenA,unsigned long littleNum,int lenDest,int bitMod, int carryMult);
+bignum bigNumRShift(bignum a,int lenA,int shift);
+void bigNumRShiftRe(bignum a,int lenA,int shift); 
+bignum bigNumLShift(bignum a,int lenA,int shift);
+void bigNumLShiftRe(bignum a,int lenA,int shift); 
+uint8 bigNumCmp(bignum a,int lenA,bignum b,int lenB);
+bignum bigNumMod(bignum a,int lenA,bignum n,int lenN);
+void bigNumModRe(bignum a,int lenA,bignum n,int lenN);
 
 
-void printBigNum(char *text, unsigned long *n, int lenN){
+void printBigNum(char *text, bignum n, int lenN){
     printf("\n%s",text);
     for(int i=0;i<lenN;i++){
         printf(" %lu",n[i]);
@@ -38,11 +43,10 @@ void printBigNum(char *text, unsigned long *n, int lenN){
 }
 
 
-unsigned long* createBigNum(unsigned long *a, int len){ //MUST REMEMBER TO FREE IF USING THIS
-    unsigned long* p = calloc(len,sizeof(unsigned long));
+bignum createBigNum(bignum a, int len){ //MUST REMEMBER TO FREE IF USING THIS
+    bignum p = calloc(len,sizeof(unsigned long));
     if(!p){
-        perror("\nCalloc error during addition bigNum creation");
-        exit(1);
+        callocError(__func__);
     }
     for(int i=0;i<len;i++){
         p[i] = a[i];
@@ -52,7 +56,7 @@ unsigned long* createBigNum(unsigned long *a, int len){ //MUST REMEMBER TO FREE 
 
 
 
-unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, int lenDest){
+bignum bigNumAdd(bignum a,int lenA, bignum b, int lenB, int lenDest){
     unsigned long long temp;
     int carry=0;
     if(lenDest < lenA || lenDest <lenB){
@@ -60,10 +64,9 @@ unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, 
         perror("\nStorage destination for addition is too small");
         exit(1);
     }
-    unsigned long *sum = calloc(lenDest,sizeof(unsigned long));
+    bignum sum = calloc(lenDest,sizeof(unsigned long));
     if(!sum){
-        perror("\nCalloc error during addition");
-        exit(1);
+        callocError(__func__);
     }
     int iA;
     int iB;
@@ -92,17 +95,16 @@ unsigned long* bigNumAdd(unsigned long *a,int lenA, unsigned long *b, int lenB, 
     return sum;
 }
 
-unsigned long* bigNumAddLittle(unsigned long *a,int lenA, unsigned long b, int lenDest){
+bignum bigNumAddLittle(bignum a,int lenA, unsigned long b, int lenDest){
     unsigned long long temp;
     int carry=0;
     if(lenDest < lenA){
         perror("\nStorage destination for addition is too small");
         exit(1);
     }
-    unsigned long *sum = calloc(lenDest,sizeof(unsigned long));
+    bignum sum = calloc(lenDest,sizeof(unsigned long));
     if(!sum){
-        perror("\nCalloc error during addition");
-        exit(1);
+        callocError(__func__);
     }
     int iA;
     for(int i= lenDest-1;i>-1;i--){
@@ -125,30 +127,30 @@ unsigned long* bigNumAddLittle(unsigned long *a,int lenA, unsigned long b, int l
 }
 
 
-unsigned long* bigNumModAdd(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult){
-    unsigned long *addResult = bigNumAdd(a,lenA,b,lenB,lenDest+1);
-    unsigned long *modResult = bigNumBitMod(addResult,lenDest+1,bitMod,carryMult,lenDest);
+bignum bigNumBitModAdd(bignum a,int lenA, bignum b,int lenB,int lenDest,int bitMod, int carryMult){
+    bignum addResult = bigNumAdd(a,lenA,b,lenB,lenDest+1);
+    bignum modResult = bigNumBitMod(addResult,lenDest+1,bitMod,carryMult,lenDest);
     free(addResult);
     return modResult;
 }
 
 
-unsigned long*  multiAdd(unsigned long *a,int lenA,unsigned long *b, int lenB, unsigned long *c,int lenC, int lenDest){
-    unsigned long* sum1 = bigNumAdd(a,lenA,b,lenB,lenDest);
-    unsigned long* sum2 = bigNumAdd(sum1,lenDest,c,lenC,lenDest);
+bignum  multiAdd(bignum a,int lenA,bignum b, int lenB, bignum c,int lenC, int lenDest){
+    bignum sum1 = bigNumAdd(a,lenA,b,lenB,lenDest);
+    bignum sum2 = bigNumAdd(sum1,lenDest,c,lenC,lenDest);
     free(sum1);
     return sum2;
 }
 
-void bigNumMultRe(unsigned long *a,int lenA, unsigned long *b,int lenB){ //Multiply a and b and store in a
-    unsigned long *res = bigNumMult(a,lenA,b,lenB,lenA);
+void bigNumMultRe(bignum a,int lenA, bignum b,int lenB){ //Multiply a and b and store in a
+    bignum res = bigNumMult(a,lenA,b,lenB,lenA);
     a = realloc(a,lenA*sizeof(unsigned long)); //bigNumMult may pad A if necessary
     memcpy(a,res,lenA*sizeof(unsigned long));
     free(res);
 }
 
 //TODO - Currently not actually any more efficient than long multiplication - see book to work out what to reuse
-unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest){ 
+bignum bigNumMult(bignum a,int lenA, bignum b,int lenB,int lenDest){ 
     /*a = [a1,a2]
     b = [b1,b2]
     a*b = [a1*b1,a1*b2+a2*b1,a2*b2]
@@ -159,10 +161,9 @@ unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,i
         perror("\nStorage destination for multiplication is too small");
         exit(1);
     }
-    unsigned long *product = calloc(lenDest,sizeof(unsigned long));
+    bignum product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
-        perror("\nCalloc error during multiplication");
-        exit(1);
+        callocError(__func__);
     }
     if(lenA>1 || lenB>1){
         if(longest & 1){
@@ -206,10 +207,10 @@ unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,i
         memcpy(w, a, longest/2 * sizeof(unsigned long)); memcpy(x, &a[longest/2], longest/2 * sizeof(unsigned long)); 
         memcpy(y, b, longest/2 * sizeof(unsigned long)); memcpy(z, &b[longest/2], longest/2 * sizeof(unsigned long)); 
         
-        unsigned long *wy = bigNumMult(w,longest/2,y,longest/2,longest);
-        unsigned long *wz = bigNumMult(w,longest/2,z,longest/2,longest);
-        unsigned long *xy = bigNumMult(x,longest/2,y,longest/2,longest);
-        unsigned long *xz = bigNumMult(x,longest/2,z,longest/2,longest);
+        bignum wy = bigNumMult(w,longest/2,y,longest/2,longest);
+        bignum wz = bigNumMult(w,longest/2,z,longest/2,longest);
+        bignum xy = bigNumMult(x,longest/2,y,longest/2,longest);
+        bignum xz = bigNumMult(x,longest/2,z,longest/2,longest);
 
         memcpy(wy1, wy, longest/2 * sizeof(unsigned long)); memcpy(wy2, &wy[longest/2], longest/2 * sizeof(unsigned long));  
         memcpy(wz1, wz, longest/2 * sizeof(unsigned long)); memcpy(wz2, &wz[longest/2], longest/2 * sizeof(unsigned long));  
@@ -217,11 +218,11 @@ unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,i
         memcpy(xz1, xz, longest/2 * sizeof(unsigned long)); memcpy(xz2, &xz[longest/2], longest/2 * sizeof(unsigned long));  
 
         
-        unsigned long *pos1Temp = multiAdd(wy2,longest/2,xy1,longest/2,wz1,longest/2,(longest/2)+1); //Accounts for overflow
-        unsigned long *pos2Temp = multiAdd(xy2,longest/2,wz2,longest/2,xz1,longest/2,(longest/2)+1);
-        unsigned long *pos0 = bigNumAdd(wy1,longest/2,pos1Temp,1,longest/2); //Shouldn't overflow?
-        unsigned long *pos1 = bigNumAdd(&pos1Temp[1],longest/2,pos2Temp,1,longest/2);
-        unsigned long *pos2 = calloc(longest/2,sizeof(unsigned long));
+        bignum pos1Temp = multiAdd(wy2,longest/2,xy1,longest/2,wz1,longest/2,(longest/2)+1); //Accounts for overflow
+        bignum pos2Temp = multiAdd(xy2,longest/2,wz2,longest/2,xz1,longest/2,(longest/2)+1);
+        bignum pos0 = bigNumAdd(wy1,longest/2,pos1Temp,1,longest/2); //Shouldn't overflow?
+        bignum pos1 = bigNumAdd(&pos1Temp[1],longest/2,pos2Temp,1,longest/2);
+        bignum pos2 = calloc(longest/2,sizeof(unsigned long));
         memcpy(pos2,&pos2Temp[1],longest/2*sizeof(unsigned long));
         free(pos1Temp);free(pos2Temp);
         int niceLength = (longest<<1);
@@ -269,18 +270,33 @@ unsigned long* bigNumMult(unsigned long *a,int lenA, unsigned long *b,int lenB,i
     return product;
 }
 
-unsigned long* bigNumModMult(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,int bitMod, int carryMult){
-    unsigned long *multResult = bigNumMult(a,lenA,b,lenB,lenDest*2);
-    unsigned long *modResult = bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,lenDest);
+bignum bigNumBitModMult(bignum a,int lenA, bignum b,int lenB,int lenDest,int bitMod, int carryMult){
+    bignum multResult = bigNumMult(a,lenA,b,lenB,lenDest*2);
+    bignum modResult = bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,lenDest);
     free(multResult);
     return modResult;
 }
+bignum bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN){ 
+    //will return a big num of size lenN
+    bignum multResult = bigNumMult(a,lenA,b,lenB,lenA+lenB);
+    bigNumModRe(multResult,lenA+lenB,n,lenN);
+    return multResult;
+}
 
-unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult, int lenDest){
-    unsigned long *product = calloc(lenDest,sizeof(unsigned long));
+bignum bigNumModMultRe(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN){ //store it in a 
+    if(lenA<lenN){
+        perror("\nInsufficient space to store result of \"bigNumModMultRe\" in argument 1");
+        exit(ERROR_BAD_LENGTH);
+    }
+    bignum result = bigNumModMult(a,lenA,b,lenB,n,lenN);
+    memcpy(a,result,lenA);
+    free(result);
+}
+
+bignum bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult, int lenDest){
+    bignum product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
-        perror("\nCalloc error during mod");
-        exit(1);
+        callocError(__func__);
     }
     int i = (int)((float)lenA - (float)bitMod/32); //Do we need to mod the number, if so how many chunks do we need to mod
     if(!(bitMod%32)) i--; //Doesn't affect 25519
@@ -288,7 +304,8 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
         memcpy(product,a,lenA*sizeof(unsigned long));
         return product;
     }
-    unsigned long *carry, *realCarry,*addedCarry,doubleCarry;
+    bignum carry,realCarry,addedCarry;
+    unsigned long doubleCarry;
     do{//Repeat until no more modding is require, 1 iteration on 0xfffff will require another mod
         doubleCarry = 0;
         int bitDepth = bitMod%32; //How far to go into the first chunk
@@ -299,13 +316,16 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
         }
         for(int j=0;j<=i;j++){ //Go through all the chunks that are too big
             if(j==i){
-                carry[j] = (unsigned long long) (a[j] >> bitDepth) + doubleCarry;
-                a[j] -= (a[j] >> bitDepth) << bitDepth; //get rid of the big bit
+                carry[j] = (a[j] >> bitDepth) + doubleCarry;
+                a[j] -= (a[j] >> bitDepth) << bitDepth; //get rid of the big bits
             }
             else{
-                 //Double carry ensures that the positioning of array elements is correct
-                carry[j] = (unsigned long long) (a[j] >> bitDepth) + doubleCarry; //e.g. if you are doing bitDepth 31 and there is a {...2},{1} carry this should be represented as {0,2*2^1 + 1}
-                doubleCarry = (a[j] - ((a[j] >> bitDepth)<<bitDepth)) * (1ul<<(32-bitDepth));
+                //Double carry ensures that the positioning of array elements is correct
+                //a = [j-1]{...bitDepth abc},[j]{xyz BitDepth def}, 
+                //carry[j] = abcxyz
+                //doubleCarry = def 
+                carry[j] = (a[j] >> bitDepth) + doubleCarry; //e.g. if you are doing bitDepth 31 and there is a {...2},{1} carry this should be represented as {0,2*2^1 + 1}
+                doubleCarry = (a[j] - ((a[j] >> bitDepth)<<bitDepth)) * (1ul<<(32-bitDepth)); 
                 a[j] = 0;
             }
         }
@@ -327,15 +347,14 @@ unsigned long* bigNumBitMod(unsigned long *a, int lenA,int bitMod,int carryMult,
 
 
 
-unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, unsigned long littleNum,int lenDest){
+bignum bigNumMultByLittle(bignum a,int lenA, unsigned long littleNum,int lenDest){
     if(lenDest<lenA){
         perror("\nStorage destination for multiplication is too small");
         exit(1);
     }
-    unsigned long *product = calloc(lenDest,sizeof(unsigned long));
+    bignum product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
-        perror("\nCalloc error during mutliplication");
-        exit(1);
+        callocError(__func__);
     }
     unsigned long thisChunk = 0;
     unsigned long carry = 0;
@@ -362,24 +381,23 @@ unsigned long* bigNumMultByLittle(unsigned long *a,int lenA, unsigned long littl
     
 }
 
-unsigned long* bigNumModMultByLittle(unsigned long *a,int lenA, unsigned long littleNum,int lenDest,int bitMod, int carryMult){
-    unsigned long *multResult = bigNumMultByLittle(a,lenA,littleNum,lenDest*2);
-    unsigned long *modResult = bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,lenDest);
+bignum bigNumBitModMultByLittle(bignum a,int lenA, unsigned long littleNum,int lenDest,int bitMod, int carryMult){
+    bignum multResult = bigNumMultByLittle(a,lenA,littleNum,lenDest*2);
+    bignum modResult = bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,lenDest);
     free(multResult);
     return modResult;
 }
 
-unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest){
+bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest){
     long long temp;
     int carry=0;
     if(lenB>lenA){
         perror("\nFirst argument must be smaller than second for subtraction");
         exit(1);
     }
-    unsigned long *result = calloc(lenDest,sizeof(unsigned long));
+    bignum result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
-        perror("\nCalloc error during subtraction");
-        exit(1);
+        callocError(__func__);
     }
     int iA;
     int iB;
@@ -407,14 +425,19 @@ unsigned long* bigNumSub(unsigned long *a,int lenA, unsigned long *b,int lenB,in
     return result;
 }
 
+void bigNumSubRe(bignum a,int lenA,bignum b,int lenB){ //stores it in a
+    bignum result = bigNumSub(a,lenA,b,lenB,lenA);
+    memcpy(a,result,lenA);
+    free(result);
+}
 
-unsigned long* bigNumSubLittle(unsigned long *a,int lenA, unsigned long b,int lenDest){
+
+bignum bigNumSubLittle(bignum a,int lenA, unsigned long b,int lenDest){
     long long temp;
     int carry=0;
-    unsigned long *result = calloc(lenDest,sizeof(unsigned long));
+    bignum result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
-        perror("\nCalloc error during subtraction");
-        exit(1);
+        callocError(__func__);
     }
     int iA;
     for(int i= lenDest-1;i>-1;i--){
@@ -436,16 +459,15 @@ unsigned long* bigNumSubLittle(unsigned long *a,int lenA, unsigned long b,int le
     return result;
 }
 
-unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB,int lenDest,unsigned long *p,int lenP){
+bignum bigNumModSub(bignum a,int lenA, bignum b,int lenB,int lenDest,bignum p,int lenP){
     //Answer is guaranteed in range (2^bitmod-carryMult,-(2^bitmod-carryMult))
     //As the inputs have already been modded
     // -25 mod 256 = 231 = 256 -25
     //
     long long temp=0,carry=0;
-    unsigned long *result = calloc(lenDest,sizeof(unsigned long));
+    bignum result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
-        perror("\nCalloc error during subtraction");
-        exit(1);
+        callocError(__func__);
     }
     int iA;
     int iB;
@@ -508,7 +530,7 @@ unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB
                     }
                     
                 }
-                unsigned long *modded = bigNumSub(p,lenP,result,lenDest,lenDest); //Will be positive
+                bignum modded = bigNumSub(p,lenP,result,lenDest,lenDest); //Will be positive
                 memcpy(result,modded,lenDest*sizeof(unsigned long));
                 free(modded);
 
@@ -527,22 +549,21 @@ unsigned long* bigNumModSub(unsigned long *a,int lenA, unsigned long *b,int lenB
     return result;
 }
 
-unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int lenP, int lenDest,int bitMod,int carryMult){
+bignum bigNumBitModInv(bignum a, int lenA,bignum p, int lenP, int lenDest,int bitMod,int carryMult){
     //inv a = a^p-2
     //Constant time as p-2 is constant (for any given curve)
 
     //Not tested but follows the paper exactly
     int i = 1,bit;
     bool started = false;
-    unsigned long *pCpy = calloc(lenP,sizeof(unsigned long));
-    unsigned long *r = calloc(lenA,sizeof(unsigned long));
+    bignum pCpy = calloc(lenP,sizeof(unsigned long));
+    bignum r = calloc(lenA,sizeof(unsigned long));
     
-    unsigned long *temp1,*temp2;
-    unsigned long *modTemp1,*modTemp2;
+    bignum temp1,temp2;
+    bignum modTemp1,modTemp2;
 
     if(!r || !pCpy){
-        perror("\nCalloc error during inverse");
-        exit(1);
+        callocError(__func__);
     }
     r[lenA-1] = 1;
     memcpy(pCpy,p,lenP*sizeof(unsigned long));
@@ -565,15 +586,14 @@ unsigned long* bigNumModInv(unsigned long *a, int lenA,unsigned long *p, int len
     return r;
 }
 
-unsigned long *bigNumRShift(unsigned long *a,int lenA,int shift){ 
+bignum bigNumRShift(bignum a,int lenA,int shift){ 
     if(shift>=32){
         perror("\nShift must be less than 32");
         exit(1);
     }
-    unsigned long *result = calloc(lenA,sizeof(unsigned long));
+    bignum result = calloc(lenA,sizeof(unsigned long));
     if(!result){
-        perror("\nCalloc error during bigNumRShift");
-        exit(1);
+        callocError(__func__);
     }
     unsigned long carry = 0,temp;
     unsigned long carryBitMask = ((1<<(shift))-1);
@@ -586,21 +606,20 @@ unsigned long *bigNumRShift(unsigned long *a,int lenA,int shift){
     return result;
 }
 
-void bigNumRShiftRe(unsigned long *a,int lenA,int shift){  
-    unsigned long *result = bigNumRShift(a,lenA,shift);
+void bigNumRShiftRe(bignum a,int lenA,int shift){  
+    bignum result = bigNumRShift(a,lenA,shift);
     memcpy(a,result,lenA*sizeof(unsigned long));
     free(result);
 }
 
-unsigned long* bigNumLShift(unsigned long *a,int lenA,int shift){
+bignum bigNumLShift(bignum a,int lenA,int shift){
     if(shift>=32){
         perror("\nShift must be less than 32");
         exit(1);
     }
-    unsigned long *result = calloc(lenA,sizeof(unsigned long));
+    bignum result = calloc(lenA,sizeof(unsigned long));
     if(!result){
-        perror("\nCalloc error during bigNumLShift");
-        exit(1);
+        callocError(__func__);
     }
     unsigned long carry = 0;
     unsigned long long temp;
@@ -617,13 +636,13 @@ unsigned long* bigNumLShift(unsigned long *a,int lenA,int shift){
 }
 
 
-void bigNumLShiftRe(unsigned long *a,int lenA,int shift){
-    unsigned long *result = bigNumLShift(a,lenA,shift);
+void bigNumLShiftRe(bignum a,int lenA,int shift){
+    bignum result = bigNumLShift(a,lenA,shift);
     memcpy(a,result,lenA*sizeof(unsigned long));
     free(result);
 }
 
-uint8 bigNumCmp(unsigned long *a,int lenA,unsigned long *b,int lenB){
+uint8 bigNumCmp(bignum a,int lenA,bignum b,int lenB){
     int lenLongest = max(lenA,lenB);
     int iA,iB;
     unsigned long op1,op2;
@@ -638,18 +657,16 @@ uint8 bigNumCmp(unsigned long *a,int lenA,unsigned long *b,int lenB){
     return EQUAL;
 }
 
-unsigned long *bigNumMod(unsigned long *a,int lenA,unsigned long *n,int lenN){ //a % n
-    //TODO Need to test
+bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
     //Long division
-    unsigned long *curr = (unsigned long*) calloc(lenN+1,sizeof(unsigned long));
+    bignum curr = (bignum) calloc(lenN+1,sizeof(unsigned long));
     if(!curr){
-        perror("\nCalloc error during bigNumMod");
-        exit(1);
+        callocError(__func__);
     }
     int bits = lenA*32;
     for(int i=0;i<bits;i++){
         bigNumLShiftRe(curr,lenN+1,1);
-        curr[lenN] |= ((a[i>>32] >> (31 - (i&31))) & 1); //set LSB of curr to be the current bit in a
+        curr[lenN] |= ((a[i>>5] >> (31 - (i&31))) & 1); //set LSB of curr to be the current bit in a
         uint8 cmpRes = bigNumCmp(curr,lenN+1,n,lenN);
         if(cmpRes == GREATER_THAN){
             bigNumSubRe(curr,lenN+1,n,lenN);
@@ -661,12 +678,12 @@ unsigned long *bigNumMod(unsigned long *a,int lenA,unsigned long *n,int lenN){ /
 }
 
 
-void bigNumModRe(unsigned long *a,int lenA,unsigned long *n,int lenN){ //a % n
+void bigNumModRe(bignum a,int lenA,bignum n,int lenN){ //a % n
     if(lenA<lenN){
         perror("\nInsufficient space for bigNumMod");
         exit(1);
     }
-    unsigned long *result = bigNumMod(a,lenA,n,lenN);
+    bignum result = bigNumMod(a,lenA,n,lenN);
     memset(a,0,lenA*sizeof(unsigned long));
     memcpy(&a[lenA-lenN],result,lenN*sizeof(unsigned long));
     free(result);
