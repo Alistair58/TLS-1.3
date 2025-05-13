@@ -11,13 +11,13 @@
 //Which is an array of 64 unsigned longs
 //Therefore p and q will be 1028 bits(32 length array)
 typedef struct PublicKey{
-    unsigned long *n;
+    bignum n;
     unsigned long e;
 } PublicKey;
 
 typedef struct PrivateKey{
-    unsigned long *p;
-    unsigned long *q;
+    bignum p;
+    bignum q;
 } PrivateKey;
 
 
@@ -27,14 +27,14 @@ typedef struct KeyPair{
 } KeyPair;
 
 
-bool isPrime(unsigned long *x,int lenX);
-// bool millerRabin(unsigned long *x,int lenX,unsigned long *a,int lenA);
-unsigned long *montLadExp(unsigned long *a,int lenA,unsigned long *exp, int lenExp, unsigned long *mod, int modLen);
+bool isPrime(bignum x,int lenX);
+// bool millerRabin(bignum x,int lenX,bignum a,int lenA);
+bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen);
 KeyPair generateKeys();
 
-bool isPrime(unsigned long *x,int lenX){ 
+bool isPrime(bignum x,int lenX){ 
     for(int i=0;i<30;i++){ //as MR is incorrect 1/4 of time, it is now incorrect 1 in 4^30 times (once every 36558901 years if it runs every ms)
-        unsigned long *a = calloc(lenX,sizeof(unsigned long));
+        bignum a = calloc(lenX,sizeof(unsigned long));
         if(!a){
             char errorMsg[20+sizeof(__func__)];
             sprintf(errorMsg,"\nCalloc error in \"%s\"",__func__);
@@ -50,7 +50,7 @@ bool isPrime(unsigned long *x,int lenX){
     return true;
 }
 
-unsigned long *montLadExp(unsigned long *a,int lenA,unsigned long *exp, int lenExp, unsigned long *mod, int modLen){
+bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen){
     /*Square and always multiply
     Constant time
     e.g. 2^5
@@ -62,24 +62,25 @@ unsigned long *montLadExp(unsigned long *a,int lenA,unsigned long *exp, int lenE
     return 32 
     https://en.wikipedia.org/wiki/Exponentiation_by_squaring
     */
-    unsigned long *x1 = calloc(lenA,sizeof(unsigned long));
+    int lenLongest = max(lenA,modLen);
+    bignum x1 = calloc(lenLongest,sizeof(unsigned long));
     if(!x1){
-        callocError(__func__);
+        callocError();
     }
-    memcpy(x1,a,lenA);
-    unsigned long *x2 = bigNumModMult(a,lenA,a,lenA,mod,modLen);
+    memcpy(&x1[lenLongest-lenA],a,lenA*sizeof(unsigned long));
+    bignum x2 = bigNumModMult(a,lenA,a,lenA,mod,modLen);
     bool started = false; //start when we reach the first 1 bit (as we have pre-set the first multiplication)
     for(int i=0;i<lenExp;i++){ //MSB to LSB chunks
         for(int j=0;j<32;j++){ //MSB to LSB inside of each chunk
             uint8 bit = (exp[i] >> (31-j))&1;
             if(started){
                 if(bit){
-                    bigNumModMultRe(x2,lenA,x1,lenA,mod,modLen);
-                    bigNumModMultRe(x1,lenA,x1,lenA,mod,modLen);
+                    bigNumModMultRe(x1,lenLongest,x2,modLen,mod,modLen);
+                    bigNumModMultRe(x2,modLen,x2,modLen,mod,modLen);
                 }
                 else{
-                    bigNumModMultRe(x1,lenA,x2,lenA,mod,modLen);
-                    bigNumModMultRe(x2,lenA,x2,lenA,mod,modLen);
+                    bigNumModMultRe(x2,modLen,x1,lenLongest,mod,modLen);
+                    bigNumModMultRe(x1,lenLongest,x1,lenLongest,mod,modLen);
                 }
             }
             else if(bit){
@@ -89,11 +90,19 @@ unsigned long *montLadExp(unsigned long *a,int lenA,unsigned long *exp, int lenE
         }
     }
     free(x2);
+    if(lenLongest!=modLen){
+        //we know that the MSBs will be empty as it is less than n
+        int diff = lenLongest-modLen;
+        for(int i=diff;i<lenLongest;i++){
+            x1[i-diff] = x1[i];
+        }
+        x1 = realloc(x1,modLen*sizeof(unsigned long));
+    }
     return x1;
 }
 
-// bool millerRabin(unsigned long *x,int lenX,unsigned long *a,int lenA){
-//     unsigned long *exp = bigNumSubLittle(x,lenX,1,lenX);
+// bool millerRabin(bignum x,int lenX,bignum a,int lenA){
+//     bignum exp = bigNumSubLittle(x,lenX,1,lenX);
 //     while(!(exp[lenX-1] & 1)){
 //         bigNumRShiftRe(exp,lenX,1); //Keep shifting until it's odd
 //     }

@@ -22,8 +22,8 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Test square and multiply
 //Write rest of RSA
+// - Miller Rabin
 //Test long divison mod in bigmaths.h
 //Test RSA
 //Write SHA
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     struct sockaddr_in addr;
     char buffer[1024];
     unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
-    struct ClientHello clientHello = generateClientHello(privateDHRandom);
+    ClientHello clientHello = generateClientHello(privateDHRandom);
     if(connectToServer(&addr,&sock)==0){
         sendClientHello(sock,addr,buffer,1024,clientHello);
         struct ServerHello serverHello = waitForServerHello(sock,buffer,1024);
@@ -47,7 +47,6 @@ int main(int argc, char** argv) {
         printf("\nDisconnected from server.");
         free(privateECDHKey);free(privateDHRandom);
     }
-    
     return 0;
 }
 

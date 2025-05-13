@@ -6,6 +6,7 @@ typedef unsigned char uint8;
 typedef unsigned long* bignum;
 
 //Re is for reuse - it doesn't return a new pointer; it carries out operations on "a" (the first argument)
+//Other functions return a pointer which has been allocated and hence needs to be freed by the caller
 //NOTE - Numbers are stored with MSB at index 0 -> Big Endian
 
 bignum createBigNum(bignum a, int len);
@@ -46,7 +47,7 @@ void printBigNum(char *text, bignum n, int lenN){
 bignum createBigNum(bignum a, int len){ //MUST REMEMBER TO FREE IF USING THIS
     bignum p = calloc(len,sizeof(unsigned long));
     if(!p){
-        callocError(__func__);
+        callocError();
     }
     for(int i=0;i<len;i++){
         p[i] = a[i];
@@ -66,7 +67,7 @@ bignum bigNumAdd(bignum a,int lenA, bignum b, int lenB, int lenDest){
     }
     bignum sum = calloc(lenDest,sizeof(unsigned long));
     if(!sum){
-        callocError(__func__);
+        callocError();
     }
     int iA;
     int iB;
@@ -104,7 +105,7 @@ bignum bigNumAddLittle(bignum a,int lenA, unsigned long b, int lenDest){
     }
     bignum sum = calloc(lenDest,sizeof(unsigned long));
     if(!sum){
-        callocError(__func__);
+        callocError();
     }
     int iA;
     for(int i= lenDest-1;i>-1;i--){
@@ -163,7 +164,7 @@ bignum bigNumMult(bignum a,int lenA, bignum b,int lenB,int lenDest){
     }
     bignum product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
-        callocError(__func__);
+        callocError();
     }
     if(lenA>1 || lenB>1){
         if(longest & 1){
@@ -280,6 +281,13 @@ bignum bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN){
     //will return a big num of size lenN
     bignum multResult = bigNumMult(a,lenA,b,lenB,lenA+lenB);
     bigNumModRe(multResult,lenA+lenB,n,lenN);
+    //The mod length could (and will likely) be less than lenA+lenB 
+    //e.g. {0,0,0,2} needs to be turned to {0,2} if lenN=2
+    int lenDifference = (lenA+lenB)-lenN;
+    for(int i=lenDifference;i<(lenA+lenB);i++){
+        multResult[i-lenDifference] = multResult[i]; 
+    }
+    multResult = realloc(multResult,lenN*sizeof(unsigned long));
     return multResult;
 }
 
@@ -289,14 +297,14 @@ bignum bigNumModMultRe(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN){
         exit(ERROR_BAD_LENGTH);
     }
     bignum result = bigNumModMult(a,lenA,b,lenB,n,lenN);
-    memcpy(a,result,lenA);
+    memcpy(a,result,lenA*sizeof(unsigned long));
     free(result);
 }
 
 bignum bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult, int lenDest){
     bignum product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
-        callocError(__func__);
+        callocError();
     }
     int i = (int)((float)lenA - (float)bitMod/32); //Do we need to mod the number, if so how many chunks do we need to mod
     if(!(bitMod%32)) i--; //Doesn't affect 25519
@@ -354,7 +362,7 @@ bignum bigNumMultByLittle(bignum a,int lenA, unsigned long littleNum,int lenDest
     }
     bignum product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
-        callocError(__func__);
+        callocError();
     }
     unsigned long thisChunk = 0;
     unsigned long carry = 0;
@@ -397,7 +405,7 @@ bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest){
     }
     bignum result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
-        callocError(__func__);
+        callocError();
     }
     int iA;
     int iB;
@@ -427,7 +435,7 @@ bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest){
 
 void bigNumSubRe(bignum a,int lenA,bignum b,int lenB){ //stores it in a
     bignum result = bigNumSub(a,lenA,b,lenB,lenA);
-    memcpy(a,result,lenA);
+    memcpy(a,result,lenA*sizeof(unsigned long));
     free(result);
 }
 
@@ -437,7 +445,7 @@ bignum bigNumSubLittle(bignum a,int lenA, unsigned long b,int lenDest){
     int carry=0;
     bignum result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
-        callocError(__func__);
+        callocError();
     }
     int iA;
     for(int i= lenDest-1;i>-1;i--){
@@ -467,7 +475,7 @@ bignum bigNumModSub(bignum a,int lenA, bignum b,int lenB,int lenDest,bignum p,in
     long long temp=0,carry=0;
     bignum result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
-        callocError(__func__);
+        callocError();
     }
     int iA;
     int iB;
@@ -563,7 +571,7 @@ bignum bigNumBitModInv(bignum a, int lenA,bignum p, int lenP, int lenDest,int bi
     bignum modTemp1,modTemp2;
 
     if(!r || !pCpy){
-        callocError(__func__);
+        callocError();
     }
     r[lenA-1] = 1;
     memcpy(pCpy,p,lenP*sizeof(unsigned long));
@@ -593,7 +601,7 @@ bignum bigNumRShift(bignum a,int lenA,int shift){
     }
     bignum result = calloc(lenA,sizeof(unsigned long));
     if(!result){
-        callocError(__func__);
+        callocError();
     }
     unsigned long carry = 0,temp;
     unsigned long carryBitMask = ((1<<(shift))-1);
@@ -619,14 +627,14 @@ bignum bigNumLShift(bignum a,int lenA,int shift){
     }
     bignum result = calloc(lenA,sizeof(unsigned long));
     if(!result){
-        callocError(__func__);
+        callocError();
     }
     unsigned long carry = 0;
     unsigned long long temp;
     for(int i=lenA-1;i>=0;i--){
         temp = ((unsigned long long) a[i]) << shift; 
-        result[i] = ((unsigned long) (temp & ULONG_MAX)) & carry;
-        carry = (unsigned long) (temp >> 32);
+        result[i] = ((unsigned long) (temp & ULONG_MAX)) + carry;
+        carry = (unsigned long) ((temp+(unsigned long long)carry) >> 32);
     }
     if(carry){
         perror("\nOverflow error on bigNumLShift");
@@ -661,17 +669,21 @@ bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
     //Long division
     bignum curr = (bignum) calloc(lenN+1,sizeof(unsigned long));
     if(!curr){
-        callocError(__func__);
+        callocError();
     }
     int bits = lenA*32;
     for(int i=0;i<bits;i++){
         bigNumLShiftRe(curr,lenN+1,1);
-        curr[lenN] |= ((a[i>>5] >> (31 - (i&31))) & 1); //set LSB of curr to be the current bit in a
+        int bit = ((a[i>>5] >> (31 - (i&31))) & 1);
+        curr[lenN] |= bit; //set LSB of curr to be the current bit in a
         uint8 cmpRes = bigNumCmp(curr,lenN+1,n,lenN);
         if(cmpRes == GREATER_THAN){
             bigNumSubRe(curr,lenN+1,n,lenN);
             //Don't need to actually work out the quotient
         }
+    }
+    for(int i=1;i<=lenN;i++){ //move to the left 1 space as we are <lenN
+        curr[i-1] = curr[i];
     }
     curr = realloc(curr,lenN*sizeof(unsigned long));
     return curr; //Return the left over carry which will be the remainder

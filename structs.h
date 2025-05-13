@@ -55,30 +55,30 @@ enum
     ecdsa_sha1 = 0x0203
 } SignatureScheme;
 
-struct ClientHello
+typedef struct ClientHello
 {
     unsigned long clientRandom;
     int cipherSuites[5][2]; // TLS 1.3 only supports 5 cipher suites
     int supportedGroups[10];
     int signatureAlgorithms[16];
     unsigned long keyExchange[8];
-};
-struct Certificate{
+} ClientHello;
+typedef struct Certificate{
     char CA[50];
     unsigned long publicKey[8];
     unsigned long CASignature[8];
     unsigned long serverSignature[8];
-};
-struct ServerHello
+} Certificate;
+typedef struct ServerHello
 {
     unsigned long serverRandom;
     int cipherSuite[2]; // TLS 1.3 only supports 5 cipher suites
     int curveGroup;
     int signatureAlgorithm;
-    struct Certificate certificate; 
+    Certificate certificate; 
     unsigned long keyExchange[8];
     unsigned long MAC[8]; //Sort of server finished
-};
+} ServerHello;
 
 
 
@@ -109,3 +109,4 @@ curve25519Params = {
     {0x10000000UL,      0,         0,         0,         0x14def9deUL,0xa2f79cd6UL,0x5812631aUL,0x5cf5d3edUL } //G has order 2^252 + 0x14def9deULa2f79cd65812631a5cf5d3ed
     //Cofactor 8
 };
+typedef struct CurveGroupParams CurveGroupParams;
