@@ -27,26 +27,24 @@ typedef struct KeyPair{
 } KeyPair;
 
 
-bool isPrime(bignum x,int lenX);
+bool isPrime(bignum n,int lenN);
 // bool millerRabin(bignum x,int lenX,bignum a,int lenA);
 bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen);
 KeyPair generateKeys();
 
-bool isPrime(bignum x,int lenX){ 
+bool isPrime(bignum n,int lenN){ 
     for(int i=0;i<30;i++){ //as MR is incorrect 1/4 of time, it is now incorrect 1 in 4^30 times (once every 36558901 years if it runs every ms)
-        bignum a = calloc(lenX,sizeof(unsigned long));
+        bignum a = calloc(lenN,sizeof(unsigned long));
         if(!a){
-            char errorMsg[20+sizeof(__func__)];
-            sprintf(errorMsg,"\nCalloc error in \"%s\"",__func__);
-            perror(errorMsg);
-            exit(1);
+            callocError();
         }
-        randomNumber(a,lenX,NULL); //Fermats little theorem only works for 1<a<n-1
-        // if(!millerRabin(x,lenX,a,lenX)){
-        //     return false;
-        // }
+        randomNumber(a,lenN,NULL); //Fermats little theorem only works for 1<a<n-1
+        if(!millerRabin(n,lenN,a,lenN)){
+            return false;
+        }
         free(a);
     }
+    //If n passed all the tests, very likely prime
     return true;
 }
 
@@ -101,53 +99,94 @@ bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modL
     return x1;
 }
 
-// bool millerRabin(bignum x,int lenX,bignum a,int lenA){
-//     bignum exp = bigNumSubLittle(x,lenX,1,lenX);
-//     while(!(exp[lenX-1] & 1)){
-//         bigNumRShiftRe(exp,lenX,1); //Keep shifting until it's odd
-//     }
+//Single test case
+bool millerRabin(bignum n,int lenN,bignum a,int lenA){
+    bignum nSub1= bigNumSubLittle(n,lenN,1,lenN);
+    bignum exp = (bignum) calloc(lenN,sizeof(unsigned long));
+    if(!nSub1){
+        callocError();
+    }
+    memcpy(exp,nSub1,lenN*sizeof(unsigned long));
+    while(!(exp[lenN-1] & 1)){
+        bigNumRShiftRe(exp,lenN,1); //Keep shifting until it's odd
+    }
     
-//     //Base case check as last factor is (x-1) whereas all other factors are (x+1)
-//     if montLadExp(a,exp,n) == 1: //if a^(n-1/2^k) == 1 mod n  -> if a^(n-1/2^k) -1 is a multiple of n, then n is likely prime - using pow is more time efficient
-//         return True
-//     while exp < n-1:
-//         if pow(a,exp,n) == n-1: // if a^(n-1/2^k) + 1 is a multiple of n, then n is likely prime 
-//             return True
-//         exp <<= 1 //Binary shift to the left 1 place - same as multiplying by 2
+    //Base case check as last factor is (x-1) whereas all other factors are (x+1)
+    bignum factor = montLadExp(a,lenA,exp,lenN,n,lenN);
+    //check if x = 1 mod n
+    for(int i=0;i<lenN;i++){
+        //if a^(n-1/2^k) == 1 mod n  -> if a^(n-1/2^k) -1 is a multiple of n, then n is likely prime 
+        if(i==lenN-1 && factor[i]==1){
+            free(nSub1);
+            free(exp);
+            free(factor);
+            return true;
+        }
+        if(factor[i]==0) continue;
+        else break;
+    }
+    while(bignumCmp(exp,nSub1)==LESS_THAN){
+        free(factor);
+        factor = montLadExp(a,lenA,exp,lenN,n,lenN);
+         // a^(n-1/2^k) + 1 is a multiple of n -> satisfying Fermat's Little Theorem -> likely prime
+        if(bigNumCmp(factor,lenN,nSub1,lenN)==EQUAL){
+            free(nSub1);
+            free(exp);
+            free(factor);
+            return true;
+        }
+        bigNumLShiftRe(exp,lenN,1); //Binary shift to the left 1 place - same as multiplying by 2
+    }
+    free(nSub1);
+    free(exp);
+    free(factor);
+    return false; //If no factors are a multiple of n
+}
 
-//     return False //If no factors are a multiple of n
-// }
 
-// def binModExp(x,y,z): //x^y mod z
-//     r = 1
-//     while y!=0:
-//         if y & 1: //If last digit is a 1
-//             r = r * x % z
-//         x = x*x % z
-//         y >>=1
-//     return r
+bignum encyrpt(uchar *msg,int lenMsg,unsigned long e,bignum n,int lenN){
+    int sizeDiff = sizeof(unsigned long)/sizeof(uchar); //yes I know it's 4
+    int lenMsgNum = ceil((float)lenMsg*1/sizeDiff);
+    bignum msgNum = calloc(lenMsgNum,sizeof(unsigned long));
+    if(!msgNum){
+        callocError();
+    }
+    //Message starts at largest index (big endian)
+    int j = lenMsgNum; //decrements on first iteration
+    for(int i=lenMsg-1;i>=0;i--){
+        int mod = (i-(lenMsg-1))%sizeDiff;
+        if(mod==0) j--;
+        msgNum[j] |= (unsigned long) msg[i] << (mod*8);
+    }
+    //RSA maths requirement
+    if(bigNumCmp(msgNum,lenMsgNum,n,lenN) == GREATER_THAN){
+        free(msgNum);
+        perror("\nmsg is too long for RSA encryption with this N");
+        exit(1);
+    }
+    unsigned long eBigNum[1] = {e};
+    bignum result = montLadExp(msgNum,lenMsgNum,e,1,n,lenN);
+    free(msgNum);
+    return result;
+}
 
-// def encyrpt(m, e,n):
-//     binMessage = ""
-//     for i in range(len(m)):
-//         unicodePoint = '{0:b}'.format(ord(m[i]))
-//         while len(unicodePoint) != 16: //Pad out letter if needed so all letters are uniform
-//             unicodePoint = "0"+unicodePoint
-//         binMessage += unicodePoint
-//     binMessage = int(binMessage,2)
-//     if len(str(binMessage)) >= len((str(n))):
-//         print("MESSAGE IS TOO LONG")
-//         return 0
-//     return binModExp(binMessage,e,n)
-
-// def extendedEuclidean(exp,tot):   
+// bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient){
+//     bignum r1 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+//     bignum r2 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+//     bignum s1 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+//     bignum s2 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+//     bignum temp = (bignum) calloc(lenTotient,sizeof(unsigned long));
 //     (r1, r2) = (exp, tot)
 //     (s1, s2) = (1, 0)
 //     while r2 != 0:
 //         quotient = r1 // r2
 //         (r1, r2) = (r2, r1 - quotient *r2) //Just a modulo but quicker as we already have the quotient so this is quicker
 //         (s1, s2) = (s2, s1 - quotient *s2) 
+//     free(r1); free(r2);
+//     free(s1); free(s2);
+//     free(temp);
 //     return s1 % tot //Non-negativity
+// }
 
 // def decrypt(eM, d,n):
 //     m = ""   

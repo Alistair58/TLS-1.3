@@ -11,6 +11,9 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
 
 //gcc client.c -o client.exe -g -l ws2_32
 
+
+//DONE
+
 //Note:
 //Everything uses unsigned longs which are intended to be 32 bits
 //They are 32 bits on this system but so are ints
@@ -23,7 +26,8 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
 
 //TODO Low-Level
 //Write rest of RSA
-// - Miller Rabin
+// - Extended Euclidean
+// - Decrypt
 //Test long divison mod in bigmaths.h
 //Test RSA
 //Write SHA
