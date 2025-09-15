@@ -34,7 +34,9 @@ void bigNumLShiftRe(bignum a,int lenA,int shift);
 uint8 bigNumCmp(bignum a,int lenA,bignum b,int lenB);
 bignum bigNumMod(bignum a,int lenA,bignum n,int lenN);
 void bigNumModRe(bignum a,int lenA,bignum n,int lenN);
-
+bignum bigNumDiv(bignum a,int lenA,bignum b,int lenB);
+void bigNumDivRe(bignum a,int lenA,bignum b,int lenB);
+bignum bigNumModAdd(bignum a,int lenA, bignum b, int lenB,bignum n,int lenN);
 
 void printBigNum(char *text, bignum n, int lenN){
     printf("\n%s",text);
@@ -399,8 +401,12 @@ bignum bigNumBitModMultByLittle(bignum a,int lenA, unsigned long littleNum,int l
 bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest){
     long long temp;
     int carry=0;
-    if(lenB>lenA){
-        perror("\nFirst argument must be smaller than second for subtraction");
+    if(bigNumCmp(a,lenA,b,lenB)==LESS_THAN){
+        perror("\nFirst argument must be larger than second for subtraction");
+        exit(1);
+    }
+    if(lenDest<lenA){
+        perror("\nlenDest must be greater than or equal to lenA for subtraction");
         exit(1);
     }
     bignum result = calloc(lenDest,sizeof(unsigned long));
@@ -424,7 +430,7 @@ bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest){
             temp &= 0xffffffff;
             if(i==0){
                 free(result);
-                perror("\nFirst argument must be smaller than second for subtraction");
+                perror("\nFirst argument must be larger than second for subtraction");
                 exit(1);
             }
         }    
@@ -665,28 +671,30 @@ uint8 bigNumCmp(bignum a,int lenA,bignum b,int lenB){
     return EQUAL;
 }
 
+//Returns size lenN
 bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
     //Long division
-    bignum curr = (bignum) calloc(lenN+1,sizeof(unsigned long));
-    if(!curr){
+    //remainder must be of size lenN+1 so that it can handle an extra shift before being subtracted
+    bignum remainder = (bignum) calloc(lenN+1,sizeof(unsigned long));
+    if(!remainder){
         callocError();
     }
     int bits = lenA*32;
     for(int i=0;i<bits;i++){
-        bigNumLShiftRe(curr,lenN+1,1);
+        bigNumLShiftRe(remainder,lenN+1,1);
         int bit = ((a[i>>5] >> (31 - (i&31))) & 1);
-        curr[lenN] |= bit; //set LSB of curr to be the current bit in a
-        uint8 cmpRes = bigNumCmp(curr,lenN+1,n,lenN);
+        remainder[lenN] |= bit; //set LSB of curr to be the current bit in a
+        uint8 cmpRes = bigNumCmp(remainder,lenN+1,n,lenN);
         if(cmpRes == GREATER_THAN){
-            bigNumSubRe(curr,lenN+1,n,lenN);
+            bigNumSubRe(remainder,lenN+1,n,lenN);
             //Don't need to actually work out the quotient
         }
     }
     for(int i=1;i<=lenN;i++){ //move to the left 1 space as we are <lenN
-        curr[i-1] = curr[i];
+        remainder[i-1] = remainder[i];
     }
-    curr = realloc(curr,lenN*sizeof(unsigned long));
-    return curr; //Return the left over carry which will be the remainder
+    remainder = realloc(remainder,lenN*sizeof(unsigned long));
+    return remainder; //Return the left over carry which will be the remainder
 }
 
 
@@ -699,4 +707,47 @@ void bigNumModRe(bignum a,int lenA,bignum n,int lenN){ //a % n
     memset(a,0,lenA*sizeof(unsigned long));
     memcpy(&a[lenA-lenN],result,lenN*sizeof(unsigned long));
     free(result);
+}
+
+//Returns size lenA
+bignum bigNumDiv(bignum a,int lenA,bignum b,int lenB){ //returns the quotient
+    //Long division
+    bignum remainder = (bignum) calloc(lenB+1,sizeof(unsigned long));
+    if(!remainder){
+        callocError();
+    }
+    bignum quotient = (bignum) calloc(lenA,sizeof(unsigned long));
+    if(!quotient){
+        free(remainder);
+        callocError();
+    }
+    int bits = lenA*32;
+    for(int i=0;i<bits;i++){
+        bigNumLShiftRe(remainder,lenB+1,1);
+        int bit = ((a[i>>5] >> (31 - (i&31))) & 1);
+        remainder[lenB] |= bit; //set LSB of curr to be the current bit in a
+        uint8 cmpRes = bigNumCmp(remainder,lenB+1,b,lenB);
+        if(cmpRes == GREATER_THAN){
+            bigNumSubRe(remainder,lenB+1,b,lenB);
+            quotient[i>>5] |= (1 << (31 - (i&31)));
+            //Don't need to actually work out the quotient
+        }
+    }
+    //Don't need to mess around with remainder
+    return quotient; 
+} 
+
+void bigNumDivRe(bignum a,int lenA,bignum b,int lenB){
+    bignum result = bigNumDiv(a,lenA,b,lenB);
+    memcpy(a,result,lenA*sizeof(unsigned long));
+    free(result);
+}
+
+
+bignum bigNumModAdd(bignum a,int lenA, bignum b, int lenB,bignum n,int lenN){
+    int lenUnmodded = max(lenA,lenB)+1;
+    bignum unmodded = bigNumAdd(a,lenA,b,lenB,lenUnmodded);
+    bignum result = bigNumMod(unmodded,lenUnmodded,n,lenN);
+    free(unmodded);
+    return result;
 }

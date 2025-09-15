@@ -25,9 +25,8 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Write rest of RSA
-// - Extended Euclidean
-// - Decrypt
+//Decide how certificates will work
+//Finish generateKeys
 //Test long divison mod in bigmaths.h
 //Test RSA
 //Write SHA

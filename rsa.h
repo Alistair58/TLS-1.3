@@ -22,14 +22,17 @@ typedef struct PrivateKey{
 
 
 typedef struct KeyPair{
-    PrivateKey private_key;
-    PublicKey public_key;
+    PrivateKey privateKey;
+    PublicKey publicKey;
 } KeyPair;
 
 
 bool isPrime(bignum n,int lenN);
-// bool millerRabin(bignum x,int lenX,bignum a,int lenA);
 bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen);
+bool millerRabin(bignum n,int lenN,bignum a,int lenA);
+bignum encyrpt(uchar *msg,int lenMsg,unsigned long e,bignum n,int lenN);
+bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient);
+uchar *decrypt(bignum encryptedMessage,int lenEM,bignum d,int lenD,bignum n,int lenN);
 KeyPair generateKeys();
 
 bool isPrime(bignum n,int lenN){ 
@@ -151,12 +154,11 @@ bignum encyrpt(uchar *msg,int lenMsg,unsigned long e,bignum n,int lenN){
     if(!msgNum){
         callocError();
     }
-    //Message starts at largest index (big endian)
-    int j = lenMsgNum; //decrements on first iteration
-    for(int i=lenMsg-1;i>=0;i--){
-        int mod = (i-(lenMsg-1))%sizeDiff;
-        if(mod==0) j--;
-        msgNum[j] |= (unsigned long) msg[i] << (mod*8);
+    int j = -1; //increments on first iteration
+    for(int i=0;i<lenMsg;i++){
+        int mod = i%sizeDiff;
+        if(mod==0) j++;
+        msgNum[j] |= (unsigned long) msg[i] << ((sizeDiff-1-mod)*8);
     }
     //RSA maths requirement
     if(bigNumCmp(msgNum,lenMsgNum,n,lenN) == GREATER_THAN){
@@ -170,53 +172,129 @@ bignum encyrpt(uchar *msg,int lenMsg,unsigned long e,bignum n,int lenN){
     return result;
 }
 
-// bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient){
-//     bignum r1 = (bignum) calloc(lenTotient,sizeof(unsigned long));
-//     bignum r2 = (bignum) calloc(lenTotient,sizeof(unsigned long));
-//     bignum s1 = (bignum) calloc(lenTotient,sizeof(unsigned long));
-//     bignum s2 = (bignum) calloc(lenTotient,sizeof(unsigned long));
-//     bignum temp = (bignum) calloc(lenTotient,sizeof(unsigned long));
-//     (r1, r2) = (exp, tot)
-//     (s1, s2) = (1, 0)
-//     while r2 != 0:
-//         quotient = r1 // r2
-//         (r1, r2) = (r2, r1 - quotient *r2) //Just a modulo but quicker as we already have the quotient so this is quicker
-//         (s1, s2) = (s2, s1 - quotient *s2) 
-//     free(r1); free(r2);
-//     free(s1); free(s2);
-//     free(temp);
-//     return s1 % tot //Non-negativity
-// }
+bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient){
+    bignum r1 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+    if(!r1){
+        CALLOC_ERROR:
+            callocError();
+    }
+    bignum r2 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+    if(!r2){
+        FREE_R1:
+            free(r1);
+            goto CALLOC_ERROR;
+    }
+    bignum s1 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+    if(!s1){
+        FREE_R2:
+            free(r2);
+            goto FREE_R1;
+    }
+    bignum s2 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+    if(!s2){
+        FREE_S1:
+            free(s1);
+            goto FREE_R2;
+    }
+    bignum temp = (bignum) calloc(lenTotient,sizeof(unsigned long));
+    if(!temp){
+       free(s2);
+       goto FREE_S1;
+    }
+    
+    r1[lenTotient-1] = exp;
+    memcpy(r2,totient,lenTotient*sizeof(unsigned long));
+    s1[lenTotient-1] = 1;
+    //s2 stays at 0
+    while(bignumCmp(r2,0) != EQUAL){
+        //quotient = r1//r2
+        //(r1, r2) = (r2, r1 - quotient *r2) //Just a modulo but quicker as we already have the quotient so this is quicker
+        //(s1, s2) = (s2, s1 - quotient *s2) 
 
-// def decrypt(eM, d,n):
-//     m = ""   
-//     decrypted = binModExp(eM,d,n)
-//     binDecrypted = '{0:b}'.format(decrypted)
-//     while len(binDecrypted)%16 != 0:
-//         binDecrypted = "0"+binDecrypted
-//     for i in range(len(binDecrypted)//16):
-//         m += chr(int(binDecrypted[i*16:(i+1)*16],2))
-//     return m
+        bignum quotient = bigNumDiv(r1,lenTotient,r2,lenTotient);
+        memcpy(temp,r2,lenTotient*sizeof(unsigned long));
+        
+        bignum quotientMultR2 = bigNumMult(quotient,lenTotient,r2,lenTotient,2*lenTotient);
+        //We know that quotientMultR2 will fit in lenTotient
+        memcpy(r2,quotientMultR2[lenTotient],lenTotient*sizeof(unsigned long));
+        quotientMultR2 = realloc(quotientMultR2,lenTotient*sizeof(unsigned long));
+        memcpy(quotientMultR2,r2,lenTotient*sizeof(unsigned long));
+
+        bigNumSubRe(r1,lenTotient,quotientMultR2,lenTotient);
+        memcpy(r2,r1,lenTotient*sizeof(unsigned long));
+        memcpy(r1,temp,lenTotient*sizeof(unsigned long));
+        
+        //We must stay non-negative
+        //The standard euclidean algorithm allows s1 and s2 to be negative but we don't
+        bignum quotientMultS2 = bigNumModMult(quotient,lenTotient,s2,lenTotient,totient,lenTotient);
+        bignum temp2 = bigNumSub(totient,lenTotient,quotientMultS2,lenTotient,lenTotient);
+        bignum temp3 = bigNumModAdd(s1,lenTotient,temp2,lenTotient,totient,lenTotient);
+        memcpy(s1,s2,lenTotient*sizeof(unsigned long));
+        memcpy(s2,temp3,lenTotient*sizeof(unsigned long));
+
+        free(quotient);
+        free(quotientMultR2);
+        free(quotientMultS2);
+        free(temp2);
+        free(temp3);
+    }
+    free(r1); 
+    free(r2);
+    free(s2);
+    free(temp);
+    return s1;
+}
+
+uchar *decrypt(bignum encryptedMessage,int lenEM,bignum d,int lenD,bignum n,int lenN){
+    int sizeDiff = sizeof(unsigned long)/sizeof(uchar); //yes I know it's 4
+    int lenMsg = lenEM*sizeDiff;
+    uchar *decryptedMessage = (uchar*) malloc(lenMsg);
+    if(!decryptedMessage){
+        callocError();
+    }
+    bignum decryptedNum = montLadExp(encryptedMessage,lenEM,d,lenD,n,lenN);
+    int j = -1; //increments on first iteration
+    for(int i=0;i<lenMsg;i++){
+        int mod = i%sizeDiff;
+        if(mod==0) j++;
+        decryptedMessage[i]  =  (decryptedNum[j] >> (sizeDiff-1-mod)) & 0xff;
+    }
+    free(decryptedNum);
+    return decryptedMessage;
+}
+
+//numBits is the size of the public key n
+KeyPair generateKeys(int numBits){
+    KeyPair kp;
+    int publicKeyLen = numBits/(8*sizeof(unsigned long));
+    int privateKeyLen = publicKeyLen/2;
+    kp.privateKey.p = calloc(privateKeyLen,sizeof(unsigned long));
+    if(!kp.privateKey.p){
+        callocError();
+    }
+    do{
+        randomNumber(kp.privateKey.p,privateKeyLen,NULL);
+    }
+    while(!isPrime(kp.privateKey.p,privateKeyLen));
+    kp.privateKey.q = calloc(privateKeyLen,sizeof(unsigned long));
+    if(!kp.privateKey.q){
+        free(kp.privateKey.p);
+        callocError();
+    }
+    do{
+        randomNumber(kp.privateKey.q,privateKeyLen,NULL);
+    }
+    while(!isPrime(kp.privateKey.q,privateKeyLen));
+    kp.publicKey.n = bigNumMult(
+        kp.privateKey.p,privateKeyLen,
+        kp.privateKey.q,privateKeyLen,
+        publicKeyLen
+    );
+    kp.publicKey.e = 65537; //Good number for RSA; 65537 == 2**16+1
+
+    // totient = (p-1)*(q-1)
+    // d = extendedEuclidean(e,totient)
+}
 
 
-// minimum = 2**128 //128
-// maximum = 2**256 //256
-// p = sRandom.randint(minimum,maximum)
-// while not isPrime(p):
-//     p = sRandom.randint(minimum,maximum)
 
-// q = sRandom.randint(minimum,maximum)
-// while not isPrime(q):
-//     q = sRandom.randint(minimum,maximum)
-
-// n= p*q 
-// e = 65537 //Good number for RSA 65537 = 2**16 +1
-// message = input("Input your message ")
-// encrypted = encyrpt(message,e,n)
-// print("encrypted ",encrypted)
-
-
-// totient = (p-1)*(q-1)
-// d = extendedEuclidean(e,totient)
-// message = decrypt(encrypted,d,n)
-// print(message)
