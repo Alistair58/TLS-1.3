@@ -28,10 +28,10 @@ bool gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
     unsigned long *h = (unsigned long*) calloc(8,sizeof(unsigned long));
     unsigned long **blocks; 
     unsigned long *iv = (unsigned long*) calloc(8,sizeof(unsigned long));//iv changes but the gcmResult one doesn't
-    if(!iv) goto callocError;
+    if(!iv) goto allocError;
     if(!dest->iv){ //If the user hasn't supplied an iv
         dest->iv = (unsigned long*) calloc(8,sizeof(unsigned long));
-        if(!dest->iv ) goto callocError;
+        if(!dest->iv ) goto allocError;
         randomNumber(iv,8,NULL);
     }
     else{
@@ -40,19 +40,19 @@ bool gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
     
     int numBlocks = ceil((float)lenPlaintext/32);
     if(!temp || !h || !iv || !prevBlock){
-        goto callocError;
+        goto allocError;
     }
     aesEncrypt(key,temp,h); //temp will start off with all zeros
     
     dest->ciphertext = (uchar*) calloc(32*numBlocks,sizeof(uchar)); 
     if(!dest->ciphertext){
-        goto callocError;
+        goto allocError;
     }
     memcpy(dest->iv,iv,8*sizeof(unsigned long));
     blocks = (unsigned long**) calloc(numBlocks,sizeof(unsigned long*));
     for(int i=0;i<numBlocks;i++){
         blocks[i] = (unsigned long*) calloc(8,sizeof(unsigned long));
-        if(!blocks[i]) goto callocError;
+        if(!blocks[i]) goto allocError;
     }
     bool reverse = dest->tag!=0; //If we are in reverse we already have a tag to "work towards"
     for(int i=0;i<numBlocks;i++){
@@ -75,7 +75,7 @@ bool gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
     bigNumXOR(prevBlock,temp,8);
     if(!dest->tag){
         dest->tag = (unsigned long*) calloc(8,sizeof(unsigned long));
-        if(!dest->tag) goto callocError;
+        if(!dest->tag) goto allocError;
         memcpy(dest->tag,prevBlock,8*sizeof(unsigned long));
     } 
     else{
@@ -106,7 +106,7 @@ bool gcm(uchar *plaintext, int lenPlaintext, unsigned long *key,gcmResult *dest)
     }
 
     goto freeMem;
-    callocError:
+    allocError:
         if(temp) free(temp);
         if(h) free(h);
         if(iv) free(iv);

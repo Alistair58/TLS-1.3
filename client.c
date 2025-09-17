@@ -25,12 +25,16 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Decide how certificates will work
-//Finish generateKeys
+//Finish DER encoding
+//Write base64 encoding
+//Write DER decoding
+//Write private key stores
+//Write SHA
 //Test long divison mod in bigmaths.h
 //Test RSA
-//Write SHA
 //Test SHA
+//Test certificates
+
 //create PKI
 int main(int argc, char** argv) {
     int sock;

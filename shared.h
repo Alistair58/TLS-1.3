@@ -8,8 +8,8 @@
 #include <winuser.h>
 #include <math.h>
 #include <errno.h>
-#define callocError() char errorMsg[20+sizeof(__func__)]; \
-    sprintf(errorMsg,"\nCalloc error in \"%s\"",__func__); \
+#define allocError() char errorMsg[19+sizeof(__func__)]; \
+    sprintf(errorMsg,"\nAlloc error in \"%s\"",__func__); \
     errno = ENOMEM; \
     perror(errorMsg); \
     exit(ERROR_NOT_ENOUGH_MEMORY);
@@ -19,6 +19,7 @@
 #include "random.h"
 #include "gcm.h" 
 #include "rsa.h"
+#include "x509.h"
 
 
 

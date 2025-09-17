@@ -49,7 +49,7 @@ void printBigNum(char *text, bignum n, int lenN){
 bignum createBigNum(bignum a, int len){ //MUST REMEMBER TO FREE IF USING THIS
     bignum p = calloc(len,sizeof(unsigned long));
     if(!p){
-        callocError();
+        allocError();
     }
     for(int i=0;i<len;i++){
         p[i] = a[i];
@@ -69,7 +69,7 @@ bignum bigNumAdd(bignum a,int lenA, bignum b, int lenB, int lenDest){
     }
     bignum sum = calloc(lenDest,sizeof(unsigned long));
     if(!sum){
-        callocError();
+        allocError();
     }
     int iA;
     int iB;
@@ -107,7 +107,7 @@ bignum bigNumAddLittle(bignum a,int lenA, unsigned long b, int lenDest){
     }
     bignum sum = calloc(lenDest,sizeof(unsigned long));
     if(!sum){
-        callocError();
+        allocError();
     }
     int iA;
     for(int i= lenDest-1;i>-1;i--){
@@ -166,7 +166,7 @@ bignum bigNumMult(bignum a,int lenA, bignum b,int lenB,int lenDest){
     }
     bignum product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
-        callocError();
+        allocError();
     }
     if(lenA>1 || lenB>1){
         if(longest & 1){
@@ -306,7 +306,7 @@ bignum bigNumModMultRe(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN){
 bignum bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult, int lenDest){
     bignum product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
-        callocError();
+        allocError();
     }
     int i = (int)((float)lenA - (float)bitMod/32); //Do we need to mod the number, if so how many chunks do we need to mod
     if(!(bitMod%32)) i--; //Doesn't affect 25519
@@ -364,7 +364,7 @@ bignum bigNumMultByLittle(bignum a,int lenA, unsigned long littleNum,int lenDest
     }
     bignum product = calloc(lenDest,sizeof(unsigned long));
     if(!product){
-        callocError();
+        allocError();
     }
     unsigned long thisChunk = 0;
     unsigned long carry = 0;
@@ -411,7 +411,7 @@ bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest){
     }
     bignum result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
-        callocError();
+        allocError();
     }
     int iA;
     int iB;
@@ -451,7 +451,7 @@ bignum bigNumSubLittle(bignum a,int lenA, unsigned long b,int lenDest){
     int carry=0;
     bignum result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
-        callocError();
+        allocError();
     }
     int iA;
     for(int i= lenDest-1;i>-1;i--){
@@ -481,7 +481,7 @@ bignum bigNumModSub(bignum a,int lenA, bignum b,int lenB,int lenDest,bignum p,in
     long long temp=0,carry=0;
     bignum result = calloc(lenDest,sizeof(unsigned long));
     if(!result){
-        callocError();
+        allocError();
     }
     int iA;
     int iB;
@@ -577,7 +577,7 @@ bignum bigNumBitModInv(bignum a, int lenA,bignum p, int lenP, int lenDest,int bi
     bignum modTemp1,modTemp2;
 
     if(!r || !pCpy){
-        callocError();
+        allocError();
     }
     r[lenA-1] = 1;
     memcpy(pCpy,p,lenP*sizeof(unsigned long));
@@ -607,7 +607,7 @@ bignum bigNumRShift(bignum a,int lenA,int shift){
     }
     bignum result = calloc(lenA,sizeof(unsigned long));
     if(!result){
-        callocError();
+        allocError();
     }
     unsigned long carry = 0,temp;
     unsigned long carryBitMask = ((1<<(shift))-1);
@@ -633,7 +633,7 @@ bignum bigNumLShift(bignum a,int lenA,int shift){
     }
     bignum result = calloc(lenA,sizeof(unsigned long));
     if(!result){
-        callocError();
+        allocError();
     }
     unsigned long carry = 0;
     unsigned long long temp;
@@ -677,7 +677,7 @@ bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
     //remainder must be of size lenN+1 so that it can handle an extra shift before being subtracted
     bignum remainder = (bignum) calloc(lenN+1,sizeof(unsigned long));
     if(!remainder){
-        callocError();
+        allocError();
     }
     int bits = lenA*32;
     for(int i=0;i<bits;i++){
@@ -714,12 +714,12 @@ bignum bigNumDiv(bignum a,int lenA,bignum b,int lenB){ //returns the quotient
     //Long division
     bignum remainder = (bignum) calloc(lenB+1,sizeof(unsigned long));
     if(!remainder){
-        callocError();
+        allocError();
     }
     bignum quotient = (bignum) calloc(lenA,sizeof(unsigned long));
     if(!quotient){
         free(remainder);
-        callocError();
+        allocError();
     }
     int bits = lenA*32;
     for(int i=0;i<bits;i++){

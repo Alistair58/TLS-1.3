@@ -12,12 +12,15 @@
 //Therefore p and q will be 1028 bits(32 length array)
 typedef struct PublicKey{
     bignum n;
+    int lenN;
     unsigned long e;
 } PublicKey;
 
 typedef struct PrivateKey{
     bignum p;
+    int lenP;
     bignum q;
+    int lenQ;
 } PrivateKey;
 
 
@@ -30,16 +33,15 @@ typedef struct KeyPair{
 bool isPrime(bignum n,int lenN);
 bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen);
 bool millerRabin(bignum n,int lenN,bignum a,int lenA);
-bignum encyrpt(uchar *msg,int lenMsg,unsigned long e,bignum n,int lenN);
+bignum encryptRSA(uchar *msg,int lenMsg,KeyPair kp);
 bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient);
-uchar *decrypt(bignum encryptedMessage,int lenEM,bignum d,int lenD,bignum n,int lenN);
-KeyPair generateKeys();
+uchar *decryptRSA(bignum encryptedMessage,int lenEM,KeyPair kp);
 
 bool isPrime(bignum n,int lenN){ 
     for(int i=0;i<30;i++){ //as MR is incorrect 1/4 of time, it is now incorrect 1 in 4^30 times (once every 36558901 years if it runs every ms)
         bignum a = calloc(lenN,sizeof(unsigned long));
         if(!a){
-            callocError();
+            allocError();
         }
         randomNumber(a,lenN,NULL); //Fermats little theorem only works for 1<a<n-1
         if(!millerRabin(n,lenN,a,lenN)){
@@ -66,7 +68,7 @@ bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modL
     int lenLongest = max(lenA,modLen);
     bignum x1 = calloc(lenLongest,sizeof(unsigned long));
     if(!x1){
-        callocError();
+        allocError();
     }
     memcpy(&x1[lenLongest-lenA],a,lenA*sizeof(unsigned long));
     bignum x2 = bigNumModMult(a,lenA,a,lenA,mod,modLen);
@@ -107,7 +109,7 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
     bignum nSub1= bigNumSubLittle(n,lenN,1,lenN);
     bignum exp = (bignum) calloc(lenN,sizeof(unsigned long));
     if(!nSub1){
-        callocError();
+        allocError();
     }
     memcpy(exp,nSub1,lenN*sizeof(unsigned long));
     while(!(exp[lenN-1] & 1)){
@@ -147,12 +149,12 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
 }
 
 
-bignum encyrpt(uchar *msg,int lenMsg,unsigned long e,bignum n,int lenN){
+bignum encryptRSA(uchar *msg,int lenMsg,KeyPair kp){
     int sizeDiff = sizeof(unsigned long)/sizeof(uchar); //yes I know it's 4
     int lenMsgNum = ceil((float)lenMsg*1/sizeDiff);
     bignum msgNum = calloc(lenMsgNum,sizeof(unsigned long));
     if(!msgNum){
-        callocError();
+        allocError();
     }
     int j = -1; //increments on first iteration
     for(int i=0;i<lenMsg;i++){
@@ -161,13 +163,13 @@ bignum encyrpt(uchar *msg,int lenMsg,unsigned long e,bignum n,int lenN){
         msgNum[j] |= (unsigned long) msg[i] << ((sizeDiff-1-mod)*8);
     }
     //RSA maths requirement
-    if(bigNumCmp(msgNum,lenMsgNum,n,lenN) == GREATER_THAN){
+    if(bigNumCmp(msgNum,lenMsgNum,kp.publicKey.n,kp.publicKey.lenN) == GREATER_THAN){
         free(msgNum);
         perror("\nmsg is too long for RSA encryption with this N");
         exit(1);
     }
-    unsigned long eBigNum[1] = {e};
-    bignum result = montLadExp(msgNum,lenMsgNum,e,1,n,lenN);
+    unsigned long eBigNum[1] = {kp.publicKey.e};
+    bignum result = montLadExp(msgNum,lenMsgNum,kp.publicKey.e,1,kp.publicKey.n,kp.publicKey.lenN);
     free(msgNum);
     return result;
 }
@@ -176,7 +178,7 @@ bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient){
     bignum r1 = (bignum) calloc(lenTotient,sizeof(unsigned long));
     if(!r1){
         CALLOC_ERROR:
-            callocError();
+            allocError();
     }
     bignum r2 = (bignum) calloc(lenTotient,sizeof(unsigned long));
     if(!r2){
@@ -245,20 +247,26 @@ bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient){
     return s1;
 }
 
-uchar *decrypt(bignum encryptedMessage,int lenEM,bignum d,int lenD,bignum n,int lenN){
+uchar *decryptRSA(bignum encryptedMessage,int lenEM,KeyPair kp){
     int sizeDiff = sizeof(unsigned long)/sizeof(uchar); //yes I know it's 4
     int lenMsg = lenEM*sizeDiff;
     uchar *decryptedMessage = (uchar*) malloc(lenMsg);
     if(!decryptedMessage){
-        callocError();
+        allocError();
     }
-    bignum decryptedNum = montLadExp(encryptedMessage,lenEM,d,lenD,n,lenN);
+    bignum pSub1 = bigNumSubLittle(kp.privateKey.p,kp.privateKey.lenP,1,kp.privateKey.lenP); 
+    bignum qSub1 = bigNumSubLittle(kp.privateKey.q,kp.privateKey.lenQ,1,kp.privateKey.lenQ);
+    bignum totient = bignumMult(pSub1,kp.privateKey.lenP,qSub1,kp.privateKey.lenQ,kp.publicKey.lenN);
+    bignum d = extendedEuclidean(kp.publicKey.e,totient,kp.publicKey.lenN);
+    bignum decryptedNum = montLadExp(encryptedMessage,lenEM,d,kp.publicKey.lenN,kp.publicKey.n,kp.publicKey.lenN);
     int j = -1; //increments on first iteration
     for(int i=0;i<lenMsg;i++){
         int mod = i%sizeDiff;
         if(mod==0) j++;
         decryptedMessage[i]  =  (decryptedNum[j] >> (sizeDiff-1-mod)) & 0xff;
     }
+    free(pSub1); free(qSub1);
+    free(totient); free(d);
     free(decryptedNum);
     return decryptedMessage;
 }
@@ -270,7 +278,7 @@ KeyPair generateKeys(int numBits){
     int privateKeyLen = publicKeyLen/2;
     kp.privateKey.p = calloc(privateKeyLen,sizeof(unsigned long));
     if(!kp.privateKey.p){
-        callocError();
+        allocError();
     }
     do{
         randomNumber(kp.privateKey.p,privateKeyLen,NULL);
@@ -279,7 +287,7 @@ KeyPair generateKeys(int numBits){
     kp.privateKey.q = calloc(privateKeyLen,sizeof(unsigned long));
     if(!kp.privateKey.q){
         free(kp.privateKey.p);
-        callocError();
+        allocError();
     }
     do{
         randomNumber(kp.privateKey.q,privateKeyLen,NULL);
@@ -291,10 +299,5 @@ KeyPair generateKeys(int numBits){
         publicKeyLen
     );
     kp.publicKey.e = 65537; //Good number for RSA; 65537 == 2**16+1
-
-    // totient = (p-1)*(q-1)
-    // d = extendedEuclidean(e,totient)
 }
-
-
 

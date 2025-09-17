@@ -24,7 +24,7 @@ enum
     TLS_AES_128_CCM_8_SHA256 = 0x05
 } ciphers;
 
-enum
+typedef enum SignatureScheme 
 {
     /* RSASSA-PKCS1-v1_5 algorithms */
     rsa_pkcs1_sha256 = 0x0401,
