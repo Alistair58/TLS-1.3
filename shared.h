@@ -20,6 +20,7 @@
 #include "gcm.h" 
 #include "rsa.h"
 #include "x509.h"
+#include "sha.h"
 
 
 

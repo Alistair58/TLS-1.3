@@ -25,11 +25,8 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Finish DER encoding
-//Write base64 encoding
-//Write DER decoding
-//Write private key stores
 //Write SHA
+//Write private key stores
 //Test long divison mod in bigmaths.h
 //Test RSA
 //Test SHA

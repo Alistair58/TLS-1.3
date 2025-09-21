@@ -130,7 +130,7 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
         if(factor[i]==0) continue;
         else break;
     }
-    while(bignumCmp(exp,nSub1)==LESS_THAN){
+    while(bigNumCmp(exp,nSub1)==LESS_THAN){
         free(factor);
         factor = montLadExp(a,lenA,exp,lenN,n,lenN);
          // a^(n-1/2^k) + 1 is a multiple of n -> satisfying Fermat's Little Theorem -> likely prime
@@ -169,7 +169,7 @@ bignum encryptRSA(uchar *msg,int lenMsg,KeyPair kp){
         exit(1);
     }
     unsigned long eBigNum[1] = {kp.publicKey.e};
-    bignum result = montLadExp(msgNum,lenMsgNum,kp.publicKey.e,1,kp.publicKey.n,kp.publicKey.lenN);
+    bignum result = montLadExp(msgNum,lenMsgNum,&kp.publicKey.e,1,kp.publicKey.n,kp.publicKey.lenN);
     free(msgNum);
     return result;
 }
@@ -218,7 +218,7 @@ bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient){
         
         bignum quotientMultR2 = bigNumMult(quotient,lenTotient,r2,lenTotient,2*lenTotient);
         //We know that quotientMultR2 will fit in lenTotient
-        memcpy(r2,quotientMultR2[lenTotient],lenTotient*sizeof(unsigned long));
+        memcpy(r2,&quotientMultR2[lenTotient],lenTotient*sizeof(unsigned long));
         quotientMultR2 = realloc(quotientMultR2,lenTotient*sizeof(unsigned long));
         memcpy(quotientMultR2,r2,lenTotient*sizeof(unsigned long));
 
@@ -256,7 +256,7 @@ uchar *decryptRSA(bignum encryptedMessage,int lenEM,KeyPair kp){
     }
     bignum pSub1 = bigNumSubLittle(kp.privateKey.p,kp.privateKey.lenP,1,kp.privateKey.lenP); 
     bignum qSub1 = bigNumSubLittle(kp.privateKey.q,kp.privateKey.lenQ,1,kp.privateKey.lenQ);
-    bignum totient = bignumMult(pSub1,kp.privateKey.lenP,qSub1,kp.privateKey.lenQ,kp.publicKey.lenN);
+    bignum totient = bigNumMult(pSub1,kp.privateKey.lenP,qSub1,kp.privateKey.lenQ,kp.publicKey.lenN);
     bignum d = extendedEuclidean(kp.publicKey.e,totient,kp.publicKey.lenN);
     bignum decryptedNum = montLadExp(encryptedMessage,lenEM,d,kp.publicKey.lenN,kp.publicKey.n,kp.publicKey.lenN);
     int j = -1; //increments on first iteration

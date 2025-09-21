@@ -11,33 +11,38 @@ int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int l
 //gcc server.c -o server.exe -l ws2_32
 
 int main(int argc, char** argv) {
-    int server_sock, client_sock;
-    struct sockaddr_in server_addr, client_addr;
-    socklen_t addr_size;
-    unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
-    char buffer[1024];
+    KeyPair kp = generateKeys(1024);
+    generateX509(kp);
+    free(kp.privateKey.p);
+    free(kp.privateKey.q);
+    free(kp.publicKey.n);
+    // int server_sock, client_sock;
+    // struct sockaddr_in server_addr, client_addr;
+    // socklen_t addr_size;
+    // unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
+    // char buffer[1024];
     
    
-    if(startServer(&server_addr,&server_sock) == 0){
-        while(1){
-            addr_size = sizeof(client_addr);
-            client_sock = accept(server_sock,(struct sockaddr*)&client_addr,&addr_size);
-            printf("%s","\nClient connected");
+    // if(startServer(&server_addr,&server_sock) == 0){
+    //     while(1){
+    //         addr_size = sizeof(client_addr);
+    //         client_sock = accept(server_sock,(struct sockaddr*)&client_addr,&addr_size);
+    //         printf("%s","\nClient connected");
 
-            struct ClientHello clientHello = waitForRequest(client_sock,buffer,1024);
+    //         struct ClientHello clientHello = waitForRequest(client_sock,buffer,1024);
             
-            struct ServerHello serverHello = generateServerHello(privateDHRandom); 
-            sendServerHello(client_sock,serverHello,buffer,1024);
-            unsigned long *privateECDHKey = generatePrivateECDH(clientHello.keyExchange,privateDHRandom);
+    //         struct ServerHello serverHello = generateServerHello(privateDHRandom); 
+    //         sendServerHello(client_sock,serverHello,buffer,1024);
+    //         unsigned long *privateECDHKey = generatePrivateECDH(clientHello.keyExchange,privateDHRandom);
 
-            gcmReceiveMessage(client_sock,buffer,1024,privateECDHKey);
-            close(client_sock);
-            printf("%s","\nClient disconnected");
-            free(privateECDHKey);
+    //         gcmReceiveMessage(client_sock,buffer,1024,privateECDHKey);
+    //         close(client_sock);
+    //         printf("%s","\nClient disconnected");
+    //         free(privateECDHKey);
             
-        }
-    }
-    free(privateDHRandom);
+    //     }
+    // }
+    // free(privateDHRandom);
     return 0;
 
 }

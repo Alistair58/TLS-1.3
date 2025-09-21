@@ -1,31 +1,18 @@
-//TODO remove
-#include<structs.h>
+#include <stdint.h>
 
+//An implementation of a X509 certificate creation roughly following RFC 5280
 
-typedef struct asn1Certificate{
-    asn1TBSCertificate tbsCertif;
-    SignatureScheme  signatureAlgorithm;
-    bignum signatureValue;
-    int lenSignatureValue;
-}asn1Certificate;
-
+#define DER_SEQUENCE 0x30
+#define DER_INTEGER 0x02
+#define DER_UTF8STRING 0x0C
+#define DER_BITSTRING 0x03
 
 typedef enum TBSVersion{
-    v3 = ,
+    v3 = 2, //RFC 5280
 } TBSVersion;
 
-typedef struct asn1TBSCertificate{
-    TBSVersion version;
-    int serialNumber;
-    SignatureScheme signature;
-    uchar issuer[50];
-    asn1Validity validity;
-    uchar subject[50];
-    asn1SubjectPublicKeyInfo subjectPublicKeyInfo;
-}asn1TBSCertificate;
-
 typedef struct asn1Validity{
-    //YYMMDDHHMMSSZ
+    //YYMMDDHHMMSSZ - RFC 5280
     //Null terminated
     uchar notBefore[14];
     uchar notAfter[14];
@@ -36,6 +23,25 @@ typedef struct asn1SubjectPublicKeyInfo{
     PublicKey subjectPublicKey;
 }asn1SubjectPublicKeyInfo;
 
+// TBS - to be signed
+typedef struct asn1TBSCertificate{
+    TBSVersion version;
+    int serialNumber;
+    SignatureScheme signature;
+    uchar issuer[50];
+    asn1Validity validity;
+    uchar subject[50];
+    asn1SubjectPublicKeyInfo subjectPublicKeyInfo;
+}asn1TBSCertificate;
+
+
+//ASN1 - Abstract Structure Notation 1
+typedef struct asn1Certificate{
+    asn1TBSCertificate tbsCertif;
+    SignatureScheme signatureAlgorithm;
+    bignum signatureValue;
+    int lenSignatureValue;
+}asn1Certificate;
 
 typedef struct DER{
     uchar *data;
@@ -47,12 +53,19 @@ typedef struct Base64{
     int lenData;
 }Base64;
 
+asn1Certificate generateAsn1X509(KeyPair kp);
+DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif);
+int derEncodeBignum(uchar *result,bignum n,int lenN);
+int derEncodeString(uchar *result,uchar *string,int lenString);
+int derEncodeInt(uchar *result,int num);
+DER asn1ToDER(asn1Certificate asn1Certif);
+Base64 base64Encode(uchar *data,int lenData);
+
 void generateX509(KeyPair kp){
-    asn1Certificate ans1Certif = generateAsn1X509(kp);
+    asn1Certificate asn1Certif = generateAsn1X509(kp);
     DER derCertif = asn1ToDER(asn1Certif);
     Base64 b64Certif = base64Encode(derCertif.data,derCertif.lenData);
     uchar pemTemplate[] = "-----BEGIN CERTIFICATE-----\n%s\n-----END CERTIFICATE-----\n";
-    //Sub 1 for the format specifier and sub 1 for base64 null terminator
     FILE *fhand;
     fhand = fopen("certif.pem","w");
     fprintf(fhand,pemTemplate,b64Certif.data);
@@ -60,7 +73,6 @@ void generateX509(KeyPair kp){
 
     free(derCertif.data);
     free(b64Certif.data);
-
 }
 
 
@@ -89,33 +101,47 @@ asn1Certificate generateAsn1X509(KeyPair kp){
     free(hash);
     free(der.data);
 }
-#define DER_SEQUENCE 0x30
-#define DER_INTEGER 0x02
-#define DER_UTF8STRING 0x0C
-#define DER_BITSTRING 0x03
+
 DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif){
     DER result;
-    result.data = (uchar*) malloc(1000);
+    //Allocate a buffer that is sufficient in size
+    //We will resize when we know the length
+    result.data = (uchar*) malloc(2048);
     if(!result.data){
         allocError();
     }
     int index = 0;
-    //TODO add sequence lengths
+    
+    //TBS certif sequence
     result.data[index++] = DER_SEQUENCE;
+    int tbsSequenceLengthIndex = index;
+    index++; //reserve the index
     index += derEncodeInt(&result.data[index],asn1TBSCertif.version);
     index += derEncodeInt(&result.data[index],asn1TBSCertif.serialNumber);
     index += derEncodeInt(&result.data[index],asn1TBSCertif.signature);
     index += derEncodeString(&result.data[index],asn1TBSCertif.issuer,sizeof(asn1TBSCertif.issuer));
+    
+
+    //Vaildity
     result.data[index++] = DER_SEQUENCE;
+    int validitySequenceLengthIndex = index;
+    index++;
     index += derEncodeString(&result.data[index],asn1TBSCertif.validity.notBefore,sizeof(asn1TBSCertif.validity.notBefore));
     index += derEncodeString(&result.data[index],asn1TBSCertif.validity.notAfter,sizeof(asn1TBSCertif.validity.notAfter));
     index += derEncodeString(&result.data[index],asn1TBSCertif.subject,sizeof(asn1TBSCertif.subject));
+    result.data[validitySequenceLengthIndex] = index-(validitySequenceLengthIndex+1);
+
+    //Public key info
     result.data[index++] = DER_SEQUENCE;
+    int keyInfoSequenceLengthIndex = index;
+    index++;
     index += derEncodeInt(&result.data[index],asn1TBSCertif.subjectPublicKeyInfo.algorithm);
     result.data[index++] = DER_SEQUENCE;
     index += derEncodeInt(&result.data[index],asn1TBSCertif.subjectPublicKeyInfo.subjectPublicKey.e);
     index += derEncodeBignum(&result.data[index],asn1TBSCertif.subjectPublicKeyInfo.subjectPublicKey.n,asn1TBSCertif.subjectPublicKeyInfo.subjectPublicKey.lenN);
+    result.data[keyInfoSequenceLengthIndex] = index-(keyInfoSequenceLengthIndex+1);
 
+    result.data[tbsSequenceLengthIndex] = index-(tbsSequenceLengthIndex+1);
     uchar *resizedResult = (uchar*) malloc(index);
     free(result.data);
     result.data = resizedResult;
@@ -154,9 +180,103 @@ int derEncodeInt(uchar *result,int num){
 }
 
 DER asn1ToDER(asn1Certificate asn1Certif){
-    //Define a bunch of macros
-    //E.g. SEQUENCE = 0x30
-    //Hard-coded parse the structs with TLV
+    DER result;
+    //Allocate a buffer that is sufficient in size
+    //We will resize when we know the length
+    result.data = (uchar*) malloc(2048);
+    if(!result.data){
+        allocError();
+    }
+    int index = 0;
+    
+    //Certif sequence
+    result.data[index++] = DER_SEQUENCE;
+    int certifSequenceLengthIndex = index;
+    index++; //reserve the index
+
+    //tbsCertif
+    DER tbsDER = asn1TBSToDER(asn1Certif.tbsCertif);
+    memcpy(&result.data[index],tbsDER.data,tbsDER.lenData);
+    index += tbsDER.lenData;
+    free(tbsDER.data);
+
+    //Signature Algorithm
+    index += derEncodeInt(&result.data[index],asn1Certif.signatureAlgorithm);
+
+    //Signature value
+    index += derEncodeBignum(&result.data[index],asn1Certif.signatureValue,asn1Certif.lenSignatureValue*sizeof(unsigned long));
+
+    //Signature length
+    index += derEncodeInt(&result.data[index],asn1Certif.lenSignatureValue);
+
+    result.data[certifSequenceLengthIndex] = index-(certifSequenceLengthIndex+1);
+
+    uchar *resizedResult = (uchar*) malloc(index);
+    free(result.data);
+    result.data = resizedResult;
+    result.lenData = index;
+    return result;
 }
 
-//1hr 36mins
+Base64 base64Encode(uchar *data,int lenData){
+    Base64 result;
+    int lenBits = lenData*8;
+    int lenPaddingBits = lenBits%6;
+    int len6BitChunksBits = lenBits+lenPaddingBits;
+    int num6BitChunks = len6BitChunksBits / 6;
+    //add a '=' for each 2 padding bits
+    int lenPaddingChars = lenPaddingBits/2;
+    int lenResultBytes = num6BitChunks/8 + lenPaddingChars;
+
+    result.data = calloc(lenResultBytes,1);
+    result.lenData = lenResultBytes;
+
+    for(int i=0;i<num6BitChunks;i++){
+        int inputIndex = i*6/8;
+        uchar inputChunk0 = data[inputIndex];
+        uchar inputChunk1 = (inputIndex>=lenData)?0:data[inputIndex+1];
+
+        // i=0 -> chunk0 & 0b111111
+        // i=1 -> chunk0 & 0b11  | chunk1 & 0b11110000 
+        // i=2 -> chunk0 & 0b1111 | chunk1 & 0b11000000
+        // i=3 -> chunk0 & 0b111111
+
+        //There might be a nicer way of doing this
+        uint8_t mask0,mask1;
+        uint8_t chunk0Shift;
+        switch(i%3){
+            case 0:
+                mask0 = 0b111111;
+                mask1 = 0b0;
+                chunk0Shift = 0;
+                break;
+            case 1:
+                mask0 = 0b11;
+                mask1 = 0b11110000;
+                chunk0Shift = 4;
+                break;
+            case 2:
+                mask0 = 0b1111;
+                mask1 = 0b11000000;
+                chunk0Shift = 2;
+        }
+        uint8_t chunk6Bits = ((inputChunk0 & mask0) << chunk0Shift) | inputChunk1 & mask1; 
+        if(chunk6Bits<26){
+            result.data[i] = 'A'+chunk6Bits;
+        }
+        else if(chunk6Bits<52){
+            result.data[i] = 'a'+(chunk6Bits-26);
+        }
+        else if(chunk6Bits<62){
+            result.data[i] = '0'+(chunk6Bits-52);
+        }
+        else if(chunk6Bits==62) result.data[i] = '+';
+        else if(chunk6Bits==63) result.data[i] = '/';
+    }
+    //Padding
+    for(int i=0;i<lenPaddingChars;i++){
+        result.data[num6BitChunks+i] = '=';
+    }
+
+    return result;
+}
