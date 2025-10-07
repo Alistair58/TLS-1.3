@@ -204,7 +204,7 @@ DER asn1ToDER(asn1Certificate asn1Certif){
     index += derEncodeInt(&result.data[index],asn1Certif.signatureAlgorithm);
 
     //Signature value
-    index += derEncodeBignum(&result.data[index],asn1Certif.signatureValue,asn1Certif.lenSignatureValue*sizeof(unsigned long));
+    index += derEncodeBignum(&result.data[index],asn1Certif.signatureValue,asn1Certif.lenSignatureValue*sizeof(uint32_t));
 
     //Signature length
     index += derEncodeInt(&result.data[index],asn1Certif.lenSignatureValue);

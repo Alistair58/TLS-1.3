@@ -24,22 +24,22 @@
 
 
 
-void ecbSendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg);
-void ecbReceiveMessage(int sock,char *buffer, int lenBuff, unsigned long *key);
-void gcmSendMessage(int sock,uchar *buff,int lenBuff,unsigned long *key,char *msg,int lenMsg);
-void gcmReceiveMessage(int sock,char *buffer, int lenBuff, unsigned long *key);
+void ecbSendMessage(int sock,uchar *buffer,int lenBuff,uint32_t *key,char *msg,int lenMsg);
+void ecbReceiveMessage(int sock,char *buffer, int lenBuff, uint32_t *key);
+void gcmSendMessage(int sock,uchar *buff,int lenBuff,uint32_t *key,char *msg,int lenMsg);
+void gcmReceiveMessage(int sock,char *buffer, int lenBuff, uint32_t *key);
 
 typedef unsigned char uchar;
 
 
-void ecbSendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *msg,int lenMsg){
+void ecbSendMessage(int sock,uchar *buffer,int lenBuff,uint32_t *key,char *msg,int lenMsg){
     memset(buffer,0,lenBuff);
     if(lenBuff < lenMsg){
         perror("\nBuffer is too small for message");
         exit(1);
     }
     for(int i=0;i<ceil((float)lenMsg/256);i++){
-        unsigned long block[8] = {0};
+        uint32_t block[8] = {0};
         for(int j=0;j<32;j++){
             if (i*32 + j <lenMsg) block[j>>2] |= msg[i*32 + j] << ((j&3)*8); //append message to block
         }
@@ -54,7 +54,7 @@ void ecbSendMessage(int sock,uchar *buffer,int lenBuff,unsigned long *key,char *
     }
 }
 
-void ecbReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
+void ecbReceiveMessage(int sock,char *buffer,int lenBuff,uint32_t *key){
     memset(buffer,0,lenBuff); //Remove any rubbish from buffer
     if(!recv(sock,buffer,lenBuff,0) || buffer[0]==0){
         printf("\nNo message received from the client");
@@ -63,7 +63,7 @@ void ecbReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
         buffer[lenBuff-1] = '\0';
         printf("\nBuffer received %s",buffer);
         for(int i=0;i<floor((float)lenBuff/256);i++){
-            unsigned long block[8] = {0};
+            uint32_t block[8] = {0};
             for(int j=0;j<32;j++){
                 block[j>>2] |= ((uchar)buffer[i*32 + j]) << ((j&3)*8); //append message to block - if it is signed it causes a big mess
             }
@@ -74,7 +74,7 @@ void ecbReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
     }
 }
 
-void gcmSendMessage(int sock,uchar *buff,int lenBuff,unsigned long *key,char *msg,int lenMsg){
+void gcmSendMessage(int sock,uchar *buff,int lenBuff,uint32_t *key,char *msg,int lenMsg){
     memset(buff,0,lenBuff);
     gcmResult result;
     result.iv = 0;
@@ -117,7 +117,7 @@ void gcmSendMessage(int sock,uchar *buff,int lenBuff,unsigned long *key,char *ms
 }
 
 
-void gcmReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
+void gcmReceiveMessage(int sock,char *buffer,int lenBuff,uint32_t *key){
     memset(buffer,0,lenBuff); //Remove any rubbish from buffer
     if(!recv(sock,buffer,lenBuff,0) || buffer[0]==0){
         printf("\nNo message received from the client");
@@ -130,8 +130,8 @@ void gcmReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
         buffer[3] = '\0';
         int lenMsg = strtoul(buffer,NULL,16);
         buffer[3] = temp;
-        result.iv = (unsigned long*) calloc(8,sizeof(unsigned long));
-        result.tag  = (unsigned long*) calloc(8,sizeof(unsigned long));
+        result.iv = (uint32_t*) calloc(8,sizeof(uint32_t));
+        result.tag  = (uint32_t*) calloc(8,sizeof(uint32_t));
         uchar *message = (uchar*) calloc(lenMsg,sizeof(uchar));
         if(!message || !result.iv || !result.tag){
             if(message) free(message);
@@ -145,7 +145,7 @@ void gcmReceiveMessage(int sock,char *buffer,int lenBuff,unsigned long *key){
             message[i] = buffer[i+3];
         }
         for(int i=0;i<8;i++){
-            //Turn hex strings into unsigned long arrays
+            //Turn hex strings into uint32_t arrays
             //8 chars for every item
             //8 lots of 8 chars
             //TODO make better strtoul

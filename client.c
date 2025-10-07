@@ -5,9 +5,9 @@ typedef unsigned char uchar;
 
 int connectToServer(struct sockaddr_in* addr, int* sock);
 int sendClientHello(int sock,struct sockaddr_in addr,char* buffer,int lenBuff,struct ClientHello clientHello);
-struct ClientHello generateClientHello(unsigned long *privateDHRandom);
+struct ClientHello generateClientHello(uint32_t *privateDHRandom);
 struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff);
-unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH);
+uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 
 //gcc client.c -o client.exe -g -l ws2_32
 
@@ -15,7 +15,7 @@ unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *pri
 //DONE
 
 //Note:
-//Everything uses unsigned longs which are intended to be 32 bits
+//Everything uses uint32_ts which are intended to be 32 bits
 //They are 32 bits on this system but so are ints
 
 //TODO High-Level
@@ -37,12 +37,12 @@ int main(int argc, char** argv) {
     int sock;
     struct sockaddr_in addr;
     char buffer[1024];
-    unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
+    uint32_t *privateDHRandom = calloc(8,sizeof(uint32_t));
     ClientHello clientHello = generateClientHello(privateDHRandom);
     if(connectToServer(&addr,&sock)==0){
         sendClientHello(sock,addr,buffer,1024,clientHello);
         struct ServerHello serverHello = waitForServerHello(sock,buffer,1024);
-        unsigned long *privateECDHKey = generatePrivateECDH(serverHello.keyExchange,privateDHRandom);
+        uint32_t *privateECDHKey = generatePrivateECDH(serverHello.keyExchange,privateDHRandom);
 
         char *testMessage = "Hello world!";
         gcmSendMessage(sock,buffer,1024,privateECDHKey,testMessage,12);
@@ -87,26 +87,26 @@ int connectToServer(struct sockaddr_in * addr, int* sock){
     return 0;
 }
 
-struct ClientHello generateClientHello(unsigned long *privateDHRandom){
+struct ClientHello generateClientHello(uint32_t *privateDHRandom){
     struct ClientHello clientHello;
     int cipherSuites[1][2] =   {{0x13,TLS_AES_128_GCM_SHA256}};
     int curveGroups[1] = {x25519};
     int signatureAlgorithms[1] = {rsa_pss_pss_sha256};
-    unsigned long *clientRandom = calloc(1,sizeof(unsigned long));
+    uint32_t *clientRandom = calloc(1,sizeof(uint32_t));
     printf("\nGenerating random number. Please move your mouse until generation is completed");
     randomNumber(clientRandom,1,NULL);
     randomNumber(privateDHRandom,8,curve25519Params.n);
     printf("\nGeneration completed");
    // printf("\nClient random %lu Client private DH Random: %lu %lu %lu %lu %lu %lu %lu %lu",clientRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
    // privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);
-    unsigned long *ECDHKey  = X25519(curve25519Params.G[0],privateDHRandom);
+    uint32_t *ECDHKey  = X25519(curve25519Params.G[0],privateDHRandom);
     //printf("\nClient Public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",ECDHKey[0],ECDHKey[1],ECDHKey[2],ECDHKey[3],ECDHKey[4],ECDHKey[5],ECDHKey[6],ECDHKey[7]);
 
     clientHello.clientRandom = clientRandom[0];
     memcpy(&clientHello.cipherSuites,&cipherSuites,sizeof(cipherSuites));
     memcpy(&clientHello.supportedGroups,&curveGroups ,sizeof(curveGroups));
     memcpy(&clientHello.signatureAlgorithms,&signatureAlgorithms,sizeof(signatureAlgorithms));
-    memcpy(&clientHello.keyExchange,ECDHKey,8*sizeof(unsigned long));
+    memcpy(&clientHello.keyExchange,ECDHKey,8*sizeof(uint32_t));
     free(clientRandom);free(ECDHKey);
     return clientHello;
 }
@@ -188,13 +188,13 @@ struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff){
     return serverHello;
 }
 
-unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH){
+uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH){
     // printf("\nServer public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu Private DH: %lu %lu %lu %lu %lu %lu %lu %lu ",
     // keyExchange[0],keyExchange[1],keyExchange[2],keyExchange[3],
     // keyExchange[4],keyExchange[5],keyExchange[6],keyExchange[7],
     // privateDH[0],privateDH[1],privateDH[2],privateDH[3],
     // privateDH[4],privateDH[5],privateDH[6],privateDH[7]);
-    unsigned long *privateECDHKey = X25519(keyExchange,privateDH);
+    uint32_t *privateECDHKey = X25519(keyExchange,privateDH);
     printf("\nClient Private ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",
     privateECDHKey[0],privateECDHKey[1],privateECDHKey[2],privateECDHKey[3],
     privateECDHKey[4],privateECDHKey[5],privateECDHKey[6],privateECDHKey[7]);

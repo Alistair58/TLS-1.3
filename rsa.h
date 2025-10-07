@@ -8,12 +8,12 @@
 //The public key is displayed on the certificate
 
 //Using 2048 bit keys (n is 2048)
-//Which is an array of 64 unsigned longs
+//Which is an array of 64 uint32_ts
 //Therefore p and q will be 1028 bits(32 length array)
 typedef struct PublicKey{
     bignum n;
     int lenN;
-    unsigned long e;
+    uint32_t e;
 } PublicKey;
 
 typedef struct PrivateKey{
@@ -34,12 +34,12 @@ bool isPrime(bignum n,int lenN);
 bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen);
 bool millerRabin(bignum n,int lenN,bignum a,int lenA);
 bignum encryptRSA(uchar *msg,int lenMsg,KeyPair kp);
-bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient);
+bignum extendedEuclidean(uint32_t exp,bignum totient,int lenTotient);
 uchar *decryptRSA(bignum encryptedMessage,int lenEM,KeyPair kp);
 
 bool isPrime(bignum n,int lenN){ 
     for(int i=0;i<30;i++){ //as MR is incorrect 1/4 of time, it is now incorrect 1 in 4^30 times (once every 36558901 years if it runs every ms)
-        bignum a = calloc(lenN,sizeof(unsigned long));
+        bignum a = calloc(lenN,sizeof(uint32_t));
         if(!a){
             allocError();
         }
@@ -66,11 +66,11 @@ bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modL
     https://en.wikipedia.org/wiki/Exponentiation_by_squaring
     */
     int lenLongest = max(lenA,modLen);
-    bignum x1 = calloc(lenLongest,sizeof(unsigned long));
+    bignum x1 = calloc(lenLongest,sizeof(uint32_t));
     if(!x1){
         allocError();
     }
-    memcpy(&x1[lenLongest-lenA],a,lenA*sizeof(unsigned long));
+    memcpy(&x1[lenLongest-lenA],a,lenA*sizeof(uint32_t));
     bignum x2 = bigNumModMult(a,lenA,a,lenA,mod,modLen);
     bool started = false; //start when we reach the first 1 bit (as we have pre-set the first multiplication)
     for(int i=0;i<lenExp;i++){ //MSB to LSB chunks
@@ -99,7 +99,7 @@ bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modL
         for(int i=diff;i<lenLongest;i++){
             x1[i-diff] = x1[i];
         }
-        x1 = realloc(x1,modLen*sizeof(unsigned long));
+        x1 = realloc(x1,modLen*sizeof(uint32_t));
     }
     return x1;
 }
@@ -107,11 +107,11 @@ bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modL
 //Single test case
 bool millerRabin(bignum n,int lenN,bignum a,int lenA){
     bignum nSub1= bigNumSubLittle(n,lenN,1,lenN);
-    bignum exp = (bignum) calloc(lenN,sizeof(unsigned long));
+    bignum exp = (bignum) calloc(lenN,sizeof(uint32_t));
     if(!nSub1){
         allocError();
     }
-    memcpy(exp,nSub1,lenN*sizeof(unsigned long));
+    memcpy(exp,nSub1,lenN*sizeof(uint32_t));
     while(!(exp[lenN-1] & 1)){
         bigNumRShiftRe(exp,lenN,1); //Keep shifting until it's odd
     }
@@ -150,9 +150,9 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
 
 
 bignum encryptRSA(uchar *msg,int lenMsg,KeyPair kp){
-    int sizeDiff = sizeof(unsigned long)/sizeof(uchar); //yes I know it's 4
+    int sizeDiff = sizeof(uint32_t)/sizeof(uchar); //yes I know it's 4
     int lenMsgNum = ceil((float)lenMsg*1/sizeDiff);
-    bignum msgNum = calloc(lenMsgNum,sizeof(unsigned long));
+    bignum msgNum = calloc(lenMsgNum,sizeof(uint32_t));
     if(!msgNum){
         allocError();
     }
@@ -160,7 +160,7 @@ bignum encryptRSA(uchar *msg,int lenMsg,KeyPair kp){
     for(int i=0;i<lenMsg;i++){
         int mod = i%sizeDiff;
         if(mod==0) j++;
-        msgNum[j] |= (unsigned long) msg[i] << ((sizeDiff-1-mod)*8);
+        msgNum[j] |= (uint32_t) msg[i] << ((sizeDiff-1-mod)*8);
     }
     //RSA maths requirement
     if(bigNumCmp(msgNum,lenMsgNum,kp.publicKey.n,kp.publicKey.lenN) == GREATER_THAN){
@@ -168,44 +168,44 @@ bignum encryptRSA(uchar *msg,int lenMsg,KeyPair kp){
         perror("\nmsg is too long for RSA encryption with this N");
         exit(1);
     }
-    unsigned long eBigNum[1] = {kp.publicKey.e};
+    uint32_t eBigNum[1] = {kp.publicKey.e};
     bignum result = montLadExp(msgNum,lenMsgNum,&kp.publicKey.e,1,kp.publicKey.n,kp.publicKey.lenN);
     free(msgNum);
     return result;
 }
 
-bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient){
-    bignum r1 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+bignum extendedEuclidean(uint32_t exp,bignum totient,int lenTotient){
+    bignum r1 = (bignum) calloc(lenTotient,sizeof(uint32_t));
     if(!r1){
         CALLOC_ERROR:
             allocError();
     }
-    bignum r2 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+    bignum r2 = (bignum) calloc(lenTotient,sizeof(uint32_t));
     if(!r2){
         FREE_R1:
             free(r1);
             goto CALLOC_ERROR;
     }
-    bignum s1 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+    bignum s1 = (bignum) calloc(lenTotient,sizeof(uint32_t));
     if(!s1){
         FREE_R2:
             free(r2);
             goto FREE_R1;
     }
-    bignum s2 = (bignum) calloc(lenTotient,sizeof(unsigned long));
+    bignum s2 = (bignum) calloc(lenTotient,sizeof(uint32_t));
     if(!s2){
         FREE_S1:
             free(s1);
             goto FREE_R2;
     }
-    bignum temp = (bignum) calloc(lenTotient,sizeof(unsigned long));
+    bignum temp = (bignum) calloc(lenTotient,sizeof(uint32_t));
     if(!temp){
        free(s2);
        goto FREE_S1;
     }
     
     r1[lenTotient-1] = exp;
-    memcpy(r2,totient,lenTotient*sizeof(unsigned long));
+    memcpy(r2,totient,lenTotient*sizeof(uint32_t));
     s1[lenTotient-1] = 1;
     //s2 stays at 0
     while(bignumCmp(r2,0) != EQUAL){
@@ -214,25 +214,25 @@ bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient){
         //(s1, s2) = (s2, s1 - quotient *s2) 
 
         bignum quotient = bigNumDiv(r1,lenTotient,r2,lenTotient);
-        memcpy(temp,r2,lenTotient*sizeof(unsigned long));
+        memcpy(temp,r2,lenTotient*sizeof(uint32_t));
         
         bignum quotientMultR2 = bigNumMult(quotient,lenTotient,r2,lenTotient,2*lenTotient);
         //We know that quotientMultR2 will fit in lenTotient
-        memcpy(r2,&quotientMultR2[lenTotient],lenTotient*sizeof(unsigned long));
-        quotientMultR2 = realloc(quotientMultR2,lenTotient*sizeof(unsigned long));
-        memcpy(quotientMultR2,r2,lenTotient*sizeof(unsigned long));
+        memcpy(r2,&quotientMultR2[lenTotient],lenTotient*sizeof(uint32_t));
+        quotientMultR2 = realloc(quotientMultR2,lenTotient*sizeof(uint32_t));
+        memcpy(quotientMultR2,r2,lenTotient*sizeof(uint32_t));
 
         bigNumSubRe(r1,lenTotient,quotientMultR2,lenTotient);
-        memcpy(r2,r1,lenTotient*sizeof(unsigned long));
-        memcpy(r1,temp,lenTotient*sizeof(unsigned long));
+        memcpy(r2,r1,lenTotient*sizeof(uint32_t));
+        memcpy(r1,temp,lenTotient*sizeof(uint32_t));
         
         //We must stay non-negative
         //The standard euclidean algorithm allows s1 and s2 to be negative but we don't
         bignum quotientMultS2 = bigNumModMult(quotient,lenTotient,s2,lenTotient,totient,lenTotient);
         bignum temp2 = bigNumSub(totient,lenTotient,quotientMultS2,lenTotient,lenTotient);
         bignum temp3 = bigNumModAdd(s1,lenTotient,temp2,lenTotient,totient,lenTotient);
-        memcpy(s1,s2,lenTotient*sizeof(unsigned long));
-        memcpy(s2,temp3,lenTotient*sizeof(unsigned long));
+        memcpy(s1,s2,lenTotient*sizeof(uint32_t));
+        memcpy(s2,temp3,lenTotient*sizeof(uint32_t));
 
         free(quotient);
         free(quotientMultR2);
@@ -248,7 +248,7 @@ bignum extendedEuclidean(unsigned long exp,bignum totient,int lenTotient){
 }
 
 uchar *decryptRSA(bignum encryptedMessage,int lenEM,KeyPair kp){
-    int sizeDiff = sizeof(unsigned long)/sizeof(uchar); //yes I know it's 4
+    int sizeDiff = sizeof(uint32_t)/sizeof(uchar); //yes I know it's 4
     int lenMsg = lenEM*sizeDiff;
     uchar *decryptedMessage = (uchar*) malloc(lenMsg);
     if(!decryptedMessage){
@@ -274,9 +274,9 @@ uchar *decryptRSA(bignum encryptedMessage,int lenEM,KeyPair kp){
 //numBits is the size of the public key n
 KeyPair generateKeys(int numBits){
     KeyPair kp;
-    int publicKeyLen = numBits/(8*sizeof(unsigned long));
+    int publicKeyLen = numBits/(8*sizeof(uint32_t));
     int privateKeyLen = publicKeyLen/2;
-    kp.privateKey.p = calloc(privateKeyLen,sizeof(unsigned long));
+    kp.privateKey.p = calloc(privateKeyLen,sizeof(uint32_t));
     if(!kp.privateKey.p){
         allocError();
     }
@@ -284,7 +284,7 @@ KeyPair generateKeys(int numBits){
         randomNumber(kp.privateKey.p,privateKeyLen,NULL);
     }
     while(!isPrime(kp.privateKey.p,privateKeyLen));
-    kp.privateKey.q = calloc(privateKeyLen,sizeof(unsigned long));
+    kp.privateKey.q = calloc(privateKeyLen,sizeof(uint32_t));
     if(!kp.privateKey.q){
         free(kp.privateKey.p);
         allocError();

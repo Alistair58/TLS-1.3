@@ -57,27 +57,27 @@ typedef enum SignatureScheme
 
 typedef struct ClientHello
 {
-    unsigned long clientRandom;
+    uint32_t clientRandom;
     int cipherSuites[5][2]; // TLS 1.3 only supports 5 cipher suites
     int supportedGroups[10];
     int signatureAlgorithms[16];
-    unsigned long keyExchange[8];
+    uint32_t keyExchange[8];
 } ClientHello;
 typedef struct Certificate{
     char CA[50];
-    unsigned long publicKey[8];
-    unsigned long CASignature[8];
-    unsigned long serverSignature[8];
+    uint32_t publicKey[8];
+    uint32_t CASignature[8];
+    uint32_t serverSignature[8];
 } Certificate;
 typedef struct ServerHello
 {
-    unsigned long serverRandom;
+    uint32_t serverRandom;
     int cipherSuite[2]; // TLS 1.3 only supports 5 cipher suites
     int curveGroup;
     int signatureAlgorithm;
     Certificate certificate; 
-    unsigned long keyExchange[8];
-    unsigned long MAC[8]; //Sort of server finished
+    uint32_t keyExchange[8];
+    uint32_t MAC[8]; //Sort of server finished
 } ServerHello;
 
 
@@ -85,11 +85,11 @@ typedef struct ServerHello
 
 
 struct CurveGroupParams{
-    unsigned long p[8];
-    unsigned long a[8];
-    unsigned long b[8];
-    unsigned long G[2][8];
-    unsigned long n[8];
+    uint32_t p[8];
+    uint32_t a[8];
+    uint32_t b[8];
+    uint32_t G[2][8];
+    uint32_t n[8];
 }
 secp256rParams = {
     {0xffffffffUL,0x00000001UL,0x00000000UL,0x00000000UL,0x00000000UL,0xffffffffUL,0xffffffffUL,0xffffffffUL},

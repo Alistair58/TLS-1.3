@@ -3,20 +3,20 @@
 #include <winuser.h>
 #include <math.h>
 
-int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n);
+int randomNumber(uint32_t *bigIntArr, int chunks,uint32_t *n);
 
-int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A chunk is 32 bits
+int randomNumber(uint32_t *bigIntArr, int chunks,uint32_t *n){  //A chunk is 32 bits
     int time = 1000;
-    unsigned long long product; //Unsigned long would mean the mod would never work and would output 0
+    uint64_t product; //uint32_t would mean the mod would never work and would output 0
     int x;
     int y;
     POINT point;
     ULONGLONG tickCount = GetTickCount64();
     ULONGLONG targetTime = tickCount +time; //2.5 seconds later
-    product = (tickCount) % (unsigned long)(pow(256,sizeof(unsigned long))-1); //mod 4 bytes
+    product = (tickCount) % (uint32_t)(pow(256,sizeof(uint32_t))-1); //mod 4 bytes
     int chunkWriteCount = 1;
-    unsigned long mod;
-    if(n==NULL) mod = pow(256,sizeof(unsigned long))-1; //Can only get up to 256^unsigned long -2
+    uint32_t mod;
+    if(n==NULL) mod = pow(256,sizeof(uint32_t))-1; //Can only get up to 256^uint32_t -2
     else mod = n[0];
     while(chunkWriteCount<=chunks){
     
@@ -35,7 +35,7 @@ int randomNumber(unsigned long *bigIntArr, int chunks,unsigned long *n){  //A ch
             int timeNeeded = (int)time*((float)(chunks-chunkWriteCount+1)/(chunks+1));
             bigIntArr[chunkWriteCount-1] = product;
             chunkWriteCount ++;
-            mod = pow(256,sizeof(unsigned long))-1;
+            mod = pow(256,sizeof(uint32_t))-1;
             if(chunkWriteCount > chunks) break;
         }
         tickCount = GetTickCount64();

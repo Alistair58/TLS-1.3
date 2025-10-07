@@ -9,10 +9,10 @@ const int numRows = 4; //constant for all block sizes
 const int keyLen = 8; // Number of 4-byte vectors long the key is
 const int keyExpLen = 120; //numCols * (numRounds+1);
 
-void aesEncrypt(unsigned long *key,unsigned long *data, unsigned long* dest);//
-void aesDecrypt(unsigned long *key,unsigned long *data, unsigned long* dest);//
-void keyExpansion(unsigned long *key,byte keyExp[keyExpLen][4]);//
-void invKeyExpansion(unsigned long *key,byte invKeyExp[keyExpLen][4]);//
+void aesEncrypt(uint32_t *key,uint32_t *data, uint32_t* dest);//
+void aesDecrypt(uint32_t *key,uint32_t *data, uint32_t* dest);//
+void keyExpansion(uint32_t *key,byte keyExp[keyExpLen][4]);//
+void invKeyExpansion(uint32_t *key,byte invKeyExp[keyExpLen][4]);//
 byte* rotate(byte *inp);//
 void addRoundKey(byte state[numCols][4], byte keyExp[keyExpLen][4],int roundNum);//
 void aesRound(byte state[numCols][4], byte keyExp[keyExpLen][4],int roundNum);//
@@ -76,7 +76,7 @@ byte invSBox[256] = {
 //Words are stored as little endian
 //state is stored as an array of columns (words)
 
-void aesEncrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
+void aesEncrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
     byte keyExp[120][4] = {{0}}; //Even though keyExpLen is const it needs a number to initialise array
     byte state[8][4] = {{0}};
     for(int i=0;i<numCols;i++){//Initialise state
@@ -88,12 +88,12 @@ void aesEncrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
     for(int i=1 ; i<numRounds ; i++ ) aesRound(state,keyExp,i) ;
     finalRound(state,keyExp);
     for(int i=0;i<numCols;i++){//Copy to dest
-        dest[i] = (unsigned long) state[i][0] | (unsigned long) state[i][1]<<8 
-                | (unsigned long) state[i][2]<<16 | (unsigned long) state[i][3]<<24;
+        dest[i] = (uint32_t) state[i][0] | (uint32_t) state[i][1]<<8 
+                | (uint32_t) state[i][2]<<16 | (uint32_t) state[i][3]<<24;
     }
 }
 
-void aesDecrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
+void aesDecrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
     byte invKeyExp[120][4] = {{0}}; //Even though keyExpLen is const it needs a number to initialise array
     byte state[8][4] = {{0}};
     for(int i=0;i<numCols;i++){//Initialise state
@@ -105,12 +105,12 @@ void aesDecrypt(unsigned long* key,unsigned long *data, unsigned long* dest){
     for(int i=numRounds-1 ; i>0;i--) invAesRound(state,invKeyExp,i) ;
     invFinalRound(state,invKeyExp);
     for(int i=0;i<numCols;i++){//Copy to dest
-        dest[i] = (unsigned long) state[i][0] | (unsigned long) state[i][1]<<8 
-                | (unsigned long) state[i][2]<<16 | (unsigned long) state[i][3]<<24;
+        dest[i] = (uint32_t) state[i][0] | (uint32_t) state[i][1]<<8 
+                | (uint32_t) state[i][2]<<16 | (uint32_t) state[i][3]<<24;
     }
 }
 
-void invKeyExpansion(unsigned long *key,byte invKeyExp[keyExpLen][4]){
+void invKeyExpansion(uint32_t *key,byte invKeyExp[keyExpLen][4]){
     keyExpansion(key,invKeyExp);
     byte d[] = {0x0E,0x09,0x0D,0x0B}; //little endian
     for(int i=1;i<numRounds;i++){
@@ -120,7 +120,7 @@ void invKeyExpansion(unsigned long *key,byte invKeyExp[keyExpLen][4]){
     }
 }
 
-void keyExpansion(unsigned long *key,byte keyExp[keyExpLen][4]){
+void keyExpansion(uint32_t *key,byte keyExp[keyExpLen][4]){
     for(int i = 0; i < keyLen; i++){
         byte keyExp4Bytes[] = {((byte) (key[i])),((byte) (key[i]>>8)),((byte) (key[i]>>16)),((byte)(key[i]>>24))}; //keeping with little endian
         memcpy(keyExp[i],keyExp4Bytes,4*sizeof(byte)); 

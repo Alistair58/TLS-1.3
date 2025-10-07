@@ -4,8 +4,8 @@ typedef unsigned char uchar;
 
 int startServer(struct sockaddr_in * addr,int* sock);
 struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff);
-struct ServerHello generateServerHello(unsigned long *privateDHRandom);
-unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH);
+struct ServerHello generateServerHello(uint32_t *privateDHRandom);
+uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
 //gcc server.c -o server.exe -l ws2_32
@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
     // int server_sock, client_sock;
     // struct sockaddr_in server_addr, client_addr;
     // socklen_t addr_size;
-    // unsigned long *privateDHRandom = calloc(8,sizeof(unsigned long));
+    // uint32_t *privateDHRandom = calloc(8,sizeof(uint32_t));
     // char buffer[1024];
     
    
@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
             
     //         struct ServerHello serverHello = generateServerHello(privateDHRandom); 
     //         sendServerHello(client_sock,serverHello,buffer,1024);
-    //         unsigned long *privateECDHKey = generatePrivateECDH(clientHello.keyExchange,privateDHRandom);
+    //         uint32_t *privateECDHKey = generatePrivateECDH(clientHello.keyExchange,privateDHRandom);
 
     //         gcmReceiveMessage(client_sock,buffer,1024,privateECDHKey);
     //         close(client_sock);
@@ -103,19 +103,19 @@ struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff){
 }
 
 
-struct ServerHello generateServerHello(unsigned long *privateDHRandom){
+struct ServerHello generateServerHello(uint32_t *privateDHRandom){
     struct ServerHello serverHello;
     int cipherSuite[2] =   {0x13,TLS_AES_128_GCM_SHA256};
     serverHello.curveGroup = x25519;
     serverHello.signatureAlgorithm  = rsa_pss_pss_sha256;
-    unsigned long *serverRandom = calloc(1,sizeof(unsigned long));
+    uint32_t *serverRandom = calloc(1,sizeof(uint32_t));
     printf("\nGenerating random number. Please move your mouse until generation is completed");
     randomNumber(serverRandom,1,NULL);
     randomNumber(privateDHRandom,8,curve25519Params.n);
     printf("\nGeneration completed");
     // printf("\nServer random %lu Server Private DH Random: %lu %lu %lu %lu %lu %lu %lu %lu ",serverRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
     // privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);
-    unsigned long *publicECDHKey = X25519(curve25519Params.G[0],privateDHRandom);
+    uint32_t *publicECDHKey = X25519(curve25519Params.G[0],privateDHRandom);
     // printf("\nServer Public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",
     // publicECDHKey[0],publicECDHKey[1],publicECDHKey[2],publicECDHKey[3],
     // publicECDHKey[4],publicECDHKey[5],publicECDHKey[6],publicECDHKey[7]);
@@ -123,18 +123,18 @@ struct ServerHello generateServerHello(unsigned long *privateDHRandom){
     
     serverHello.serverRandom = serverRandom[0];
     memcpy(&serverHello.cipherSuite,&cipherSuite,sizeof(cipherSuite));
-    memcpy(&serverHello.keyExchange,publicECDHKey,8*sizeof(unsigned long));
+    memcpy(&serverHello.keyExchange,publicECDHKey,8*sizeof(uint32_t));
     free(serverRandom);free(publicECDHKey);
     return serverHello;
 }
 
-unsigned long *generatePrivateECDH(unsigned long *keyExchange,unsigned long *privateDH){
+uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH){
     // printf("\nClient public ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu Private DH: %lu %lu %lu %lu %lu %lu %lu %lu ",
     // keyExchange[0],keyExchange[1],keyExchange[2],keyExchange[3],
     // keyExchange[4],keyExchange[5],keyExchange[6],keyExchange[7],
     // privateDH[0],privateDH[1],privateDH[2],privateDH[3],
     // privateDH[4],privateDH[5],privateDH[6],privateDH[7]);
-    unsigned long *privateECDHKey = X25519(keyExchange,privateDH);
+    uint32_t *privateECDHKey = X25519(keyExchange,privateDH);
     printf("\nServer Private ECDHE: %lu %lu %lu %lu %lu %lu %lu %lu",
     privateECDHKey[0],privateECDHKey[1],privateECDHKey[2],privateECDHKey[3],
     privateECDHKey[4],privateECDHKey[5],privateECDHKey[6],privateECDHKey[7]);
