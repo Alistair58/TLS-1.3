@@ -1,20 +1,16 @@
-typedef unsigned char uchar;
+#include "gcm.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include <limits.h>
 
-typedef struct gcmResult{
-    uint32_t *iv;
-    uchar *ciphertext;
-    uint32_t *tag;
-} gcmResult;
-
-bool gcm(uchar *plaintext, int lenPlaintext, uint32_t *key, gcmResult *dest);
-void gf256Mult(uint32_t *x,uint32_t *y, uint32_t *out);
-void increment(uint32_t *iv);
-void plaintextXOR(uint32_t *key, uchar *plaintext, int blockNum);
-void bigNumXOR(uint32_t *inp1, uint32_t *inp2,int length);
-void bigNumXORDest(uint32_t *dest,uint32_t *inp1, uint32_t *inp2,int length);
-void polyMult(uint32_t *x,uint32_t *y,uint32_t *out);
-void modGf256(uint32_t *dividend,uint32_t *out);
-void polyLeftShift(uint32_t *inp,int shiftBy,uint32_t *out);
+static void gf256Mult(uint32_t *x,uint32_t *y, uint32_t *out);
+static void increment(uint32_t *iv);
+static void plaintextXOR(uint32_t *key, uchar *plaintext, int blockNum);
+static void bigNumXOR(uint32_t *inp1, uint32_t *inp2,int length);
+static void bigNumXORDest(uint32_t *dest,uint32_t *inp1, uint32_t *inp2,int length);
+static void polyMult(uint32_t *x,uint32_t *y,uint32_t *out);
+static void modGf256(uint32_t *dividend,uint32_t *out);
+static void polyLeftShift(uint32_t *inp,int shiftBy,uint32_t *out);
 
 //GCM supports 128 bit block sizes but my AES implementation uses 256 bit blocks and so I've altered
 //this GCM to use 256 bit blocks which means that multiplication now takes place in GF(2^256) instead of GF(2^128)

@@ -35,6 +35,8 @@
         "unistd.h": "c",
         "stdio.h": "c",
         "x25519.h": "c",
-        "certif.h": "c"
+        "certif.h": "c",
+        "winsock2.h": "c",
+        "math.h": "c"
     }
 }

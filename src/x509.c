@@ -1,67 +1,24 @@
-#include <stdint.h>
+#include "x509.h"
+#include <stdio.h>
 
 //An implementation of a X509 certificate creation roughly following RFC 5280
+
 
 #define DER_SEQUENCE 0x30
 #define DER_INTEGER 0x02
 #define DER_UTF8STRING 0x0C
 #define DER_BITSTRING 0x03
 
-typedef enum TBSVersion{
-    v3 = 2, //RFC 5280
-} TBSVersion;
 
-typedef struct asn1Validity{
-    //YYMMDDHHMMSSZ - RFC 5280
-    //Null terminated
-    uchar notBefore[14];
-    uchar notAfter[14];
-}asn1Validity;
+static asn1Certificate generateAsn1X509(RSAKeyPair kp);
+static DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif);
+static int derEncodeBignum(uchar *result,bignum n,int lenN);
+static int derEncodeString(uchar *result,uchar *string,int lenString);
+static int derEncodeInt(uchar *result,int num);
+static DER asn1ToDER(asn1Certificate asn1Certif);
+static Base64 base64Encode(uchar *data,int lenData);
 
-typedef struct asn1SubjectPublicKeyInfo{
-    SignatureScheme algorithm;
-    PublicKey subjectPublicKey;
-}asn1SubjectPublicKeyInfo;
-
-// TBS - to be signed
-typedef struct asn1TBSCertificate{
-    TBSVersion version;
-    int serialNumber;
-    SignatureScheme signature;
-    uchar issuer[50];
-    asn1Validity validity;
-    uchar subject[50];
-    asn1SubjectPublicKeyInfo subjectPublicKeyInfo;
-}asn1TBSCertificate;
-
-
-//ASN1 - Abstract Structure Notation 1
-typedef struct asn1Certificate{
-    asn1TBSCertificate tbsCertif;
-    SignatureScheme signatureAlgorithm;
-    bignum signatureValue;
-    int lenSignatureValue;
-}asn1Certificate;
-
-typedef struct DER{
-    uchar *data;
-    int lenData;
-}DER;
-
-typedef struct Base64{
-    uchar *data;
-    int lenData;
-}Base64;
-
-asn1Certificate generateAsn1X509(KeyPair kp);
-DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif);
-int derEncodeBignum(uchar *result,bignum n,int lenN);
-int derEncodeString(uchar *result,uchar *string,int lenString);
-int derEncodeInt(uchar *result,int num);
-DER asn1ToDER(asn1Certificate asn1Certif);
-Base64 base64Encode(uchar *data,int lenData);
-
-void generateX509(KeyPair kp){
+void generateX509(RSAKeyPair kp){
     asn1Certificate asn1Certif = generateAsn1X509(kp);
     DER derCertif = asn1ToDER(asn1Certif);
     Base64 b64Certif = base64Encode(derCertif.data,derCertif.lenData);
@@ -76,7 +33,7 @@ void generateX509(KeyPair kp){
 }
 
 
-asn1Certificate generateAsn1X509(KeyPair kp){
+static asn1Certificate generateAsn1X509(RSAKeyPair kp){
     asn1Certificate certif;
     certif.tbsCertif.version = v3;
     certif.tbsCertif.serialNumber = 0;
@@ -102,7 +59,7 @@ asn1Certificate generateAsn1X509(KeyPair kp){
     free(der.data);
 }
 
-DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif){
+static DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif){
     DER result;
     //Allocate a buffer that is sufficient in size
     //We will resize when we know the length
@@ -149,7 +106,7 @@ DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif){
     return result;
 }
 
-int derEncodeBignum(uchar *result,bignum n,int lenN){
+static int derEncodeBignum(uchar *result,bignum n,int lenN){
     result[0] = DER_BITSTRING;
     result[1] = lenN*4;
     for(int i=0;i<lenN*4;i++){
@@ -160,7 +117,7 @@ int derEncodeBignum(uchar *result,bignum n,int lenN){
 }
 
 
-int derEncodeString(uchar *result,uchar *string,int lenString){
+static int derEncodeString(uchar *result,uchar *string,int lenString){
     result[0] = DER_UTF8STRING;
     result[1] = lenString;
     for(int i=0;i<lenString;i++){
@@ -169,7 +126,7 @@ int derEncodeString(uchar *result,uchar *string,int lenString){
     return lenString+2;
 }
 
-int derEncodeInt(uchar *result,int num){
+static int derEncodeInt(uchar *result,int num){
     result[0] = DER_INTEGER;
     result[1] = 4;
     for(int i=0;i<4;i++){
@@ -179,7 +136,7 @@ int derEncodeInt(uchar *result,int num){
     return 6;
 }
 
-DER asn1ToDER(asn1Certificate asn1Certif){
+static DER asn1ToDER(asn1Certificate asn1Certif){
     DER result;
     //Allocate a buffer that is sufficient in size
     //We will resize when we know the length
@@ -218,7 +175,7 @@ DER asn1ToDER(asn1Certificate asn1Certif){
     return result;
 }
 
-Base64 base64Encode(uchar *data,int lenData){
+static Base64 base64Encode(uchar *data,int lenData){
     Base64 result;
     int lenBits = lenData*8;
     int lenPaddingBits = lenBits%6;

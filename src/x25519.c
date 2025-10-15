@@ -1,9 +1,10 @@
+#include "x25519.h"
 #include <stdlib.h>
 #include <string.h>
 #include "bigmaths.h"
+#include "structs.h"
 
 
-uint32_t* X25519(uint32_t* p,uint32_t *q);
 void swapPoints(uint32_t *a1, uint32_t *a2,int lenA, int bit);
 void montgomeryLadder(uint32_t *x1, uint32_t *x2, uint32_t *z1, uint32_t *z2,uint32_t *x);
 

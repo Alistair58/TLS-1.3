@@ -1,7 +1,0 @@
-Certificate
------------
-For: Mr Server
-Public Key: 
-CA Name:
-CA Public Key:
-CA Signature:

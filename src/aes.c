@@ -1,37 +1,37 @@
+#include "aes.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-typedef unsigned char byte;
-
-const int numRounds =  14; // called Nr in paper
-const int numCols = 8; //called Nb 
-const int numRows = 4; //constant for all block sizes
-const int keyLen = 8; // Number of 4-byte vectors long the key is
-const int keyExpLen = 120; //numCols * (numRounds+1);
-
-void aesEncrypt(uint32_t *key,uint32_t *data, uint32_t* dest);//
-void aesDecrypt(uint32_t *key,uint32_t *data, uint32_t* dest);//
-void keyExpansion(uint32_t *key,byte keyExp[keyExpLen][4]);//
-void invKeyExpansion(uint32_t *key,byte invKeyExp[keyExpLen][4]);//
-byte* rotate(byte *inp);//
-void addRoundKey(byte state[numCols][4], byte keyExp[keyExpLen][4],int roundNum);//
-void aesRound(byte state[numCols][4], byte keyExp[keyExpLen][4],int roundNum);//
-void finalRound(byte state[numCols][4], byte keyExp[keyExpLen][4]);//
-void invAesRound(byte state[numCols][4], byte invKeyExp[keyExpLen][4],int roundNum);//
-void invFinalRound(byte state[numCols][4], byte invKeyExp[keyExpLen][4]);//
-byte polynomialModMult(byte x, byte y);//
-byte xtime(byte inp);//
-void vectorModMult(byte *col1, byte *col2,byte *dest);//
-void byteSub(byte state[numCols][4]);//
-void invByteSub(byte state[numCols][4]);//
-void mixColumn(byte state[numCols][4]);//
-void invMixColumn(byte state[numCols][4]);
-void shiftRow(byte state[numCols][4]);
-void invShiftRow(byte state[numCols][4]);
-byte rCon(byte i);//
+#include <stdint.h>
 
 
-byte sBox[] = {
+#define AES_NUM_ROUNDS 14 // called Nr in paper
+#define AES_NUM_COLS 8 //called Nb 
+#define AES_NUM_ROWS 4 //constant for all block sizes
+#define AES_KEY_LEN 8 // Number of 4-byte vectors long the key is
+#define AES_KEY_EXP_LEN  120 //AES_NUM_COLS * (numRounds+1);
+
+static void keyExpansion(uint32_t *key,byte keyExp[AES_KEY_EXP_LEN][4]);
+static void invKeyExpansion(uint32_t *key,byte invKeyExp[AES_KEY_EXP_LEN][4]);
+static byte* rotate(byte *inp);
+static void addRoundKey(byte state[AES_NUM_COLS][4], byte keyExp[AES_KEY_EXP_LEN][4],int roundNum);
+static void aesRound(byte state[AES_NUM_COLS][4], byte keyExp[AES_KEY_EXP_LEN][4],int roundNum);
+static void finalRound(byte state[AES_NUM_COLS][4], byte keyExp[AES_KEY_EXP_LEN][4]);
+static void invAesRound(byte state[AES_NUM_COLS][4], byte invKeyExp[AES_KEY_EXP_LEN][4],int roundNum);
+static void invFinalRound(byte state[AES_NUM_COLS][4], byte invKeyExp[AES_KEY_EXP_LEN][4]);
+static byte polynomialModMult(byte x, byte y);
+static byte xtime(byte inp);
+static void vectorModMult(byte *col1, byte *col2,byte *dest);
+static void byteSub(byte state[AES_NUM_COLS][4]);
+static void invByteSub(byte state[AES_NUM_COLS][4]);
+static void mixColumn(byte state[AES_NUM_COLS][4]);
+static void invMixColumn(byte state[AES_NUM_COLS][4]);
+static void shiftRow(byte state[AES_NUM_COLS][4]);
+static void invShiftRow(byte state[AES_NUM_COLS][4]);
+static byte rCon(byte i);
+
+
+static byte sBox[] = {
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
     0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
     0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -49,7 +49,7 @@ byte sBox[] = {
     0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
     0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 };
-byte invSBox[256] = {
+static byte invSBox[256] = {
     0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, 0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
     0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, 0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
     0x54, 0x7B, 0x94, 0x32, 0xA6, 0xC2, 0x23, 0x3D, 0xEE, 0x4C, 0x95, 0x0B, 0x42, 0xFA, 0xC3, 0x4E,
@@ -76,85 +76,85 @@ byte invSBox[256] = {
 //Words are stored as little endian
 //state is stored as an array of columns (words)
 
-void aesEncrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
-    byte keyExp[120][4] = {{0}}; //Even though keyExpLen is const it needs a number to initialise array
+static void aesEncrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
+    byte keyExp[120][4] = {{0}}; //Even though AES_KEY_EXP_LEN is const it needs a number to initialise array
     byte state[8][4] = {{0}};
-    for(int i=0;i<numCols;i++){//Initialise state
+    for(int i=0;i<AES_NUM_COLS;i++){//Initialise state
         byte col[] = {((byte)data[i]),((byte)(data[i]>>8)),((byte)(data[i]>>16)),((byte) (data[i]>>24))}; //little endian
         memcpy(state[i],col,4*sizeof(byte));
     }
     keyExpansion(key,keyExp);
     addRoundKey(state,keyExp,0); //First round is just the key
-    for(int i=1 ; i<numRounds ; i++ ) aesRound(state,keyExp,i) ;
+    for(int i=1 ; i<AES_NUM_ROUNDS ; i++ ) aesRound(state,keyExp,i) ;
     finalRound(state,keyExp);
-    for(int i=0;i<numCols;i++){//Copy to dest
+    for(int i=0;i<AES_NUM_COLS;i++){//Copy to dest
         dest[i] = (uint32_t) state[i][0] | (uint32_t) state[i][1]<<8 
                 | (uint32_t) state[i][2]<<16 | (uint32_t) state[i][3]<<24;
     }
 }
 
-void aesDecrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
-    byte invKeyExp[120][4] = {{0}}; //Even though keyExpLen is const it needs a number to initialise array
+static void aesDecrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
+    byte invKeyExp[120][4] = {{0}}; //Even though AES_KEY_EXP_LEN is const it needs a number to initialise array
     byte state[8][4] = {{0}};
-    for(int i=0;i<numCols;i++){//Initialise state
+    for(int i=0;i<AES_NUM_COLS;i++){//Initialise state
         byte col[] = {((byte)(data[i])),((byte)(data[i]>>8)),((byte)(data[i]>>16)),((byte) (data[i]>>24))};
         memcpy(state[i],col,4*sizeof(byte));
     }
     invKeyExpansion(key,invKeyExp);
-    addRoundKey(state,invKeyExp,numRounds); 
-    for(int i=numRounds-1 ; i>0;i--) invAesRound(state,invKeyExp,i) ;
+    addRoundKey(state,invKeyExp,AES_NUM_ROUNDS); 
+    for(int i=AES_NUM_ROUNDS-1 ; i>0;i--) invAesRound(state,invKeyExp,i) ;
     invFinalRound(state,invKeyExp);
-    for(int i=0;i<numCols;i++){//Copy to dest
+    for(int i=0;i<AES_NUM_COLS;i++){//Copy to dest
         dest[i] = (uint32_t) state[i][0] | (uint32_t) state[i][1]<<8 
                 | (uint32_t) state[i][2]<<16 | (uint32_t) state[i][3]<<24;
     }
 }
 
-void invKeyExpansion(uint32_t *key,byte invKeyExp[keyExpLen][4]){
+static void invKeyExpansion(uint32_t *key,byte invKeyExp[AES_KEY_EXP_LEN][4]){
     keyExpansion(key,invKeyExp);
     byte d[] = {0x0E,0x09,0x0D,0x0B}; //little endian
-    for(int i=1;i<numRounds;i++){
-        for(int j=0;j<numCols;j++){
-            vectorModMult(d,invKeyExp[numCols*i+j],invKeyExp[numCols*i+j]);
+    for(int i=1;i<AES_NUM_ROUNDS;i++){
+        for(int j=0;j<AES_NUM_COLS;j++){
+            vectorModMult(d,invKeyExp[AES_NUM_COLS*i+j],invKeyExp[AES_NUM_COLS*i+j]);
         }
     }
 }
 
-void keyExpansion(uint32_t *key,byte keyExp[keyExpLen][4]){
-    for(int i = 0; i < keyLen; i++){
+static void keyExpansion(uint32_t *key,byte keyExp[AES_KEY_EXP_LEN][4]){
+    for(int i = 0; i < AES_KEY_LEN; i++){
         byte keyExp4Bytes[] = {((byte) (key[i])),((byte) (key[i]>>8)),((byte) (key[i]>>16)),((byte)(key[i]>>24))}; //keeping with little endian
         memcpy(keyExp[i],keyExp4Bytes,4*sizeof(byte)); 
     }
-    for(int i = keyLen; i < numCols * (numRounds + 1); i++){
+    for(int i = AES_KEY_LEN; i < AES_NUM_COLS * (AES_NUM_ROUNDS + 1); i++){
         byte *temp = (byte*) calloc(4,sizeof(byte));
         if(!temp){
             perror("Calloc error during key expansion");
             exit(1);
         }
         memcpy(temp,keyExp[i-1],4*sizeof(byte));
-        if(i% keyLen == 0){ //If a multiple of keyLen do some mixing
+        if(i% AES_KEY_LEN == 0){ //If a multiple of AES_KEY_LEN do some mixing
             byte *rotated = rotate(temp);
-            byte roundConst[] = {rCon(i/keyLen),0,0,0};//RC[i] = x^(i-1) in GF 2^8
+            byte roundConst[] = {rCon(i/AES_KEY_LEN),0,0,0};//RC[i] = x^(i-1) in GF 2^8
             for(int j=0;j<4;j++){
                 temp[j] = sBox[rotated[j]] ^ roundConst[j];
             }
             free(rotated);
         }
-        else if(i%keyLen == 4){
+        else if(i%AES_KEY_LEN == 4){
             for(int j=0;j<4;j++){
                 temp[j] = sBox[temp[j]];
             }
         }
 
         for(int j=0;j<4;j++){
-            keyExp[i][j] =  keyExp[i-keyLen][j] ^ temp[j];
+            keyExp[i][j] =  keyExp[i-AES_KEY_LEN][j] ^ temp[j];
         }
         free(temp);
     }
  
 }
 
-byte* rotate(byte *inp){
+static byte* rotate(byte *inp){
     byte *result = (byte*) calloc(4,sizeof(byte));
     int index = 0;
     if(!result){
@@ -170,103 +170,103 @@ byte* rotate(byte *inp){
 
 
 
-void finalRound(byte state[numCols][4],byte keyExp[keyExpLen][4]){
+static void finalRound(byte state[AES_NUM_COLS][4],byte keyExp[AES_KEY_EXP_LEN][4]){
     byteSub(state);
     shiftRow(state);
-    addRoundKey(state,keyExp,numRounds);
+    addRoundKey(state,keyExp,AES_NUM_ROUNDS);
 }
 
-void invFinalRound(byte state[numCols][4],byte invKeyExp[keyExpLen][4]){
+static void invFinalRound(byte state[AES_NUM_COLS][4],byte invKeyExp[AES_KEY_EXP_LEN][4]){
     invByteSub(state);
     invShiftRow(state);
     addRoundKey(state,invKeyExp,0);
 }
 
-void addRoundKey(byte state[numCols][4],byte keyExp[keyExpLen][4],int roundNum){
-    for(int i=0;i<numCols;i++){
-        for(int j=0;j<numRows;j++){
-            state[i][j] ^= keyExp[roundNum*numCols + i][j];
+static void addRoundKey(byte state[AES_NUM_COLS][4],byte keyExp[AES_KEY_EXP_LEN][4],int roundNum){
+    for(int i=0;i<AES_NUM_COLS;i++){
+        for(int j=0;j<AES_NUM_ROWS;j++){
+            state[i][j] ^= keyExp[roundNum*AES_NUM_COLS + i][j];
         }
     }
 
 }
-void aesRound(byte state[numCols][4],byte keyExp[keyExpLen][4],int roundNum){
+static void aesRound(byte state[AES_NUM_COLS][4],byte keyExp[AES_KEY_EXP_LEN][4],int roundNum){
     byteSub(state);
     shiftRow(state);
     mixColumn(state);
     addRoundKey(state,keyExp,roundNum);
 }
 
-void invAesRound(byte state[numCols][4],byte invKeyExp[keyExpLen][4],int roundNum){
+static void invAesRound(byte state[AES_NUM_COLS][4],byte invKeyExp[AES_KEY_EXP_LEN][4],int roundNum){
     invByteSub(state);
     invShiftRow(state);
     invMixColumn(state);
     addRoundKey(state,invKeyExp,roundNum);
 }
 
-void byteSub(byte state[numCols][4]){
-    for(int i=0;i<numCols;i++){
-        for(int j=0;j<numRows;j++){
+static void byteSub(byte state[AES_NUM_COLS][4]){
+    for(int i=0;i<AES_NUM_COLS;i++){
+        for(int j=0;j<AES_NUM_ROWS;j++){
             state[i][j] = sBox[state[i][j]];
         }
     }
 }
 
-void invByteSub(byte state[numCols][4]){
-    for(int i=0;i<numCols;i++){
-        for(int j=0;j<numRows;j++){
+static void invByteSub(byte state[AES_NUM_COLS][4]){
+    for(int i=0;i<AES_NUM_COLS;i++){
+        for(int j=0;j<AES_NUM_ROWS;j++){
             state[i][j] = invSBox[state[i][j]];
         }
     }
 }
 
-void mixColumn(byte state[numCols][4]){
+static void mixColumn(byte state[AES_NUM_COLS][4]){
     byte c[] = {2,1,1,3}; //little endian
-    for(int i=0;i<numCols;i++){
+    for(int i=0;i<AES_NUM_COLS;i++){
         vectorModMult(c,state[i],state[i]);
     }
 }
 
-void invMixColumn(byte state[numCols][4]){
+static void invMixColumn(byte state[AES_NUM_COLS][4]){
     byte d[] = {0x0E,0x09,0x0D,0x0B}; //little endian
-    for(int i=0;i<numCols;i++){
+    for(int i=0;i<AES_NUM_COLS;i++){
         vectorModMult(d,state[i],state[i]);
     }
 }
 
-void shiftRow(byte state[numCols][4]){
-    byte row1[8] = {0}; //yes should be numCols but compiler needs to know how big it is - will add dynamic memory later
+static void shiftRow(byte state[AES_NUM_COLS][4]){
+    byte row1[8] = {0}; //yes should be AES_NUM_COLS but compiler needs to know how big it is - will add dynamic memory later
     byte row2[8] = {0};
     byte row3[8] = {0};
-    for(int i=numCols-1;i>-1;i--){
-        row1[i] = state[(i+1)%numCols][1];
-        row2[i] = state[(i+3)%numCols][2];
-        row3[i] = state[(i+4)%numCols][3];
+    for(int i=AES_NUM_COLS-1;i>-1;i--){
+        row1[i] = state[(i+1)%AES_NUM_COLS][1];
+        row2[i] = state[(i+3)%AES_NUM_COLS][2];
+        row3[i] = state[(i+4)%AES_NUM_COLS][3];
     }
-    for(int i=0;i<numCols;i++){
+    for(int i=0;i<AES_NUM_COLS;i++){
         state[i][1] = row1[i];
         state[i][2] = row2[i];
         state[i][3] = row3[i];
     }
 }
 
-void invShiftRow(byte state[numCols][4]){
+static void invShiftRow(byte state[AES_NUM_COLS][4]){
     byte row1[8] = {0};
     byte row2[8] = {0};
     byte row3[8] = {0};
-    for(int i=0;i<numCols;i++){
-        row1[i] = state[(i+numCols-1)%numCols][1];
-        row2[i] = state[(i+numCols-3)%numCols][2];
-        row3[i] = state[(i+numCols-4)%numCols][3];
+    for(int i=0;i<AES_NUM_COLS;i++){
+        row1[i] = state[(i+AES_NUM_COLS-1)%AES_NUM_COLS][1];
+        row2[i] = state[(i+AES_NUM_COLS-3)%AES_NUM_COLS][2];
+        row3[i] = state[(i+AES_NUM_COLS-4)%AES_NUM_COLS][3];
     }
-    for(int i=0;i<numCols;i++){
+    for(int i=0;i<AES_NUM_COLS;i++){
         state[i][1] = row1[i];
         state[i][2] = row2[i];
         state[i][3] = row3[i];
     }
 }
 
-byte polynomialModMult(byte x, byte y){
+static byte polynomialModMult(byte x, byte y){
     //int product = (int) (y&1)?y:0;
     int product = 0;
     int bit = 0;
@@ -281,7 +281,7 @@ byte polynomialModMult(byte x, byte y){
     return product;
 }
 
-void vectorModMult(byte *inp1, byte *inp2,byte *dest){ //Polynomial mult mod x^4 +1 from paper
+static void vectorModMult(byte *inp1, byte *inp2,byte *dest){ //Polynomial mult mod x^4 +1 from paper
     byte col1[4] = {0}; //in case destination is the same as one of the inputs
     byte col2[4] = {0};
     memcpy(col1,inp1,4*sizeof(byte));
@@ -304,7 +304,7 @@ void vectorModMult(byte *inp1, byte *inp2,byte *dest){ //Polynomial mult mod x^4
               polynomialModMult(col1[0],col2[3]); 
 }
 
-byte xtime(byte inp){ //Multiply by a single x as in paper
+static byte xtime(byte inp){ //Multiply by a single x as in paper
     int product;
     product = (int) inp << 1;
     if(product>>8 & 1){
@@ -313,7 +313,7 @@ byte xtime(byte inp){ //Multiply by a single x as in paper
     return (byte) product;
 }
 
-byte rCon(byte i){
+static byte rCon(byte i){
     byte product = 1;
     for(int j=1;j<i;j++){ //Not constant time - but does not leak any information
         product = xtime(product);

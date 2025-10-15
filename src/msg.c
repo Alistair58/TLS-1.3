@@ -2,35 +2,8 @@
 #include <stdbool.h>
 #include <winsock2.h>
 #include <WS2tcpip.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <winuser.h>
-#include <math.h>
-#include <errno.h>
-#define allocError() char errorMsg[19+sizeof(__func__)]; \
-    sprintf(errorMsg,"\nAlloc error in \"%s\"",__func__); \
-    errno = ENOMEM; \
-    perror(errorMsg); \
-    exit(ERROR_NOT_ENOUGH_MEMORY);
-#include "structs.h"
-#include "x25519.h"
-#include "aes.h"
-#include "random.h"
-#include "gcm.h" 
-#include "rsa.h"
-#include "x509.h"
-#include "sha.h"
-
-
-
-void ecbSendMessage(int sock,uchar *buffer,int lenBuff,uint32_t *key,char *msg,int lenMsg);
-void ecbReceiveMessage(int sock,char *buffer, int lenBuff, uint32_t *key);
-void gcmSendMessage(int sock,uchar *buff,int lenBuff,uint32_t *key,char *msg,int lenMsg);
-void gcmReceiveMessage(int sock,char *buffer, int lenBuff, uint32_t *key);
-
-typedef unsigned char uchar;
-
+#include "gcm.h"
+#include "msg.h"
 
 void ecbSendMessage(int sock,uchar *buffer,int lenBuff,uint32_t *key,char *msg,int lenMsg){
     memset(buffer,0,lenBuff);

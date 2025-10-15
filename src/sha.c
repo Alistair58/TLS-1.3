@@ -1,3 +1,4 @@
+#include "sha.h"
 
 //SHA-256 constants 
 //Come from first 32 bits of fractional parts of the cube roots of the first 64 prime numbers
@@ -24,6 +25,8 @@ typedef struct PaddedMsg{
     uint64_t lenData;
 } PaddedMsg;
 
+//Note: the SHA-256 standard uses big endian and so does my code
+
 static PaddedMsg sha256Pad(uchar *msg,uint64_t lenMsg);
 static void prepareMessageSchedule(bignum msgSchedule,PaddedMsg paddedMsg,int roundNum);
 static inline uint32_t sigma_0(uint32_t x);
@@ -32,15 +35,10 @@ static inline uint32_t Sigma_0(uint32_t x);
 static inline uint32_t Sigma_1(uint32_t x);
 static inline uint32_t Ch(uint32_t x,uint32_t y,uint32_t z);
 static inline uint32_t Maj(uint32_t x,uint32_t y,uint32_t z);
+static inline uint32_t SHR(uint32_t x,uint8_t n);
+static inline uint32_t ROTR(uint32_t x,uint8_t n);
 
-//Note: the SHA-256 standard uses big endian and so does my code
 
-//TODO
-//Add ROTR, SHR
-//Finish main function (add concatentation at the end)
-//Test
-
-//lenMsg must be less than 2^61 bytes long - i.e. less than 2*10^6 terabytes
 bignum sha256(uchar *msg,uint64_t lenMsg){
     PaddedMsg paddedMsg = sha256Pad(msg,lenMsg);
     int numBlocks = paddedMsg.lenData/64;
@@ -61,8 +59,6 @@ bignum sha256(uchar *msg,uint64_t lenMsg){
         free(msgSchedule);
     }
     free(paddedMsg.data);
-
-    //TODO concat hash words
 
     return hash;
 }
@@ -161,4 +157,11 @@ static inline uint32_t Ch(uint32_t x,uint32_t y,uint32_t z){
 
 static inline uint32_t Maj(uint32_t x,uint32_t y,uint32_t z){
     return (x & y) ^ (x & z) ^ (y & z);
+}
+
+static inline uint32_t SHR(uint32_t x,uint8_t n){
+    return x >> n;
+}
+static inline uint32_t ROTR(uint32_t x,uint8_t n){
+    return (x >> n) | (x << (32-n));
 }

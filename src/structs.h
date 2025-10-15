@@ -1,5 +1,9 @@
-enum
-{
+#ifndef STRUCTS_H
+#define STRUCTS_H
+
+#include <stdint.h>
+
+enum{
     /* Elliptic Curve Groups (ECDHE) */
     secp256r = 0x0017,
     secp384r1 = 0x0018,
@@ -15,8 +19,7 @@ enum
     ffdhe8192 = 0x0104
 } groups;
 
-enum
-{
+enum{
     TLS_AES_128_GCM_SHA256 = 0x01,
     TLS_AES_256_GCM_SHA384 = 0x02,
     TLS_CHACHA20_POLY1305_SHA256 = 0x03,
@@ -24,8 +27,7 @@ enum
     TLS_AES_128_CCM_8_SHA256 = 0x05
 } ciphers;
 
-typedef enum SignatureScheme 
-{
+typedef enum SignatureScheme {
     /* RSASSA-PKCS1-v1_5 algorithms */
     rsa_pkcs1_sha256 = 0x0401,
     rsa_pkcs1_sha384 = 0x0501,
@@ -55,22 +57,22 @@ typedef enum SignatureScheme
     ecdsa_sha1 = 0x0203
 } SignatureScheme;
 
-typedef struct ClientHello
-{
+typedef struct ClientHello{
     uint32_t clientRandom;
     int cipherSuites[5][2]; // TLS 1.3 only supports 5 cipher suites
     int supportedGroups[10];
     int signatureAlgorithms[16];
     uint32_t keyExchange[8];
 } ClientHello;
+
 typedef struct Certificate{
     char CA[50];
     uint32_t publicKey[8];
     uint32_t CASignature[8];
     uint32_t serverSignature[8];
 } Certificate;
-typedef struct ServerHello
-{
+
+typedef struct ServerHello{
     uint32_t serverRandom;
     int cipherSuite[2]; // TLS 1.3 only supports 5 cipher suites
     int curveGroup;
@@ -79,8 +81,6 @@ typedef struct ServerHello
     uint32_t keyExchange[8];
     uint32_t MAC[8]; //Sort of server finished
 } ServerHello;
-
-
 
 
 
@@ -110,3 +110,5 @@ curve25519Params = {
     //Cofactor 8
 };
 typedef struct CurveGroupParams CurveGroupParams;
+
+#endif

@@ -1,4 +1,7 @@
-#include "shared.h"
+#include <stdint.h>
+#include <winsock2.h>
+#include "rsa.h"
+#include "structs.h"
 
 typedef unsigned char uchar;
 
@@ -8,10 +11,9 @@ struct ServerHello generateServerHello(uint32_t *privateDHRandom);
 uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
-//gcc server.c -o server.exe -l ws2_32
 
 int main(int argc, char** argv) {
-    KeyPair kp = generateKeys(1024);
+    RSAKeyPair kp = generateKeys(1024);
     generateX509(kp);
     free(kp.privateKey.p);
     free(kp.privateKey.q);

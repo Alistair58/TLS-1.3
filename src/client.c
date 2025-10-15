@@ -1,5 +1,7 @@
-
-#include "shared.h"
+#include <stdint.h>
+#include <winsock2.h>
+#include "bigmaths.h"
+#include "structs.h"
 
 typedef unsigned char uchar;
 
@@ -9,16 +11,16 @@ struct ClientHello generateClientHello(uint32_t *privateDHRandom);
 struct ServerHello waitForServerHello(int sock, char *buffer, int lenBuff);
 uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 
-//gcc client.c -o client.exe -g -l ws2_32
-
 
 //DONE
+
 
 //Note:
 //Everything uses uint32_ts which are intended to be 32 bits
 //They are 32 bits on this system but so are ints
 
 //TODO High-Level
+//Doesn't compile at the moment - fix it
 //Add signatures
 //Make messages more formal/conform to TLS-1.3
 //Send everything in hex
@@ -34,23 +36,26 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 
 //create PKI
 int main(int argc, char** argv) {
-    int sock;
-    struct sockaddr_in addr;
-    char buffer[1024];
-    uint32_t *privateDHRandom = calloc(8,sizeof(uint32_t));
-    ClientHello clientHello = generateClientHello(privateDHRandom);
-    if(connectToServer(&addr,&sock)==0){
-        sendClientHello(sock,addr,buffer,1024,clientHello);
-        struct ServerHello serverHello = waitForServerHello(sock,buffer,1024);
-        uint32_t *privateECDHKey = generatePrivateECDH(serverHello.keyExchange,privateDHRandom);
+    bignum result = sha256(NULL,0);
+    printf("\n%08x%08x%08x%08x%08x%08x%08x%08x",result[0],result[1],result[2],result[3],result[4],result[5],result[6],result[7]);
+    free(result);
+    // int sock;
+    // struct sockaddr_in addr;
+    // char buffer[1024];
+    // uint32_t *privateDHRandom = calloc(8,sizeof(uint32_t));
+    // ClientHello clientHello = generateClientHello(privateDHRandom);
+    // if(connectToServer(&addr,&sock)==0){
+    //     sendClientHello(sock,addr,buffer,1024,clientHello);
+    //     struct ServerHello serverHello = waitForServerHello(sock,buffer,1024);
+    //     uint32_t *privateECDHKey = generatePrivateECDH(serverHello.keyExchange,privateDHRandom);
 
-        char *testMessage = "Hello world!";
-        gcmSendMessage(sock,buffer,1024,privateECDHKey,testMessage,12);
+    //     char *testMessage = "Hello world!";
+    //     gcmSendMessage(sock,buffer,1024,privateECDHKey,testMessage,12);
         
-        close(sock);
-        printf("\nDisconnected from server.");
-        free(privateECDHKey);free(privateDHRandom);
-    }
+    //     close(sock);
+    //     printf("\nDisconnected from server.");
+    //     free(privateECDHKey);free(privateDHRandom);
+    // }
     return 0;
 }
 

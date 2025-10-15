@@ -1,11 +1,11 @@
+#include "random.h"
 #include <sysinfoapi.h>
 #include <windows.h>
 #include <winuser.h>
 #include <math.h>
+#include <stdint.h>
 
-int randomNumber(uint32_t *bigIntArr, int chunks,uint32_t *n);
-
-int randomNumber(uint32_t *bigIntArr, int chunks,uint32_t *n){  //A chunk is 32 bits
+int randomNumber(bignum bigIntArr, int chunks,bignum n){  //A chunk is 32 bits
     int time = 1000;
     uint64_t product; //uint32_t would mean the mod would never work and would output 0
     int x;

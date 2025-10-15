@@ -1,41 +1,10 @@
-//RSASSA-PKCS1-v1_5 (SHA 256)
-//The official RFC (3447) doesn't specify anything specific
-//It is just RSA 
+#include "rsa.h"
+#include <stdint.h>
+#include "globals.h"
 
-//Used for the CA to sign the certificate
-//And the server to sign the handshake
-//The private key is hard coded into the server program
-//The public key is displayed on the certificate
-
-//Using 2048 bit keys (n is 2048)
-//Which is an array of 64 uint32_ts
-//Therefore p and q will be 1028 bits(32 length array)
-typedef struct PublicKey{
-    bignum n;
-    int lenN;
-    uint32_t e;
-} PublicKey;
-
-typedef struct PrivateKey{
-    bignum p;
-    int lenP;
-    bignum q;
-    int lenQ;
-} PrivateKey;
-
-
-typedef struct KeyPair{
-    PrivateKey privateKey;
-    PublicKey publicKey;
-} KeyPair;
-
-
-bool isPrime(bignum n,int lenN);
+bignum extendedEuclidean(uint32_t exp,bignum totient,int lenTotient);
 bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen);
 bool millerRabin(bignum n,int lenN,bignum a,int lenA);
-bignum encryptRSA(uchar *msg,int lenMsg,KeyPair kp);
-bignum extendedEuclidean(uint32_t exp,bignum totient,int lenTotient);
-uchar *decryptRSA(bignum encryptedMessage,int lenEM,KeyPair kp);
 
 bool isPrime(bignum n,int lenN){ 
     for(int i=0;i<30;i++){ //as MR is incorrect 1/4 of time, it is now incorrect 1 in 4^30 times (once every 36558901 years if it runs every ms)
@@ -130,7 +99,7 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
         if(factor[i]==0) continue;
         else break;
     }
-    while(bigNumCmp(exp,nSub1)==LESS_THAN){
+    while(bigNumCmp(exp,lenN,nSub1,lenN)==LESS_THAN){
         free(factor);
         factor = montLadExp(a,lenA,exp,lenN,n,lenN);
          // a^(n-1/2^k) + 1 is a multiple of n -> satisfying Fermat's Little Theorem -> likely prime
@@ -149,7 +118,7 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
 }
 
 
-bignum encryptRSA(uchar *msg,int lenMsg,KeyPair kp){
+bignum encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp){
     int sizeDiff = sizeof(uint32_t)/sizeof(uchar); //yes I know it's 4
     int lenMsgNum = ceil((float)lenMsg*1/sizeDiff);
     bignum msgNum = calloc(lenMsgNum,sizeof(uint32_t));
@@ -247,7 +216,7 @@ bignum extendedEuclidean(uint32_t exp,bignum totient,int lenTotient){
     return s1;
 }
 
-uchar *decryptRSA(bignum encryptedMessage,int lenEM,KeyPair kp){
+uchar *decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp){
     int sizeDiff = sizeof(uint32_t)/sizeof(uchar); //yes I know it's 4
     int lenMsg = lenEM*sizeDiff;
     uchar *decryptedMessage = (uchar*) malloc(lenMsg);
@@ -272,8 +241,8 @@ uchar *decryptRSA(bignum encryptedMessage,int lenEM,KeyPair kp){
 }
 
 //numBits is the size of the public key n
-KeyPair generateKeys(int numBits){
-    KeyPair kp;
+RSAKeyPair generateKeys(int numBits){
+    RSAKeyPair kp;
     int publicKeyLen = numBits/(8*sizeof(uint32_t));
     int privateKeyLen = publicKeyLen/2;
     kp.privateKey.p = calloc(privateKeyLen,sizeof(uint32_t));
