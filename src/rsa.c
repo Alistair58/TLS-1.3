@@ -1,6 +1,10 @@
 #include "rsa.h"
 #include <stdint.h>
-#include "globals.h"
+#include <string.h>
+#include <math.h>
+#include "random.h"
+
+#define max(a,b) (a)>=(b) ? (a) : (b)
 
 bignum extendedEuclidean(uint32_t exp,bignum totient,int lenTotient);
 bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen);
@@ -169,15 +173,21 @@ bignum extendedEuclidean(uint32_t exp,bignum totient,int lenTotient){
     }
     bignum temp = (bignum) calloc(lenTotient,sizeof(uint32_t));
     if(!temp){
-       free(s2);
-       goto FREE_S1;
+        FREE_S2:
+            free(s2);
+            goto FREE_S1;
+    }
+    bignum zero = (bignum) calloc(1,sizeof(uint32_t));
+    if(!zero){
+        free(temp);
+        goto FREE_S2;
     }
     
     r1[lenTotient-1] = exp;
     memcpy(r2,totient,lenTotient*sizeof(uint32_t));
     s1[lenTotient-1] = 1;
     //s2 stays at 0
-    while(bignumCmp(r2,0) != EQUAL){
+    while(bigNumCmp(r2,lenTotient,zero,1) != EQUAL){
         //quotient = r1//r2
         //(r1, r2) = (r2, r1 - quotient *r2) //Just a modulo but quicker as we already have the quotient so this is quicker
         //(s1, s2) = (s2, s1 - quotient *s2) 

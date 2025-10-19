@@ -37,6 +37,8 @@
         "x25519.h": "c",
         "certif.h": "c",
         "winsock2.h": "c",
-        "math.h": "c"
+        "math.h": "c",
+        "stdint.h": "c",
+        "globals.h": "c"
     }
 }

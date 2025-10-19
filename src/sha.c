@@ -1,4 +1,6 @@
 #include "sha.h"
+#include <string.h>
+#include <math.h>
 
 //SHA-256 constants 
 //Come from first 32 bits of fractional parts of the cube roots of the first 64 prime numbers
@@ -29,6 +31,7 @@ typedef struct PaddedMsg{
 
 static PaddedMsg sha256Pad(uchar *msg,uint64_t lenMsg);
 static void prepareMessageSchedule(bignum msgSchedule,PaddedMsg paddedMsg,int roundNum);
+static void updateHash(bignum hash,bignum msgSchedule);
 static inline uint32_t sigma_0(uint32_t x);
 static inline uint32_t sigma_1(uint32_t x);
 static inline uint32_t Sigma_0(uint32_t x);
@@ -101,7 +104,7 @@ static void prepareMessageSchedule(bignum msgSchedule,PaddedMsg paddedMsg,int ro
     }
 }
 
-void updateHash(bignum hash,bignum msgSchedule){
+static void updateHash(bignum hash,bignum msgSchedule){
     //Variable names from FIPS 180-2
     register uint32_t a = hash[0];
     register uint32_t b = hash[1];

@@ -1,8 +1,11 @@
-#ifdef RSA_H
+#ifndef RSA_H
 #define RSA_H
 
-#include "bigmaths.h"
+
 #include <stdbool.h>
+#include "globals.h"
+#include "bigmaths.h"
+
 //RSASSA-PKCS1-v1_5 (SHA 256)
 //The official RFC (3447) doesn't specify anything specific
 //It is just RSA 

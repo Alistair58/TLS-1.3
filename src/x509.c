@@ -1,5 +1,7 @@
 #include "x509.h"
 #include <stdio.h>
+#include <string.h>
+#include "sha.h"
 
 //An implementation of a X509 certificate creation roughly following RFC 5280
 
@@ -8,6 +10,8 @@
 #define DER_INTEGER 0x02
 #define DER_UTF8STRING 0x0C
 #define DER_BITSTRING 0x03
+
+#define RSA_NUM_BITS 1024
 
 
 static asn1Certificate generateAsn1X509(RSAKeyPair kp);
@@ -54,7 +58,14 @@ static asn1Certificate generateAsn1X509(RSAKeyPair kp){
     DER der = asn1TBSToDER(certif.tbsCertif);
     bignum hash = sha256(der.data,der.lenData);
     //Not decrypting, just using the private key to encrypt
-    certif.signatureValue = decryptRSA(hash,8,kp);
+    uchar *signatureString = decryptRSA(hash,8,kp);
+    certif.signatureValue = calloc(RSA_NUM_BITS/32,sizeof(uint32_t));
+    if(!certif.signatureValue){
+        allocError();
+    }
+    memcpy(certif.signatureValue,signatureString,RSA_NUM_BITS/8);
+    certif.lenSignatureValue = RSA_NUM_BITS/32;
+    free(signatureString);
     free(hash);
     free(der.data);
 }

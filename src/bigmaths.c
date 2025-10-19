@@ -1,8 +1,13 @@
 #include "bigmaths.h"
-#include <stdint.h>
 #include <winerror.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include "globals.h"
+
+#define max(a,b) (a)>=(b) ? (a) : (b)
 
 void printBigNum(char *text, bignum n, int lenN){
     printf("\n%s",text);

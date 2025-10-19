@@ -76,7 +76,7 @@ static byte invSBox[256] = {
 //Words are stored as little endian
 //state is stored as an array of columns (words)
 
-static void aesEncrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
+void aesEncrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
     byte keyExp[120][4] = {{0}}; //Even though AES_KEY_EXP_LEN is const it needs a number to initialise array
     byte state[8][4] = {{0}};
     for(int i=0;i<AES_NUM_COLS;i++){//Initialise state
@@ -93,7 +93,7 @@ static void aesEncrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
     }
 }
 
-static void aesDecrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
+void aesDecrypt(uint32_t* key,uint32_t *data, uint32_t* dest){
     byte invKeyExp[120][4] = {{0}}; //Even though AES_KEY_EXP_LEN is const it needs a number to initialise array
     byte state[8][4] = {{0}};
     for(int i=0;i<AES_NUM_COLS;i++){//Initialise state

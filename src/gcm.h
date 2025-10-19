@@ -2,6 +2,7 @@
 #define GCM_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef unsigned char uchar;
 

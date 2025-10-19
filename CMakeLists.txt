@@ -13,6 +13,7 @@ add_executable(TLS-1.3-Client
     src/sha.c 
     src/x509.c 
     src/x25519.c
+    src/structs.c
 )
 
 add_executable(TLS-1.3-Server
@@ -25,6 +26,7 @@ add_executable(TLS-1.3-Server
     src/sha.c 
     src/x509.c 
     src/x25519.c
+    src/structs.c
 )
 
 set(CMAKE_BUILD_TYPE Debug)

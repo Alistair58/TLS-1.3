@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <winerror.h>
+#include <stdio.h>
 
 #define allocError() char errorMsg[19+sizeof(__func__)]; \
     sprintf(errorMsg,"\nAlloc error in \"%s\"",__func__); \

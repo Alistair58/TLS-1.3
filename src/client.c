@@ -1,7 +1,11 @@
 #include <stdint.h>
 #include <winsock2.h>
+#include <stdio.h>
 #include "bigmaths.h"
 #include "structs.h"
+#include "sha.h"
+#include "random.h"
+#include "x25519.h"
 
 typedef unsigned char uchar;
 

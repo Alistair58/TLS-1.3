@@ -2,6 +2,9 @@
 #include <winsock2.h>
 #include "rsa.h"
 #include "structs.h"
+#include "x509.h"
+#include "x25519.h"
+#include "random.h"
 
 typedef unsigned char uchar;
 

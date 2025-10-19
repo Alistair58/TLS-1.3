@@ -1,6 +1,7 @@
 #ifndef BIGMATHS_H
 #define BIGMATHS_H
 
+#include <stdint.h>
 
 #define LESS_THAN 1
 #define GREATER_THAN 2
