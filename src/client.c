@@ -40,7 +40,7 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 
 //create PKI
 int main(int argc, char** argv) {
-    bignum result = sha256(NULL,0);
+    bignum result = sha256("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",56);
     printf("\n%08x%08x%08x%08x%08x%08x%08x%08x",result[0],result[1],result[2],result[3],result[4],result[5],result[6],result[7]);
     free(result);
     // int sock;

@@ -59,10 +59,9 @@ bignum sha256(uchar *msg,uint64_t lenMsg){
     for(int i=0;i<numBlocks;i++){
         prepareMessageSchedule(msgSchedule,paddedMsg,i);
         updateHash(hash,msgSchedule);
-        free(msgSchedule);
     }
+    free(msgSchedule);
     free(paddedMsg.data);
-
     return hash;
 }
 
@@ -72,7 +71,7 @@ static PaddedMsg sha256Pad(uchar *msg,uint64_t lenMsg){
     uint64_t l = lenMsg*8;
     //l+1+k = 448 mod 512
     //k = 448-(l+1) mod 512
-    int lenPadded = 64*ceil(l/512);
+    int lenPadded = 64*ceil((float)l/512);
     if((l+1)%512>448){
         //We can't fit in l and so we need an extra 512 bit chunk
         lenPadded += 64;
@@ -97,7 +96,15 @@ static PaddedMsg sha256Pad(uchar *msg,uint64_t lenMsg){
 }
 
 static void prepareMessageSchedule(bignum msgSchedule,PaddedMsg paddedMsg,int roundNum){
-    memcpy(msgSchedule,&paddedMsg.data[roundNum*64],64);
+    const uchar *chunk = &paddedMsg.data[roundNum*64];
+    //If you memcpy, it will copy as you say but the computer is little endian
+    // and so will interpret the number wrong way round
+    for(int t=0;t<16;t++){
+        msgSchedule[t] = ((uint32_t)chunk[t*4    ] << 24) |
+                         ((uint32_t)chunk[t*4 + 1] << 16) |
+                         ((uint32_t)chunk[t*4 + 2] << 8 ) |
+                         ((uint32_t)chunk[t*4 + 3]      );
+    }
     for(int t=16;t<64;t++){
         msgSchedule[t] = sigma_1(msgSchedule[t-2]) + msgSchedule[t-7] + 
                         sigma_0(msgSchedule[t-15]) + msgSchedule[t-16];
@@ -139,11 +146,11 @@ static void updateHash(bignum hash,bignum msgSchedule){
 }
 
 static inline uint32_t sigma_0(uint32_t x){
-    return ROTR(x,17) ^ ROTR(x,19) ^ SHR(x,10);
+    return ROTR(x,7) ^ ROTR(x,18) ^ SHR(x,3);
 }
 
 static inline uint32_t sigma_1(uint32_t x){
-    return ROTR(x,7) ^ ROTR(x,18) ^ SHR(x,3);
+    return ROTR(x,17) ^ ROTR(x,19) ^ SHR(x,10);
 }
 
 static inline uint32_t Sigma_0(uint32_t x){
@@ -155,7 +162,7 @@ static inline uint32_t Sigma_1(uint32_t x){
 }
 
 static inline uint32_t Ch(uint32_t x,uint32_t y,uint32_t z){
-    return (x & y) ^ (x & z);
+    return (x & y) ^ (~x & z);
 }
 
 static inline uint32_t Maj(uint32_t x,uint32_t y,uint32_t z){
