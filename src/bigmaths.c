@@ -642,6 +642,15 @@ uint8 bigNumCmp(bignum a,int lenA,bignum b,int lenB){
     return EQUAL;
 }
 
+uint8 bigNumCmpLittle(bignum a,int lenA,uint32_t b){
+    for(int i=0;i<(lenA-1);i++){
+        if(a[i]!=0) return GREATER_THAN;
+    }
+    if(a[lenA-1]>b) return GREATER_THAN;
+    else if(a[lenA-1]<b) return LESS_THAN;
+    else return EQUAL;
+}
+
 //Returns size lenN
 bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
     //Long division
@@ -656,7 +665,7 @@ bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
         int bit = ((a[i>>5] >> (31 - (i&31))) & 1);
         remainder[lenN] |= bit; //set LSB of curr to be the current bit in a
         uint8 cmpRes = bigNumCmp(remainder,lenN+1,n,lenN);
-        if(cmpRes == GREATER_THAN){
+        if(cmpRes != LESS_THAN){ //If equal or greater
             bigNumSubRe(remainder,lenN+1,n,lenN);
             //Don't need to actually work out the quotient
         }
@@ -698,7 +707,7 @@ bignum bigNumDiv(bignum a,int lenA,bignum b,int lenB){ //returns the quotient
         int bit = ((a[i>>5] >> (31 - (i&31))) & 1);
         remainder[lenB] |= bit; //set LSB of curr to be the current bit in a
         uint8 cmpRes = bigNumCmp(remainder,lenB+1,b,lenB);
-        if(cmpRes == GREATER_THAN){
+        if(cmpRes != LESS_THAN){ //Equal or greater than
             bigNumSubRe(remainder,lenB+1,b,lenB);
             quotient[i>>5] |= (1 << (31 - (i&31)));
             //Don't need to actually work out the quotient

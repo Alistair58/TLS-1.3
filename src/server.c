@@ -16,11 +16,22 @@ int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int l
 
 
 int main(int argc, char** argv) {
+
+    //Problem with isPrime
+    //Problem with millerRabin - 4^10 mod 11 should be 1 and hence true
+    //problem with montLadExp - 4**5 mod 11 should be 1 
+    //problem with bigNumModMultRe - 9*5 mod 11 = 12?
+    //problem with bigNumModRe - 45 mod 11 = 12?
+    
     RSAKeyPair kp = generateKeys(1024);
     generateX509(kp);
     free(kp.privateKey.p);
     free(kp.privateKey.q);
     free(kp.publicKey.n);
+
+
+
+
     // int server_sock, client_sock;
     // struct sockaddr_in server_addr, client_addr;
     // socklen_t addr_size;

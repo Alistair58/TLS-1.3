@@ -42,5 +42,7 @@ bool isPrime(bignum n,int lenN);
 bignum encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp);
 uchar *decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp);
 RSAKeyPair generateKeys(int numBits);
+//TODO remove
+bool millerRabin(bignum n,int lenN,bignum a,int lenA);
 
 #endif

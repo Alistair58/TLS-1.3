@@ -37,6 +37,7 @@ void bigNumRShiftRe(bignum a,int lenA,int shift);
 bignum bigNumLShift(bignum a,int lenA,int shift);
 void bigNumLShiftRe(bignum a,int lenA,int shift); 
 uint8 bigNumCmp(bignum a,int lenA,bignum b,int lenB);
+uint8 bigNumCmpLittle(bignum a,int lenA,uint32_t b);
 bignum bigNumMod(bignum a,int lenA,bignum n,int lenN);
 void bigNumModRe(bignum a,int lenA,bignum n,int lenN);
 bignum bigNumDiv(bignum a,int lenA,bignum b,int lenB);

@@ -17,23 +17,21 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 
 
 //DONE
-
+//isPrime works for small numbers
 
 //Note:
 //Everything uses uint32_ts which are intended to be 32 bits
 //They are 32 bits on this system but so are ints
 
 //TODO High-Level
-//Doesn't compile at the moment - fix it
 //Add signatures
 //Make messages more formal/conform to TLS-1.3
 //Send everything in hex
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Write SHA
+//Fix RSA - infinite shifting in millerRabin - error with R shift re?
 //Write private key stores
-//Test long divison mod in bigmaths.h
 //Test RSA
 //Test SHA
 //Test certificates

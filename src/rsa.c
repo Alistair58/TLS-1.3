@@ -8,20 +8,31 @@
 
 bignum extendedEuclidean(uint32_t exp,bignum totient,int lenTotient);
 bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen);
-bool millerRabin(bignum n,int lenN,bignum a,int lenA);
+//bool millerRabin(bignum n,int lenN,bignum a,int lenA);
 
 bool isPrime(bignum n,int lenN){ 
+    if(bigNumCmpLittle(n,lenN,2) != GREATER_THAN){
+        perror("isPrime: isPrime only works for n>2");
+        exit(1);
+    }
+    bignum nSub1 = bigNumSubLittle(n,lenN,1,lenN);
+    bignum a = calloc(lenN,sizeof(uint32_t));
+    if(!a){
+        allocError();
+    }
     for(int i=0;i<30;i++){ //as MR is incorrect 1/4 of time, it is now incorrect 1 in 4^30 times (once every 36558901 years if it runs every ms)
-        bignum a = calloc(lenN,sizeof(uint32_t));
-        if(!a){
-            allocError();
+        do{
+            randomNumber(a,lenN,nSub1); //Fermats little theorem only works for 1<a<n-1
         }
-        randomNumber(a,lenN,NULL); //Fermats little theorem only works for 1<a<n-1
+        while(bigNumCmpLittle(a,lenN,0)==EQUAL);
         if(!millerRabin(n,lenN,a,lenN)){
+            free(a);
+            free(nSub1);
             return false;
         }
-        free(a);
     }
+    free(a);
+    free(nSub1);
     //If n passed all the tests, very likely prime
     return true;
 }
@@ -81,12 +92,19 @@ bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modL
 bool millerRabin(bignum n,int lenN,bignum a,int lenA){
     bignum nSub1= bigNumSubLittle(n,lenN,1,lenN);
     bignum exp = (bignum) calloc(lenN,sizeof(uint32_t));
-    if(!nSub1){
+    if(!exp){
         allocError();
     }
     memcpy(exp,nSub1,lenN*sizeof(uint32_t));
+    int numShifts = 0;
+    if(bigNumCmpLittle(exp,lenN,0)==EQUAL){
+        perror("millerRabin: nSub1 cannot be 0");
+        exit(1);
+    }
     while(!(exp[lenN-1] & 1)){
         bigNumRShiftRe(exp,lenN,1); //Keep shifting until it's odd
+        numShifts++;
+        printf("\nShifting");
     }
     
     //Base case check as last factor is (x-1) whereas all other factors are (x+1)
@@ -103,9 +121,8 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
         if(factor[i]==0) continue;
         else break;
     }
-    while(bigNumCmp(exp,lenN,nSub1,lenN)==LESS_THAN){
-        free(factor);
-        factor = montLadExp(a,lenA,exp,lenN,n,lenN);
+    for(int i=1;i<numShifts;i++){
+        bigNumModMultRe(factor,lenN,factor,lenN,n,lenN);
          // a^(n-1/2^k) + 1 is a multiple of n -> satisfying Fermat's Little Theorem -> likely prime
         if(bigNumCmp(factor,lenN,nSub1,lenN)==EQUAL){
             free(nSub1);
@@ -113,7 +130,6 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
             free(factor);
             return true;
         }
-        bigNumLShiftRe(exp,lenN,1); //Binary shift to the left 1 place - same as multiplying by 2
     }
     free(nSub1);
     free(exp);
