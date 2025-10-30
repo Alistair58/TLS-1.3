@@ -585,7 +585,7 @@ bignum bigNumRShift(bignum a,int lenA,int shift){
     for(int i=0;i<lenA;i++){
         temp = a[i] & carryBitMask; //Save the LSBs
         result[i] = a[i] >> shift; 
-        if(carry) result[i] &= carry << (32-shift); //add in the previous LSBs
+        if(carry) result[i] |= carry << (32-shift); //add in the previous LSBs
         carry = temp;
     }
     return result;

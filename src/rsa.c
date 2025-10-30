@@ -8,7 +8,7 @@
 
 bignum extendedEuclidean(uint32_t exp,bignum totient,int lenTotient);
 bignum montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen);
-//bool millerRabin(bignum n,int lenN,bignum a,int lenA);
+bool millerRabin(bignum n,int lenN,bignum a,int lenA);
 
 bool isPrime(bignum n,int lenN){ 
     if(bigNumCmpLittle(n,lenN,2) != GREATER_THAN){
@@ -22,7 +22,7 @@ bool isPrime(bignum n,int lenN){
     }
     for(int i=0;i<30;i++){ //as MR is incorrect 1/4 of time, it is now incorrect 1 in 4^30 times (once every 36558901 years if it runs every ms)
         do{
-            randomNumber(a,lenN,nSub1); //Fermats little theorem only works for 1<a<n-1
+            randomNumber(a,lenN,nSub1,0); //Fermats little theorem only works for 1<a<n-1
         }
         while(bigNumCmpLittle(a,lenN,0)==EQUAL);
         if(!millerRabin(n,lenN,a,lenN)){
@@ -104,7 +104,6 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
     while(!(exp[lenN-1] & 1)){
         bigNumRShiftRe(exp,lenN,1); //Keep shifting until it's odd
         numShifts++;
-        printf("\nShifting");
     }
     
     //Base case check as last factor is (x-1) whereas all other factors are (x+1)
@@ -272,11 +271,13 @@ RSAKeyPair generateKeys(int numBits){
     int publicKeyLen = numBits/(8*sizeof(uint32_t));
     int privateKeyLen = publicKeyLen/2;
     kp.privateKey.p = calloc(privateKeyLen,sizeof(uint32_t));
+    int count = 0;
     if(!kp.privateKey.p){
         allocError();
     }
     do{
-        randomNumber(kp.privateKey.p,privateKeyLen,NULL);
+        printf("\np: %d",count++);
+        randomNumber(kp.privateKey.p,privateKeyLen,NULL,0);
     }
     while(!isPrime(kp.privateKey.p,privateKeyLen));
     kp.privateKey.q = calloc(privateKeyLen,sizeof(uint32_t));
@@ -285,7 +286,7 @@ RSAKeyPair generateKeys(int numBits){
         allocError();
     }
     do{
-        randomNumber(kp.privateKey.q,privateKeyLen,NULL);
+        randomNumber(kp.privateKey.q,privateKeyLen,NULL,0);
     }
     while(!isPrime(kp.privateKey.q,privateKeyLen));
     kp.publicKey.n = bigNumMult(

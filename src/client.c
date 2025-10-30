@@ -17,11 +17,7 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 
 
 //DONE
-//isPrime works for small numbers
 
-//Note:
-//Everything uses uint32_ts which are intended to be 32 bits
-//They are 32 bits on this system but so are ints
 
 //TODO High-Level
 //Add signatures
@@ -30,7 +26,9 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Fix RSA - infinite shifting in millerRabin - error with R shift re?
+//Fix isPrime - takes longer than it should be generate a prime number - is this the random number generator's fault?
+//Speed up key generation
+//Add some more time-independent randomness to randomNumber
 //Write private key stores
 //Test RSA
 //Test SHA
@@ -101,8 +99,8 @@ struct ClientHello generateClientHello(uint32_t *privateDHRandom){
     int signatureAlgorithms[1] = {rsa_pss_pss_sha256};
     uint32_t *clientRandom = calloc(1,sizeof(uint32_t));
     printf("\nGenerating random number. Please move your mouse until generation is completed");
-    randomNumber(clientRandom,1,NULL);
-    randomNumber(privateDHRandom,8,curve25519Params.n);
+    randomNumber(clientRandom,1,NULL,500);
+    randomNumber(privateDHRandom,8,curve25519Params.n,500);
     printf("\nGeneration completed");
    // printf("\nClient random %lu Client private DH Random: %lu %lu %lu %lu %lu %lu %lu %lu",clientRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
    // privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);

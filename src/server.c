@@ -14,16 +14,10 @@ struct ServerHello generateServerHello(uint32_t *privateDHRandom);
 uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
-
 int main(int argc, char** argv) {
 
-    //Problem with isPrime
-    //Problem with millerRabin - 4^10 mod 11 should be 1 and hence true
-    //problem with montLadExp - 4**5 mod 11 should be 1 
-    //problem with bigNumModMultRe - 9*5 mod 11 = 12?
-    //problem with bigNumModRe - 45 mod 11 = 12?
-    
-    RSAKeyPair kp = generateKeys(1024);
+    //Problem with isPrime - seems to not find that many prime numbers
+    RSAKeyPair kp = generateKeys(64);
     generateX509(kp);
     free(kp.privateKey.p);
     free(kp.privateKey.q);
@@ -126,8 +120,8 @@ struct ServerHello generateServerHello(uint32_t *privateDHRandom){
     serverHello.signatureAlgorithm  = rsa_pss_pss_sha256;
     uint32_t *serverRandom = calloc(1,sizeof(uint32_t));
     printf("\nGenerating random number. Please move your mouse until generation is completed");
-    randomNumber(serverRandom,1,NULL);
-    randomNumber(privateDHRandom,8,curve25519Params.n);
+    randomNumber(serverRandom,1,NULL,500);
+    randomNumber(privateDHRandom,8,curve25519Params.n,500);
     printf("\nGeneration completed");
     // printf("\nServer random %lu Server Private DH Random: %lu %lu %lu %lu %lu %lu %lu %lu ",serverRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
     // privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);

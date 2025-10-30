@@ -33,7 +33,7 @@ bool gcm(uchar *plaintext, int lenPlaintext, uint32_t *key,gcmResult *dest){
     if(!dest->iv){ //If the user hasn't supplied an iv
         dest->iv = (uint32_t*) calloc(8,sizeof(uint32_t));
         if(!dest->iv ) goto allocError;
-        randomNumber(iv,8,NULL);
+        randomNumber(iv,8,NULL,0);
     }
     else{
         memcpy(iv,dest->iv,8*sizeof(uint32_t));

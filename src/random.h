@@ -3,6 +3,6 @@
 
 #include "bigmaths.h"
 
-int randomNumber(bignum bigIntArr, int chunks,bignum n);
+int randomNumber(bignum bigIntArr, int chunks,bignum n,int generationMs);
 
 #endif 
