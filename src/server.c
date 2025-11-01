@@ -17,6 +17,8 @@ int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int l
 int main(int argc, char** argv) {
 
     //Problem with isPrime - seems to not find that many prime numbers
+    //It finds one when I wiggle my mouse
+    //randomNumber is shit
     RSAKeyPair kp = generateKeys(64);
     generateX509(kp);
     free(kp.privateKey.p);

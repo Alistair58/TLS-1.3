@@ -26,7 +26,7 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Fix isPrime - takes longer than it should be generate a prime number - is this the random number generator's fault?
+//Fix sha256 padding - it goes out of bounds sometimes
 //Speed up key generation
 //Add some more time-independent randomness to randomNumber
 //Write private key stores
