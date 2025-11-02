@@ -26,9 +26,8 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Fix sha256 padding - it goes out of bounds sometimes
-//Speed up key generation
-//Add some more time-independent randomness to randomNumber
+//Speed up multiplication and modulo operations - modulo first
+//Add some more time-independent randomness to randomNumber - it still doesn't generate particularly random number
 //Write private key stores
 //Test RSA
 //Test SHA

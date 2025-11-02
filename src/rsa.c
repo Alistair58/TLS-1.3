@@ -15,12 +15,15 @@ bool isPrime(bignum n,int lenN){
         perror("isPrime: isPrime only works for n>2");
         exit(1);
     }
+    //Check evens first
+    if(n[lenN-1]&1==0) return false;
     bignum nSub1 = bigNumSubLittle(n,lenN,1,lenN);
     bignum a = calloc(lenN,sizeof(uint32_t));
     if(!a){
         allocError();
     }
     for(int i=0;i<30;i++){ //as MR is incorrect 1/4 of time, it is now incorrect 1 in 4^30 times (once every 36558901 years if it runs every ms)
+        printf("\ni: %d",i);
         do{
             randomNumber(a,lenN,nSub1,0); //Fermats little theorem only works for 1<a<n-1
         }

@@ -7,7 +7,9 @@
 #include <stdio.h>
 #include "globals.h"
 
-#define max(a,b) (a)>=(b) ? (a) : (b)
+//TODO remove - for profiling
+#include <windows.h>
+//#define max(a,b) (a)>=(b) ? (a) : (b)
 
 void printBigNum(char *text, bignum n, int lenN){
     printf("\n%s",text);
@@ -252,8 +254,20 @@ bignum bigNumBitModMult(bignum a,int lenA, bignum b,int lenB,int lenDest,int bit
 }
 bignum bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN){ 
     //will return a big num of size lenN
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+
+    LARGE_INTEGER start, end;
+    QueryPerformanceCounter(&start);
     bignum multResult = bigNumMult(a,lenA,b,lenB,lenA+lenB);
+    QueryPerformanceCounter(&end);
+    double multElapsedUs = (double)(end.QuadPart - start.QuadPart) * 1e6 / (double)freq.QuadPart;
+    printf("\nMult us: %.3f",multElapsedUs);
+    QueryPerformanceCounter(&start);
     bigNumModRe(multResult,lenA+lenB,n,lenN);
+    QueryPerformanceCounter(&end);
+    double modElapsedUs = (double)(end.QuadPart - start.QuadPart) * 1e6 / (double)freq.QuadPart;
+    printf("\nMod us: %.3f",modElapsedUs);
     //The mod length could (and will likely) be less than lenA+lenB 
     //e.g. {0,0,0,2} needs to be turned to {0,2} if lenN=2
     int lenDifference = (lenA+lenB)-lenN;

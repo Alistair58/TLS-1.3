@@ -16,10 +16,29 @@ int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int l
 
 int main(int argc, char** argv) {
 
-    //Problem with isPrime - seems to not find that many prime numbers
-    //It finds one when I wiggle my mouse
-    //randomNumber is shit
-    RSAKeyPair kp = generateKeys(64);
+    //Takes 300ms to do a montLadExp
+    //This is by far the bottleneck (60us for a random number)
+    //It does 1024 mod and mults
+    //Mod us: 368.900
+    //Mult us: 99.400
+    //Mod us: 300.400
+    //Mult us: 124.000
+    //Mod us: 336.100
+    //Mult us: 151.600
+    //Mod us: 341.900
+    //Which are both quite slow
+    //But Python can do it very quickly
+    //-O3:
+    //Mod us: 147.800
+    //Mult us: 97.600
+    //Mod us: 153.500
+    //Mult us: 97.900
+    //Mod us: 200.900
+    //Mult us: 94.400
+    //I might have to do something about that
+    //Possibly might be the heap allocations
+
+    RSAKeyPair kp = generateKeys(128);
     generateX509(kp);
     free(kp.privateKey.p);
     free(kp.privateKey.q);

@@ -77,7 +77,7 @@ int randomNumber(bignum bigIntArr, int chunks,bignum n,int generationMs){  //A c
     while(nonHashedBytes>0){
         bignum hashed = sha256((uchar*)bigIntArr,chunks*sizeof(uint32_t)); 
         int copyLength = nonHashedBytes<shaBytes ? nonHashedBytes : shaBytes;
-        memcpy(&bigIntArr[count*shaBytes],hashed,copyLength);
+        memcpy(&bigIntArr[count*shaBytes/sizeof(uint32_t)],hashed,copyLength);
         free(hashed);
         nonHashedBytes -= shaBytes;
         count++;

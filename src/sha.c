@@ -69,13 +69,11 @@ bignum sha256(uchar *msg,uint64_t lenMsg){
 static PaddedMsg sha256Pad(uchar *msg,uint64_t lenMsg){
     PaddedMsg result;
     uint64_t l = lenMsg*8;
-    //l+1+k = 448 mod 512
-    //k = 448-(l+1) mod 512
-    int lenPadded = 64*ceil((float)l/512);
-    if((l+1)%512>448){
-        //We can't fit in l and so we need an extra 512 bit chunk
-        lenPadded += 64;
-    }
+    //8 bytes for the length, 1 byte for the extra bit to mark the end of the message
+    //You need a whole extra byte even though the spec says 1 bit 
+    //as both the length and chars are full bytes and so no matter the length, the single bit will have its own byte
+
+    uint64_t lenPadded = ceil((float)(lenMsg + 1 + 8) / 64) * 64;
     result.data = calloc(lenPadded,sizeof(uchar));
     result.lenData = lenPadded;
     if(!result.data ){
