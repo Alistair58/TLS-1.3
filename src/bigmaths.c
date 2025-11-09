@@ -19,7 +19,7 @@ void printBigNum(char *text, bignum n, int lenN){
 }
 
 
-bignum createBigNum(bignum a, int len){ //MUST REMEMBER TO FREE IF USING THIS
+bignum createBigNum(bignum a, int len){ //Caller frees
     bignum p = calloc(len,sizeof(uint32_t));
     if(!p){
         allocError();
@@ -32,24 +32,18 @@ bignum createBigNum(bignum a, int len){ //MUST REMEMBER TO FREE IF USING THIS
 
 
 
-bignum bigNumAdd(bignum a,int lenA, bignum b, int lenB, int lenDest){
+void bigNumAdd(bignum a,int lenA,bignum b, int lenB,bignum dest,int lenDest){ 
     uint64_t temp;
     int carry=0;
     if(lenDest < lenA || lenDest <lenB){
-        
         perror("\nStorage destination for addition is too small");
         exit(1);
-    }
-    bignum sum = calloc(lenDest,sizeof(uint32_t));
-    if(!sum){
-        allocError();
     }
     int iA;
     int iB;
     for(int i= lenDest-1;i>-1;i--){
         iA = lenA - (lenDest-i);
         iB = lenB - (lenDest-i);
-        
         uint32_t op1;
         uint32_t op2;
         if(iA<0) op1 = 0;
@@ -61,26 +55,20 @@ bignum bigNumAdd(bignum a,int lenA, bignum b, int lenB, int lenDest){
         if(carry>0){
             temp &= 0xffffffff;
             if(i==0){
-                free(sum);
                 perror("\nAddition overflow");
                 exit(1);
             }
         }    
-        sum[i] = temp;
+        dest[i] = temp;
     }
-    return sum;
 }
 
-bignum bigNumAddLittle(bignum a,int lenA, uint32_t b, int lenDest){
+void bigNumAddLittle(bignum a,int lenA, uint32_t b,bignum dest,int lenDest){
     uint64_t temp;
     int carry=0;
     if(lenDest < lenA){
         perror("\nStorage destination for addition is too small");
         exit(1);
-    }
-    bignum sum = calloc(lenDest,sizeof(uint32_t));
-    if(!sum){
-        allocError();
     }
     int iA;
     for(int i= lenDest-1;i>-1;i--){
@@ -92,145 +80,154 @@ bignum bigNumAddLittle(bignum a,int lenA, uint32_t b, int lenDest){
         if(carry>0){
             temp &= 0xffffffff;
             if(i==0){
-                free(sum);
                 perror("\nAddition overflow");
                 exit(1);
             }
         }    
-        sum[i] = temp;
+        dest[i] = temp;
     }
-    return sum;
 }
 
 
-bignum bigNumBitModAdd(bignum a,int lenA, bignum b,int lenB,int lenDest,int bitMod, int carryMult){
-    bignum addResult = bigNumAdd(a,lenA,b,lenB,lenDest+1);
-    bignum modResult = bigNumBitMod(addResult,lenDest+1,bitMod,carryMult,lenDest);
-    free(addResult);
-    return modResult;
+void bigNumBitModAdd(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest,int bitMod, int carryMult){
+    bignum sumResult = (bignum) calloc(lenDest+1,sizeof(uint32_t)); //To allow the sum to be bigger than the modded answer
+    if(!sumResult){
+        allocError();
+    }
+    bigNumAdd(a,lenA,b,lenB,sumResult,lenDest+1);
+    bigNumBitMod(sumResult,lenDest+1,bitMod,carryMult,dest,lenDest);
+    free(sumResult);
 }
 
 
-bignum  multiAdd(bignum a,int lenA,bignum b, int lenB, bignum c,int lenC, int lenDest){
-    bignum sum1 = bigNumAdd(a,lenA,b,lenB,lenDest);
-    bignum sum2 = bigNumAdd(sum1,lenDest,c,lenC,lenDest);
-    free(sum1);
-    return sum2;
+void multiAdd(bignum a,int lenA,bignum b,int lenB,bignum c,int lenC,bignum dest,int lenDest){
+    bigNumAdd(a,lenA,b,lenB,dest,lenDest);
+    bigNumAdd(dest,lenDest,c,lenC,dest,lenDest);
 }
 
-void bigNumMultRe(bignum a,int lenA, bignum b,int lenB){ //Multiply a and b and store in a
-    bignum res = bigNumMult(a,lenA,b,lenB,lenA);
-    a = realloc(a,lenA*sizeof(uint32_t)); //bigNumMult may pad A if necessary
-    memcpy(a,res,lenA*sizeof(uint32_t));
-    free(res);
-}
 
 //TODO - Currently not actually any more efficient than long multiplication - see book to work out what to reuse
-bignum bigNumMult(bignum a,int lenA, bignum b,int lenB,int lenDest){ 
-    /*a = [a1,a2]
-    b = [b1,b2]
-    a*b = [a1*b1,a1*b2+a2*b1,a2*b2]
+void bigNumMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){ 
+    /*
+    a = [w,x]
+    b = [y,z]
+    a*b = [wy,wz+xy,xz]
     */
     int longest = max(lenA,lenB);
     if(lenDest<lenA+lenB){
-        free(a); free(b);
         perror("\nStorage destination for multiplication is too small");
         exit(1);
     }
-    bignum product = calloc(lenDest,sizeof(uint32_t));
-    if(!product){
-        allocError();
-    }
     if(lenA>1 || lenB>1){
-        if(longest & 1){
+        bool aPadAllocated = false;
+        bool bPadAllocated = false;
+        bignum aPad = a;
+        bignum bPad = b;
+        int lenAPad = lenA;
+        int lenBPad = lenB;
+        if(longest & 1){ //We want the longest to be of even length
             if(longest==lenA){
-                a = realloc(a,(lenA+1)*sizeof(uint32_t));
-                memcpy(&a[1],a,lenA*sizeof(uint32_t));
-                a[0] = 0;
-                lenA++;
+                aPad = calloc(lenA+1,sizeof(uint32_t));
+                aPadAllocated = true;
+                memcpy(&aPad[1],a,lenA*sizeof(uint32_t));
+                lenAPad++;
             }
             else{
-                b = realloc(b,(lenB+1)*sizeof(uint32_t));
-                memcpy(&b[1],b,lenB*sizeof(uint32_t));
-                b[0] = 0;
-                lenB++;
+                bPad = calloc(lenB+1,sizeof(uint32_t));
+                bPadAllocated = true;
+                memcpy(&bPad[1],b,lenB*sizeof(uint32_t));
+                lenBPad++;
             }
             longest++;
         }
-        if(lenA != lenB){ //Pad the start with zeroes
-            if(longest == lenA){
-                b = realloc(b,lenA*sizeof(uint32_t));
-                memcpy(&b[lenA-lenB],b,lenB*sizeof(uint32_t));
+        if(lenAPad != lenBPad){ //Pad the start with zeroes
+            if(longest == lenAPad){
+                bPad = calloc(lenAPad,sizeof(uint32_t));
+                bPadAllocated = true;
+                memcpy(&bPad[lenA-lenB],b,lenB*sizeof(uint32_t));
                 for(int i=0;i<(lenA-lenB);i++){
-                    b[i] = 0;
+                    bPad[i] = 0;
                 }
-                lenB = longest;
+                lenBPad = longest;
             }
             else{
-                a = realloc(a,lenB*sizeof(uint32_t));
-                memcpy(&a[lenB-lenA],a,lenA*sizeof(uint32_t));
+                aPad = calloc(lenBPad,sizeof(uint32_t));
+                aPadAllocated = true;
+                memcpy(&aPad[lenB-lenA],a,lenA*sizeof(uint32_t));
                 for(int i=0;i<(lenB-lenA);i++){
-                    a[i] = 0;
+                    aPad[i] = 0;
                 }
-                lenA = longest;
+                lenAPad = longest;
             }
         }
 
-        uint32_t w[longest/2]; uint32_t x[longest/2]; uint32_t y[longest/2]; uint32_t z[longest/2];
-        uint32_t wy1[longest/2];uint32_t wy2[longest/2]; uint32_t wz1[longest/2];uint32_t wz2[longest/2];
-        uint32_t xy1[longest/2];uint32_t xy2[longest/2];uint32_t xz1[longest/2];uint32_t xz2[longest/2];
+        const int longestDiv2 = longest/2;
 
-        memcpy(w, a, longest/2 * sizeof(uint32_t)); memcpy(x, &a[longest/2], longest/2 * sizeof(uint32_t)); 
-        memcpy(y, b, longest/2 * sizeof(uint32_t)); memcpy(z, &b[longest/2], longest/2 * sizeof(uint32_t)); 
+      
         
-        bignum wy = bigNumMult(w,longest/2,y,longest/2,longest);
-        bignum wz = bigNumMult(w,longest/2,z,longest/2,longest);
-        bignum xy = bigNumMult(x,longest/2,y,longest/2,longest);
-        bignum xz = bigNumMult(x,longest/2,z,longest/2,longest);
 
-        memcpy(wy1, wy, longest/2 * sizeof(uint32_t)); memcpy(wy2, &wy[longest/2], longest/2 * sizeof(uint32_t));  
-        memcpy(wz1, wz, longest/2 * sizeof(uint32_t)); memcpy(wz2, &wz[longest/2], longest/2 * sizeof(uint32_t));  
-        memcpy(xy1, xy, longest/2 * sizeof(uint32_t)); memcpy(xy2, &xy[longest/2], longest/2 * sizeof(uint32_t));  
-        memcpy(xz1, xz, longest/2 * sizeof(uint32_t)); memcpy(xz2, &xz[longest/2], longest/2 * sizeof(uint32_t));  
-
+        //w = aPad[0:longestDiv2) 
+        //x = aPad[longestDiv2:longest)
+        //y = bPad[0:longestDiv2)
+        //z = bPad[longestDiv2:longest) 
         
-        bignum pos1Temp = multiAdd(wy2,longest/2,xy1,longest/2,wz1,longest/2,(longest/2)+1); //Accounts for overflow
-        bignum pos2Temp = multiAdd(xy2,longest/2,wz2,longest/2,xz1,longest/2,(longest/2)+1);
-        bignum pos0 = bigNumAdd(wy1,longest/2,pos1Temp,1,longest/2); //Shouldn't overflow?
-        bignum pos1 = bigNumAdd(&pos1Temp[1],longest/2,pos2Temp,1,longest/2);
-        bignum pos2 = calloc(longest/2,sizeof(uint32_t));
-        memcpy(pos2,&pos2Temp[1],longest/2*sizeof(uint32_t));
-        free(pos1Temp);free(pos2Temp);
+        bignum wy = calloc(longest,sizeof(uint32_t));
+        bignum wz = calloc(longest,sizeof(uint32_t));
+        bignum xy = calloc(longest,sizeof(uint32_t));
+        bignum xz = calloc(longest,sizeof(uint32_t));
+        if(!wy || !wz || !xy || !xz){
+            free(wy);free(wz);free(xy);free(xz);
+            if(aPadAllocated) free(aPad);
+            if(bPadAllocated) free(bPad);
+            allocError()
+            
+        }
+
+
+        bigNumMult(aPad,longestDiv2,bPad,longestDiv2,wy,longest);
+        bigNumMult(aPad,longestDiv2,&bPad[longestDiv2],longestDiv2,wz,longest);
+        bigNumMult(&aPad[longestDiv2],longestDiv2,bPad,longestDiv2,xy,longest);
+        bigNumMult(&aPad[longestDiv2],longestDiv2,&bPad[longestDiv2],longestDiv2,xz,longest); 
+        
+        //We don't use aPad or bPad again and hence can use them as buffers (and their length is >=longestDiv2+1)
+        bignum pos1Temp = aPad;
+        bignum pos2Temp = bPad;
+        multiAdd(&wy[longestDiv2],longestDiv2,xy,longestDiv2,wz,longestDiv2,pos1Temp,(longestDiv2)+1); //Accounts for overflow
+        multiAdd(&xy[longestDiv2],longestDiv2,&wz[longestDiv2],longestDiv2,xz,longestDiv2,pos2Temp,(longestDiv2)+1);
+
+        bignum pos0 = wz; //reuse the allocated buffers
+        bignum pos1 = &wz[longestDiv2];
+        bignum pos2 = xy;
+
+        bigNumAdd(wy,longestDiv2,pos1Temp,1,pos0,longestDiv2); //Shouldn't overflow?
+        bigNumAdd(&pos1Temp[1],longestDiv2,pos2Temp,1,pos1,longestDiv2);
+        memcpy(pos2,&pos2Temp[1],longestDiv2*sizeof(uint32_t));
+
         int niceLength = (longest<<1);
         int quartered = niceLength>>2;
         int i = max(0,lenDest-niceLength);
         int diff = niceLength-lenDest;
         int j = diff%quartered;
-        //printf("\ni %d",i);
-        if(diff <quartered){ //Used to be <= 
-            memcpy(&product[i],&pos0[j],(quartered-j)* sizeof(uint32_t));
+        if(diff <quartered){ 
+            memcpy(&dest[i],&pos0[j],(quartered-j)* sizeof(uint32_t));
             i+= quartered - j;
-            //printf("\ni %d",i);
             j=0;
         }
         if(diff < 2*quartered){
-            memcpy(&product[i],&pos1[j],(quartered-j)* sizeof(uint32_t));
+            memcpy(&dest[i],&pos1[j],(quartered-j)* sizeof(uint32_t));
             i+=quartered -j;
-            //printf("\ni %d",i);
             j=0;
         }
         if(diff < 3*quartered){
-            memcpy(&product[i],&pos2[j],(quartered-j) * sizeof(uint32_t));
+            memcpy(&dest[i],&pos2[j],(quartered-j) * sizeof(uint32_t));
             i+=quartered-j;
-            //printf("\ni %d",i);
             j=0;
         }
-        //printf("\ni %d j %d",i,j);
-        memcpy(&product[i],&xz2[j],(quartered-j) * sizeof(uint32_t));
-        ////printBigNum("Mult product: ",product,lenDest);
+        memcpy(&dest[i],&xz[longestDiv2+j],(quartered-j) * sizeof(uint32_t));
 
         free(wy);free(wz);free(xy);free(xz);
-        free(pos0);free(pos1);free(pos2);
+        if(aPadAllocated) free(aPad);
+        if(bPadAllocated) free(bPad);
     }
     else{
         uint64_t result = (uint64_t)a[0]*b[0];
@@ -239,11 +236,11 @@ bignum bigNumMult(bignum a,int lenA, bignum b,int lenB,int lenDest){
        // printf("\nSmall result %lu ",smallResult);
         uint32_t bigResult = (uint32_t) (result >> 32);
         //printf("\nBig result %lu ",bigResult);
-        product[0] = bigResult;
-        product[1] = smallResult;
+        dest[0] = bigResult;
+        dest[1] = smallResult;
         ////printBigNum("Product: ",product,2);
     }
-    return product;
+    
 }
 
 bignum bigNumBitModMult(bignum a,int lenA, bignum b,int lenB,int lenDest,int bitMod, int carryMult){
@@ -674,6 +671,12 @@ bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
         allocError();
     }
     int bits = lenA*32;
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+
+    LARGE_INTEGER start, end;
+    QueryPerformanceCounter(&start);
+    
     for(int i=0;i<bits;i++){
         bigNumLShiftRe(remainder,lenN+1,1);
         int bit = ((a[i>>5] >> (31 - (i&31))) & 1);
@@ -687,6 +690,10 @@ bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
     for(int i=1;i<=lenN;i++){ //move to the left 1 space as we are <lenN
         remainder[i-1] = remainder[i];
     }
+
+    QueryPerformanceCounter(&end);
+    double modBodyElapsedUs = (double)(end.QuadPart - start.QuadPart) * 1e6 / (double)freq.QuadPart;
+    printf("\nMod body us: %.3f",modBodyElapsedUs);
     remainder = realloc(remainder,lenN*sizeof(uint32_t));
     return remainder; //Return the left over carry which will be the remainder
 }

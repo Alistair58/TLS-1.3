@@ -38,6 +38,35 @@ int main(int argc, char** argv) {
     //I might have to do something about that
     //Possibly might be the heap allocations
 
+    // Mult us: 7.600
+    // Mod body us: 115.500
+    // Mod us: 213.900
+    // Mult us: 9.600
+    // Mod body us: 90.500
+    // Mod us: 177.800
+    // Mult us: 8.700
+    // Mod body us: 120.300
+    // Mod us: 264.000
+    // Mult us: 13.200
+    // Mod body us: 134.800
+    // Mod us: 221.800
+    //Removing the sub:
+    // Mod body us: 80.600
+    // Mod us: 160.700
+    // Mult us: 9.000
+    // Mod body us: 81.000
+    // Mod us: 162.200
+    // Mult us: 8.100
+    // Mod body us: 80.000
+    // Mod us: 160.600
+    // Mult us: 8.800
+    // Mod body us: 81.000
+    // Mod us: 160.300
+    // Mult us: 8.200
+    // Mod body us: 80.100
+    // Mod us: 159.300
+    // Mult us: 8.900
+
     RSAKeyPair kp = generateKeys(128);
     generateX509(kp);
     free(kp.privateKey.p);

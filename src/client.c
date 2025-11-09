@@ -26,6 +26,7 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
+//Migrate bigmaths to use less allocations - buffers provided by caller
 //Speed up multiplication and modulo operations - modulo first
 //Add some more time-independent randomness to randomNumber - it still doesn't generate particularly random number
 //Write private key stores
