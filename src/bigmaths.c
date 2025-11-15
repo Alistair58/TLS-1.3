@@ -100,7 +100,7 @@ void bigNumBitModAdd(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest
 }
 
 
-void multiAdd(bignum a,int lenA,bignum b,int lenB,bignum c,int lenC,bignum dest,int lenDest){
+void bigNumMultiAdd(bignum a,int lenA,bignum b,int lenB,bignum c,int lenC,bignum dest,int lenDest){
     bigNumAdd(a,lenA,b,lenB,dest,lenDest);
     bigNumAdd(dest,lenDest,c,lenC,dest,lenDest);
 }
@@ -243,69 +243,57 @@ void bigNumMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
     
 }
 
-bignum bigNumBitModMult(bignum a,int lenA, bignum b,int lenB,int lenDest,int bitMod, int carryMult){
-    bignum multResult = bigNumMult(a,lenA,b,lenB,lenDest*2);
-    bignum modResult = bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,lenDest);
+void bigNumBitModMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest,int bitMod, int carryMult){
+    bignum multResult = (bignum) calloc(lenDest*2,sizeof(uint32_t));
+    bigNumMult(a,lenA,b,lenB,multResult,lenDest*2);
+    bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,dest,lenDest);
     free(multResult);
-    return modResult;
 }
-bignum bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN){ 
+void bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN,bignum dest,int lenDest){ 
     //will return a big num of size lenN
     LARGE_INTEGER freq;
     QueryPerformanceFrequency(&freq);
 
     LARGE_INTEGER start, end;
     QueryPerformanceCounter(&start);
-    bignum multResult = bigNumMult(a,lenA,b,lenB,lenA+lenB);
+
+    bignum multResult = (bignum) calloc(lenA+lenB,sizeof(uint32_t));
+    bigNumMult(a,lenA,b,lenB,multResult,lenA+lenB);
+
     QueryPerformanceCounter(&end);
     double multElapsedUs = (double)(end.QuadPart - start.QuadPart) * 1e6 / (double)freq.QuadPart;
     printf("\nMult us: %.3f",multElapsedUs);
     QueryPerformanceCounter(&start);
-    bigNumModRe(multResult,lenA+lenB,n,lenN);
+    bigNumMod(multResult,lenA+lenB,n,lenN,dest,lenDest);
     QueryPerformanceCounter(&end);
     double modElapsedUs = (double)(end.QuadPart - start.QuadPart) * 1e6 / (double)freq.QuadPart;
     printf("\nMod us: %.3f",modElapsedUs);
-    //The mod length could (and will likely) be less than lenA+lenB 
-    //e.g. {0,0,0,2} needs to be turned to {0,2} if lenN=2
-    int lenDifference = (lenA+lenB)-lenN;
-    for(int i=lenDifference;i<(lenA+lenB);i++){
-        multResult[i-lenDifference] = multResult[i]; 
-    }
-    multResult = realloc(multResult,lenN*sizeof(uint32_t));
-    return multResult;
+
+    free(multResult);
 }
 
-bignum bigNumModMultRe(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN){ //store it in a 
-    if(lenA<lenN){
-        perror("\nInsufficient space to store result of \"bigNumModMultRe\" in argument 1");
-        exit(ERROR_BAD_LENGTH);
-    }
-    bignum result = bigNumModMult(a,lenA,b,lenB,n,lenN);
-    memcpy(a,result,lenA*sizeof(uint32_t));
-    free(result);
-}
 
-bignum bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult, int lenDest){
-    bignum product = calloc(lenDest,sizeof(uint32_t));
-    if(!product){
-        allocError();
-    }
+void bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult,bignum dest,int lenDest){
     int i = (int)((float)lenA - (float)bitMod/32); //Do we need to mod the number, if so how many chunks do we need to mod
     if(!(bitMod%32)) i--; //Doesn't affect 25519
     if(i<0){
-        memcpy(product,a,lenA*sizeof(uint32_t));
-        return product;
+        return;
     }
-    bignum carry,realCarry,addedCarry;
-    uint32_t doubleCarry;
-    do{//Repeat until no more modding is require, 1 iteration on 0xfffff will require another mod
-        doubleCarry = 0;
+    
+    int lenRealCarry = (!(bitMod%32))?2:1; //Doesn't work with addition and ternary operator
+    lenRealCarry += i;
+    bignum realCarry = calloc(lenRealCarry,sizeof(uint32_t));
+    bignum carry = calloc(i+1,sizeof(uint32_t)); //Allocate enough chunks
+    if(!carry || !realCarry){
+        free(carry);
+        free(realCarry);
+        perror("\nCalloc error during mod");
+        exit(1);
+    }
+    do{//Repeat until no more modding is required, 1 iteration on 0xfffff will require another mod
+        uint32_t doubleCarry = 0;
         int bitDepth = bitMod%32; //How far to go into the first chunk
-        carry = calloc(i+1,sizeof(uint32_t)); //Allocate enough chunks
-        if(!carry){
-            perror("\nCalloc error during mod");
-            exit(1);
-        }
+        
         for(int j=0;j<=i;j++){ //Go through all the chunks that are too big
             if(j==i){
                 carry[j] = (a[j] >> bitDepth) + doubleCarry;
@@ -321,25 +309,25 @@ bignum bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult, int lenDest){
                 a[j] = 0;
             }
         }
-        int lenRealCarry = (!(bitMod%32))?2:1; //Doesn't work with addition and ternary operator
-        lenRealCarry += i;
-        realCarry = bigNumMultByLittle(carry,i+1,carryMult,lenRealCarry);
+        
+        bigNumMultByLittle(carry,i+1,carryMult,realCarry,lenRealCarry);
 
-        addedCarry = bigNumAdd(realCarry,lenRealCarry,a,lenA,lenA);
-        memcpy(a,addedCarry, lenA * sizeof(uint32_t));
+        bigNumAdd(realCarry,lenRealCarry,a,lenA,a,lenA);
 
         if(a[i] < (1<<bitDepth) && (i==0 || a[i-1] == 0)) break;
-        free(carry);free(realCarry);free(addedCarry);
+        
         
     }
     while(true);
-    memcpy(product,&a[lenA-lenDest],lenDest*sizeof(uint32_t));
-    return product;
+
+    free(carry);free(realCarry);
+
+    memcpy(dest,&a[lenA-lenDest],lenDest*sizeof(uint32_t));
 }
 
 
 
-bignum bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,int lenDest){
+void bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,bignum dest,int lenDest){
     if(lenDest<lenA){
         perror("\nStorage destination for multiplication is too small");
         exit(1);
@@ -348,14 +336,12 @@ bignum bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,int lenDest){
     if(!product){
         allocError();
     }
-    uint32_t thisChunk = 0;
     uint32_t carry = 0;
-    int pI;
-    for(int i=lenA-1;i>-1;i--){ //TODO - doesn't take into account lenDest and so overflows on any possible overflow
-        pI = lenDest - (lenA-i);
+    for(int i=lenA-1;i>-1;i--){ 
+        int pI = lenDest - (lenA-i);
         uint64_t result = (uint64_t)a[i]*littleNum + carry;
-        thisChunk = result & 0xffffffff;
-        carry = result >> 32;  
+        uint32_t thisChunk = result & 0xffffffff;
+        uint32_t carry = result >> 32;  
         product[pI] = thisChunk;
         if(i==0 && carry){
             if(lenDest>lenA){
@@ -373,14 +359,14 @@ bignum bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,int lenDest){
     
 }
 
-bignum bigNumBitModMultByLittle(bignum a,int lenA, uint32_t littleNum,int lenDest,int bitMod, int carryMult){
-    bignum multResult = bigNumMultByLittle(a,lenA,littleNum,lenDest*2);
-    bignum modResult = bigNumBitMod(multResult,lenDest*2,bitMod,carryMult,lenDest);
+void bigNumBitModMultByLittle(bignum a,int lenA, uint32_t littleNum,bignum dest,int lenDest,int bitMod, int carryMult){
+    bignum multResult = (bignum) calloc(lenDest+1,sizeof(uint32_t));
+    bigNumMultByLittle(a,lenA,littleNum,multResult,lenDest+1);
+    bigNumBitMod(multResult,lenDest+1,bitMod,carryMult,dest,lenDest);
     free(multResult);
-    return modResult;
 }
 
-bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest){
+void bigNumSub(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
     long long temp;
     int carry=0;
     if(bigNumCmp(a,lenA,b,lenB)==LESS_THAN){
@@ -391,17 +377,12 @@ bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest){
         perror("\nlenDest must be greater than or equal to lenA for subtraction");
         exit(1);
     }
-    bignum result = calloc(lenDest,sizeof(uint32_t));
-    if(!result){
-        allocError();
-    }
     int iA;
     int iB;
     for(int i= lenDest-1;i>-1;i--){
         iA = lenA - (lenDest-i);
-        iB = lenB - (lenDest-i);
-        uint32_t op1;
-        uint32_t op2;
+        iB = lenB - (lenDest-i); 
+        uint32_t op1,op2;
         if(iA<0) op1 = 0;
         else op1 = a[iA];
         if(iB<0) op2 = 0;
@@ -411,30 +392,17 @@ bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest){
         if(carry){
             temp &= 0xffffffff;
             if(i==0){
-                free(result);
                 perror("\nFirst argument must be larger than second for subtraction");
                 exit(1);
             }
         }    
-        result[i] = temp;
+        dest[i] = temp;
     }
-    return result;
 }
 
-void bigNumSubRe(bignum a,int lenA,bignum b,int lenB){ //stores it in a
-    bignum result = bigNumSub(a,lenA,b,lenB,lenA);
-    memcpy(a,result,lenA*sizeof(uint32_t));
-    free(result);
-}
-
-
-bignum bigNumSubLittle(bignum a,int lenA, uint32_t b,int lenDest){
+void bigNumSubLittle(bignum a,int lenA, uint32_t b,bignum dest,int lenDest){
     long long temp;
     int carry=0;
-    bignum result = calloc(lenDest,sizeof(uint32_t));
-    if(!result){
-        allocError();
-    }
     int iA;
     for(int i= lenDest-1;i>-1;i--){
         iA = lenA - (lenDest-i);
@@ -445,32 +413,20 @@ bignum bigNumSubLittle(bignum a,int lenA, uint32_t b,int lenDest){
         if(carry){
             temp &= 0xffffffff;
             if(i==0){
-                free(result);
                 perror("\nFirst argument must be smaller than second for subtraction");
                 exit(1);
             }
         }    
-        result[i] = temp;
+        dest[i] = temp;
     }
-    return result;
 }
 
-bignum bigNumModSub(bignum a,int lenA, bignum b,int lenB,int lenDest,bignum p,int lenP){
-    //Answer is guaranteed in range (2^bitmod-carryMult,-(2^bitmod-carryMult))
-    //As the inputs have already been modded
-    // -25 mod 256 = 231 = 256 -25
-    //
+void bigNumModSub(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest,bignum p,int lenP){
     long long temp=0,carry=0;
-    bignum result = calloc(lenDest,sizeof(uint32_t));
-    if(!result){
-        allocError();
-    }
-    int iA;
-    int iB;
+    int iA,iB;
     for(int i= lenDest-1;i>-1;i--){
         iA = lenA - (lenDest-i);
-        iB = lenB - (lenDest-i);
-        
+        iB = lenB - (lenDest-i);        
         uint32_t op1;
         uint32_t op2;
         if(iA<0) op1 = 0;
@@ -484,8 +440,7 @@ bignum bigNumModSub(bignum a,int lenA, bignum b,int lenB,int lenDest,bignum p,in
         if(carry){
             int iP = lenP - (lenDest-i);
             if(iP<0){
-                free(result);free(a);free(b);
-                perror("Error? - bigNumModSub");
+                perror("\nError? - bigNumModSub");
                 exit(1);
             }
             if(i==0){
@@ -496,7 +451,7 @@ bignum bigNumModSub(bignum a,int lenA, bignum b,int lenB,int lenDest,bignum p,in
                         bit = (temp >> (31-(j & 31))) & 1;
                     }
                     else{
-                        bit = (result[j >> 5] >> (31-(j & 31))) & 1;
+                        bit = (dest[j >> 5] >> (31-(j & 31))) & 1;
                     }
                     j--;
                     
@@ -507,7 +462,7 @@ bignum bigNumModSub(bignum a,int lenA, bignum b,int lenB,int lenDest,bignum p,in
                         notted = ~(chunk << (31-(j & 31)));
                     }
                     else{
-                        chunk = (result[j >> 5] >> (31-(j & 31)));
+                        chunk = (dest[j >> 5] >> (31-(j & 31)));
                         notted = ~(chunk << (31-(j & 31)));
                         notted -= ((1ul<<(31-(j & 31)))-1); //Remove the following bits which have been turned to 1s
                         // 0110110111
@@ -515,127 +470,97 @@ bignum bigNumModSub(bignum a,int lenA, bignum b,int lenB,int lenDest,bignum p,in
                         // 1001001111
                         // 1001000000
                     }
-                    
+        
                     if(j%32 != 31){
-                        result[j >> 5] = notted + (result[j>>5]&((uint32_t)(1ul<<(31-(j & 31)))-1));
+                        dest[j >> 5] = notted + (dest[j>>5]&((uint32_t)(1ul<<(31-(j & 31)))-1));
                         j-= (j&31)+1;
                     }
                     else{
-                        result[j >> 5] = notted; 
+                        dest[j >> 5] = notted; 
                         j-= 32;
                     }
-                    
                 }
-                bignum modded = bigNumSub(p,lenP,result,lenDest,lenDest); //Will be positive
-                memcpy(result,modded,lenDest*sizeof(uint32_t));
-                free(modded);
-
+                bigNumSub(p,lenP,dest,lenDest,dest,lenDest); //Will be positive
             }
-            else{
+            else{ //If i!=0
                 temp -= (long long) carry << 32; //Make it positive
-                result[i] = temp;
+                dest[i] = temp;
             }
         }
-        else{
-            result[i] = temp;
+        else{ //No carry
+            dest[i] = temp;
         }
-        
-        
     }
-    return result;
 }
 
-bignum bigNumBitModInv(bignum a, int lenA,bignum p, int lenP, int lenDest,int bitMod,int carryMult){
+void bigNumBitModInv(bignum a,int lenA,bignum p,int lenP,bignum dest,int lenDest,int bitMod,int carryMult){
     //inv a = a^p-2
     //Constant time as p-2 is constant (for any given curve)
-
-    //Not tested but follows the paper exactly
+    if(lenDest!=lenA){
+        perror("\nbigNumBitModInv: lenA == lenDest failed");
+        exit(1);
+    }
     int i = 1,bit;
     bool started = false;
     bignum pCpy = calloc(lenP,sizeof(uint32_t));
-    bignum r = calloc(lenA,sizeof(uint32_t));
     
     bignum temp1,temp2;
     bignum modTemp1,modTemp2;
 
-    if(!r || !pCpy){
+    if(!dest || !pCpy){
         allocError();
     }
-    r[lenA-1] = 1;
+    dest[lenA-1] = 1;
     memcpy(pCpy,p,lenP*sizeof(uint32_t));
     while(i<256){  //MSB to LSB
-        temp1 = bigNumMult(r,lenA,r,lenA,lenA*2);
-        modTemp1 = bigNumBitMod(temp1,lenA*2,bitMod,carryMult,lenA);
-        memcpy(r,modTemp1,lenA * sizeof(uint32_t));
-        free(temp1); free(modTemp1);
-
+        bigNumBitModMult(dest,lenA,dest,lenA,dest,lenA,bitMod,carryMult);
         bit = (pCpy[i >> 5] >> (31-(i & 31))) & 1;
         if(bit){
-            temp2 = bigNumMult(r,lenA,a,lenA,lenA*2);
-            modTemp2 = bigNumBitMod(temp2,lenA*2,bitMod,carryMult,lenA);
-            memcpy(r,modTemp2,lenA * sizeof(uint32_t));
-            free(temp2); free(modTemp2);
+            bigNumBitModMult(dest,lenA,a,lenA,dest,lenDest,bitMod,carryMult);
         }
         i++;
         
     }
-    return r;
 }
 
-bignum bigNumRShift(bignum a,int lenA,int shift){ 
+void bigNumRShift(bignum a,int lenA,int shift,bignum dest,int lenDest){ 
     if(shift>=32){
         perror("\nShift must be less than 32");
         exit(1);
     }
-    bignum result = calloc(lenA,sizeof(uint32_t));
-    if(!result){
-        allocError();
-    }
-    uint32_t carry = 0,temp;
-    uint32_t carryBitMask = ((1<<(shift))-1);
-    for(int i=0;i<lenA;i++){
-        temp = a[i] & carryBitMask; //Save the LSBs
-        result[i] = a[i] >> shift; 
-        if(carry) result[i] |= carry << (32-shift); //add in the previous LSBs
-        carry = temp;
-    }
-    return result;
-}
-
-void bigNumRShiftRe(bignum a,int lenA,int shift){  
-    bignum result = bigNumRShift(a,lenA,shift);
-    memcpy(a,result,lenA*sizeof(uint32_t));
-    free(result);
-}
-
-bignum bigNumLShift(bignum a,int lenA,int shift){
-    if(shift>=32){
-        perror("\nShift must be less than 32");
+    if(lenDest!=lenA){
+        perror("\nbigNumRShift: lenA == lenDest failed");
         exit(1);
-    }
-    bignum result = calloc(lenA,sizeof(uint32_t));
-    if(!result){
-        allocError();
     }
     uint32_t carry = 0;
-    uint64_t temp;
+    uint32_t carryBitMask = ((1<<(shift))-1);
+    for(int i=0;i<lenA;i++){
+        uint32_t temp = a[i] & carryBitMask; //Save the LSBs
+        dest[i] = a[i] >> shift; 
+        if(carry) dest[i] |= carry << (32-shift); //add in the previous LSBs
+        carry = temp;
+    }
+}
+
+void bigNumLShift(bignum a,int lenA,int shift,bignum dest,int lenDest){
+    if(shift>=32){
+        perror("\nShift must be less than 32");
+        exit(1);
+    }
+    if(lenDest!=lenA){
+        perror("\nbigNumLShift: lenA == lenDest failed");
+        exit(1);
+    }
+    uint32_t carry = 0;
     for(int i=lenA-1;i>=0;i--){
-        temp = ((uint64_t) a[i]) << shift; 
-        result[i] = ((uint32_t) (temp & ULONG_MAX)) + carry;
+        uint64_t temp = ((uint64_t) a[i]) << shift; 
+        dest[i] = ((uint32_t) (temp & ULONG_MAX)) + carry;
         carry = (uint32_t) ((temp+(uint64_t)carry) >> 32);
     }
     if(carry){
         perror("\nOverflow error on bigNumLShift");
         exit(1);
     }
-    return result;
-}
-
-
-void bigNumLShiftRe(bignum a,int lenA,int shift){
-    bignum result = bigNumLShift(a,lenA,shift);
-    memcpy(a,result,lenA*sizeof(uint32_t));
-    free(result);
 }
 
 uint8 bigNumCmp(bignum a,int lenA,bignum b,int lenB){
@@ -663,7 +588,11 @@ uint8 bigNumCmpLittle(bignum a,int lenA,uint32_t b){
 }
 
 //Returns size lenN
-bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
+void bigNumMod(bignum a,int lenA,bignum n,int lenN,bignum dest,int lenDest){ //a % n
+    if(lenN != lenDest){
+        perror("\nbigNumMod: lenN == lenDest check failed");
+        exit(1);
+    }
     //Long division
     //remainder must be of size lenN+1 so that it can handle an extra shift before being subtracted
     bignum remainder = (bignum) calloc(lenN+1,sizeof(uint32_t));
@@ -678,7 +607,7 @@ bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
     QueryPerformanceCounter(&start);
     
     for(int i=0;i<bits;i++){
-        bigNumLShiftRe(remainder,lenN+1,1);
+        bigNumLShift(remainder,lenN+1,1,remainder,lenN+1);
         int bit = ((a[i>>5] >> (31 - (i&31))) & 1);
         remainder[lenN] |= bit; //set LSB of curr to be the current bit in a
         uint8 cmpRes = bigNumCmp(remainder,lenN+1,n,lenN);
@@ -687,68 +616,55 @@ bignum bigNumMod(bignum a,int lenA,bignum n,int lenN){ //a % n
             //Don't need to actually work out the quotient
         }
     }
-    for(int i=1;i<=lenN;i++){ //move to the left 1 space as we are <lenN
-        remainder[i-1] = remainder[i];
-    }
-
     QueryPerformanceCounter(&end);
     double modBodyElapsedUs = (double)(end.QuadPart - start.QuadPart) * 1e6 / (double)freq.QuadPart;
     printf("\nMod body us: %.3f",modBodyElapsedUs);
-    remainder = realloc(remainder,lenN*sizeof(uint32_t));
-    return remainder; //Return the left over carry which will be the remainder
-}
-
-
-void bigNumModRe(bignum a,int lenA,bignum n,int lenN){ //a % n
-    if(lenA<lenN){
-        perror("\nInsufficient space for bigNumMod");
-        exit(1);
-    }
-    bignum result = bigNumMod(a,lenA,n,lenN);
-    memset(a,0,lenA*sizeof(uint32_t));
-    memcpy(&a[lenA-lenN],result,lenN*sizeof(uint32_t));
-    free(result);
+    //Return the left over carry which will be the remainder
+    memcpy(dest,&remainder[1],lenN*sizeof(uint32_t));
+    free(remainder);
 }
 
 //Returns size lenA
-bignum bigNumDiv(bignum a,int lenA,bignum b,int lenB){ //returns the quotient
+void bigNumDiv(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest){ //returns the quotient
     //Long division
+    if(lenA != lenDest){
+        perror("\nbigNumDiv: lenA == lenDest check failed");
+        exit(1);
+    }
+    //Set dest to 0
+    for(int i=0;i<lenDest;i++){
+        dest[i] = 0;
+    }
     bignum remainder = (bignum) calloc(lenB+1,sizeof(uint32_t));
     if(!remainder){
         allocError();
     }
-    bignum quotient = (bignum) calloc(lenA,sizeof(uint32_t));
-    if(!quotient){
-        free(remainder);
-        allocError();
-    }
     int bits = lenA*32;
     for(int i=0;i<bits;i++){
-        bigNumLShiftRe(remainder,lenB+1,1);
+        bigNumLShift(remainder,lenB+1,1,remainder,lenB+1);
         int bit = ((a[i>>5] >> (31 - (i&31))) & 1);
         remainder[lenB] |= bit; //set LSB of curr to be the current bit in a
         uint8 cmpRes = bigNumCmp(remainder,lenB+1,b,lenB);
         if(cmpRes != LESS_THAN){ //Equal or greater than
             bigNumSubRe(remainder,lenB+1,b,lenB);
-            quotient[i>>5] |= (1 << (31 - (i&31)));
+            dest[i>>5] |= (1 << (31 - (i&31)));
             //Don't need to actually work out the quotient
         }
     }
-    //Don't need to mess around with remainder
-    return quotient; 
+    //Don't need to mess around with remainder 
 } 
 
-void bigNumDivRe(bignum a,int lenA,bignum b,int lenB){
-    bignum result = bigNumDiv(a,lenA,b,lenB);
-    memcpy(a,result,lenA*sizeof(uint32_t));
-    free(result);
-}
-
-
-bignum bigNumModAdd(bignum a,int lenA, bignum b, int lenB,bignum n,int lenN){
+void bigNumModAdd(bignum a,int lenA, bignum b, int lenB,bignum n,int lenN,bignum dest,int lenDest){
+    if(lenDest != lenN){
+        perror("\nbigNumModAdd: lenDest == lenN check failed");
+        exit(1);
+    }
     int lenUnmodded = max(lenA,lenB)+1;
-    bignum unmodded = bigNumAdd(a,lenA,b,lenB,lenUnmodded);
-    bignum result = bigNumMod(unmodded,lenUnmodded,n,lenN);
+    bignum unmodded = calloc(lenUnmodded,sizeof(uint32_t));
+    if(!unmodded){
+        allocError();
+    }
+    bigNumAdd(a,lenA,b,lenB,unmodded,lenUnmodded);
+    bigNumMod(unmodded,lenUnmodded,n,lenN,dest,lenDest);
     free(unmodded);
-    return result;
 }

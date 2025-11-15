@@ -20,32 +20,25 @@ void printBigNum(char *text, bignum n, int lenN);
 bignum createBigNum(bignum a, int len);
 void bigNumAdd(bignum a,int lenA,bignum b, int lenB,bignum dest,int lenDest);
 void bigNumAddLittle(bignum a,int lenA, uint32_t b,bignum dest,int lenDest);
-void multiAdd(bignum a,int lenA,bignum b,int lenB,bignum c,int lenC,bignum dest,int lenDest);
+void bigNumMultiAdd(bignum a,int lenA,bignum b,int lenB,bignum c,int lenC,bignum dest,int lenDest);
 void bigNumBitModAdd(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest,int bitMod, int carryMult);
 void bigNumMult(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest);
-//TODO - convert to taking in result as argument
-bignum bigNumSubLittle(bignum a,int lenA, uint32_t b,int lenDest);
-bignum bigNumBitModMult(bignum a,int lenA, bignum b,int lenB,int lenDest,int bitMod, int carryMult);
-bignum bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN);
-bignum bigNumModMultRe(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN);
-bignum bigNumSub(bignum a,int lenA, bignum b,int lenB,int lenDest);
-void bigNumSubRe(bignum a,int lenA,bignum b,int lenB);
-bignum bigNumSubLittle(bignum a,int lenA, uint32_t b,int lenDest);
-bignum bigNumModSub(bignum a,int lenA, bignum b,int lenB,int lenDest,bignum p,int lenP);
-bignum bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult, int lenDest);
-bignum bigNumBitModInv(bignum a, int lenA,bignum p, int lenP, int lenDest,int bitMod,int carryMult);
-bignum bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,int lenDest);
-bignum bigNumBitModMultByLittle(bignum a,int lenA,uint32_t littleNum,int lenDest,int bitMod, int carryMult);
-bignum bigNumRShift(bignum a,int lenA,int shift);
-void bigNumRShiftRe(bignum a,int lenA,int shift); 
-bignum bigNumLShift(bignum a,int lenA,int shift);
-void bigNumLShiftRe(bignum a,int lenA,int shift); 
+void bigNumBitModMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest,int bitMod, int carryMult);
+void bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN,bignum dest,int lenDest);
+void bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult,bignum dest,int lenDest);
+void bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,bignum dest,int lenDest);
+void bigNumSub(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest);
+void bigNumBitModMultByLittle(bignum a,int lenA, uint32_t littleNum,bignum dest,int lenDest,int bitMod, int carryMult);
+void bigNumSubLittle(bignum a,int lenA, uint32_t b,bignum dest,int lenDest);
+void bigNumModSub(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest,bignum p,int lenP);
+void bigNumBitModInv(bignum a,int lenA,bignum p,int lenP,bignum dest,int lenDest,int bitMod,int carryMult);
+void bigNumRShift(bignum a,int lenA,int shift,bignum dest,int lenDest);
+void bigNumLShift(bignum a,int lenA,int shift,bignum dest,int lenDest);
+void bigNumMod(bignum a,int lenA,bignum n,int lenN,bignum dest,int lenDest);
+void bigNumDiv(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest);
+void bigNumModAdd(bignum a,int lenA, bignum b, int lenB,bignum n,int lenN,bignum dest,int lenDest);
+
 uint8 bigNumCmp(bignum a,int lenA,bignum b,int lenB);
 uint8 bigNumCmpLittle(bignum a,int lenA,uint32_t b);
-bignum bigNumMod(bignum a,int lenA,bignum n,int lenN);
-void bigNumModRe(bignum a,int lenA,bignum n,int lenN);
-bignum bigNumDiv(bignum a,int lenA,bignum b,int lenB);
-void bigNumDivRe(bignum a,int lenA,bignum b,int lenB);
-bignum bigNumModAdd(bignum a,int lenA, bignum b, int lenB,bignum n,int lenN);
 
 #endif
