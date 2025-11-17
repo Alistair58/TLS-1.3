@@ -192,8 +192,8 @@ void bigNumMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
         //We don't use aPad or bPad again and hence can use them as buffers (and their length is >=longestDiv2+1)
         bignum pos1Temp = aPad;
         bignum pos2Temp = bPad;
-        multiAdd(&wy[longestDiv2],longestDiv2,xy,longestDiv2,wz,longestDiv2,pos1Temp,(longestDiv2)+1); //Accounts for overflow
-        multiAdd(&xy[longestDiv2],longestDiv2,&wz[longestDiv2],longestDiv2,xz,longestDiv2,pos2Temp,(longestDiv2)+1);
+        bigNumMultiAdd(&wy[longestDiv2],longestDiv2,xy,longestDiv2,wz,longestDiv2,pos1Temp,(longestDiv2)+1); //Accounts for overflow
+        bigNumMultiAdd(&xy[longestDiv2],longestDiv2,&wz[longestDiv2],longestDiv2,xz,longestDiv2,pos2Temp,(longestDiv2)+1);
 
         bignum pos0 = wz; //reuse the allocated buffers
         bignum pos1 = &wz[longestDiv2];
@@ -332,30 +332,24 @@ void bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,bignum dest,int le
         perror("\nStorage destination for multiplication is too small");
         exit(1);
     }
-    bignum product = calloc(lenDest,sizeof(uint32_t));
-    if(!product){
-        allocError();
-    }
     uint32_t carry = 0;
     for(int i=lenA-1;i>-1;i--){ 
         int pI = lenDest - (lenA-i);
         uint64_t result = (uint64_t)a[i]*littleNum + carry;
         uint32_t thisChunk = result & 0xffffffff;
         uint32_t carry = result >> 32;  
-        product[pI] = thisChunk;
+        dest[pI] = thisChunk;
         if(i==0 && carry){
             if(lenDest>lenA){
-                product[pI-1] = carry;
+                dest[pI-1] = carry;
             }
             else{
-                free(product);
                 perror("\nMultiplication overflow");
                 exit(1);
             }
             
         }
     }
-    return product;
     
 }
 
@@ -612,7 +606,7 @@ void bigNumMod(bignum a,int lenA,bignum n,int lenN,bignum dest,int lenDest){ //a
         remainder[lenN] |= bit; //set LSB of curr to be the current bit in a
         uint8 cmpRes = bigNumCmp(remainder,lenN+1,n,lenN);
         if(cmpRes != LESS_THAN){ //If equal or greater
-            bigNumSubRe(remainder,lenN+1,n,lenN);
+            bigNumSub(remainder,lenN+1,n,lenN,remainder,lenN+1);
             //Don't need to actually work out the quotient
         }
     }
@@ -646,7 +640,7 @@ void bigNumDiv(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest){ //r
         remainder[lenB] |= bit; //set LSB of curr to be the current bit in a
         uint8 cmpRes = bigNumCmp(remainder,lenB+1,b,lenB);
         if(cmpRes != LESS_THAN){ //Equal or greater than
-            bigNumSubRe(remainder,lenB+1,b,lenB);
+            bigNumSub(remainder,lenB+1,b,lenB,remainder,lenB+1);
             dest[i>>5] |= (1 << (31 - (i&31)));
             //Don't need to actually work out the quotient
         }

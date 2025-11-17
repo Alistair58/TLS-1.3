@@ -228,7 +228,7 @@ void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,in
         memcpy(r2,&bigTemp[lenTotient],lenTotient*sizeof(uint32_t));
         memcpy(temp,r2,lenTotient*sizeof(uint32_t));
 
-        bigNumSubRe(r1,lenTotient,temp,lenTotient);
+        bigNumSub(r1,lenTotient,temp,lenTotient,r1,lenTotient);
         memcpy(r2,r1,lenTotient*sizeof(uint32_t));
         memcpy(r1,temp,lenTotient*sizeof(uint32_t));
         
