@@ -16,7 +16,7 @@ bool isPrime(bignum n,int lenN){
         exit(1);
     }
     //Check evens first
-    if(n[lenN-1]&1==0) return false;
+    if((n[lenN-1]&1)==0) return false;
     bignum nSub1 = (bignum) calloc(lenN,sizeof(uint32_t));
     bigNumSubLittle(n,lenN,1,nSub1,lenN);
     bignum a = calloc(lenN,sizeof(uint32_t));
@@ -24,11 +24,12 @@ bool isPrime(bignum n,int lenN){
         allocError();
     }
     for(int i=0;i<30;i++){ //as MR is incorrect 1/4 of time, it is now incorrect 1 in 4^30 times (once every 36558901 years if it runs every ms)
-        printf("\ni: %d",i);
+        printf("i: %d\n",i);
         do{
             randomNumber(a,lenN,nSub1,0); //Fermats little theorem only works for 1<a<n-1
         }
         while(bigNumCmpLittle(a,lenN,0)==EQUAL);
+        printBigNum("a: ",a,lenN);
         if(!millerRabin(n,lenN,a,lenN)){
             free(a);
             free(nSub1);
@@ -66,6 +67,7 @@ void montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen
         allocError();
     }
     memcpy(&x1[lenLongest-lenA],a,lenA*sizeof(uint32_t));
+    
     bigNumModMult(a,lenA,a,lenA,mod,modLen,x2,modLen);
     bool started = false; //start when we reach the first 1 bit (as we have pre-set the first multiplication)
     for(int i=0;i<lenExp;i++){ //MSB to LSB chunks
@@ -107,13 +109,14 @@ void montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen
 
 //Single test case
 bool millerRabin(bignum n,int lenN,bignum a,int lenA){
+    //n is odd and so n-1 can be written as (2^s)*d where d is a positive integer 
     bignum nSub1 = (bignum) calloc(lenN,sizeof(uint32_t));
     bignum exp = (bignum) calloc(lenN,sizeof(uint32_t));
-    bignum factor = calloc(lenN,sizeof(uint32_t));
-    if(!nSub1 || !exp || !factor){
+    bignum expRes = calloc(lenN,sizeof(uint32_t));
+    if(!nSub1 || !exp || !expRes){
         free(nSub1);
         free(exp);
-        free(factor);
+        free(expRes);
         allocError();
     }
     bigNumSubLittle(n,lenN,1,nSub1,lenN);
@@ -123,40 +126,47 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
         perror("millerRabin: nSub1 cannot be 0");
         exit(1);
     }
+    //Turn n-1 into d by shifting right s times
     while(!(exp[lenN-1] & 1)){
         bigNumRShift(exp,lenN,1,exp,lenN); //Keep shifting until it's odd
         numShifts++;
     }
-    
-    //Base case check as last factor is (x-1) whereas all other factors are (x+1)
-    
-    montLadExp(a,lenA,exp,lenN,n,lenN,factor,lenN);
+    printBigNum("nSub1: ",nSub1,lenN);
+    printf("Num shifts: %d\n",numShifts);
+    montLadExp(a,lenA,exp,lenN,n,lenN,expRes,lenN);
     //check if x = 1 mod n
-    for(int i=0;i<lenN;i++){
-        //if a^(n-1/2^k) == 1 mod n  -> if a^(n-1/2^k) -1 is a multiple of n, then n is likely prime 
-        if(i==lenN-1 && factor[i]==1){
-            free(nSub1);
-            free(exp);
-            free(factor);
-            return true;
-        }
-        if(factor[i]==0) continue;
-        else break;
+    if(
+        bigNumCmpLittle(expRes,lenN,1) == EQUAL ||
+        bigNumCmp(expRes,lenN,nSub1,lenN) == EQUAL 
+    ){
+        printf("Passed on the primality check with no squares\n");
+        free(nSub1);
+        free(exp);
+        free(expRes);
+        return true;
     }
     for(int i=1;i<numShifts;i++){
-        bigNumModMult(factor,lenN,factor,lenN,n,lenN,factor,lenN);
+        bigNumModMult(expRes,lenN,expRes,lenN,n,lenN,expRes,lenN);
          // a^(n-1/2^k) + 1 is a multiple of n -> satisfying Fermat's Little Theorem -> likely prime
-        if(bigNumCmp(factor,lenN,nSub1,lenN)==EQUAL){
+        if(bigNumCmp(expRes,lenN,nSub1,lenN)==EQUAL){
+            printf("Passed the primality check on iteration: %d\n",i);
             free(nSub1);
             free(exp);
-            free(factor);
+            free(expRes);
             return true;
+        }
+        if(bigNumCmpLittle(expRes,lenN,1)==EQUAL){
+            printf("Failed the primality check on iteration: %d\n",i);
+            free(nSub1);
+            free(exp);
+            free(expRes);
+            return false;
         }
     }
     free(nSub1);
     free(exp);
-    free(factor);
-    return false; //If no factors are a multiple of n
+    free(expRes);
+    return false; 
 }
 
 
@@ -178,9 +188,10 @@ bignum encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp){
     }
     //RSA maths requirement
     if(bigNumCmp(msgNum,lenMsgNum,kp.publicKey.n,kp.publicKey.lenN) == GREATER_THAN){
+        printf("Len msg num: %d\n",lenMsgNum);
         free(msgNum);
         free(result);
-        perror("\nmsg is too long for RSA encryption with this N");
+        perror("msg is too long for RSA encryption with this N\n");
         exit(1);
     }
     uint32_t eBigNum[1] = {kp.publicKey.e};
@@ -303,6 +314,9 @@ RSAKeyPair generateKeys(int numBits){
     kp.privateKey.p = calloc(privateKeyLen,sizeof(uint32_t));
     kp.privateKey.q = (bignum) calloc(privateKeyLen,sizeof(uint32_t));
     kp.publicKey.n = (bignum) calloc(publicKeyLen,sizeof(uint32_t));
+    kp.publicKey.lenN = publicKeyLen;
+    kp.privateKey.lenP = privateKeyLen;
+    kp.privateKey.lenQ = privateKeyLen;
     if(!kp.privateKey.p || !kp.privateKey.q || !kp.publicKey.n){
         free(kp.privateKey.p);
         free(kp.privateKey.q);
@@ -311,7 +325,7 @@ RSAKeyPair generateKeys(int numBits){
     }
     int count = 0;
     do{
-        printf("\np: %d",count++);
+        printf("p: %d\n",count++);
         randomNumber(kp.privateKey.p,privateKeyLen,NULL,0);
     }
     while(!isPrime(kp.privateKey.p,privateKeyLen));
@@ -326,6 +340,10 @@ RSAKeyPair generateKeys(int numBits){
         kp.privateKey.q,privateKeyLen,
         kp.publicKey.n,publicKeyLen
     );
+    printBigNum("p: ",kp.privateKey.p,privateKeyLen);
+    printBigNum("q: ",kp.privateKey.q,privateKeyLen);
+    printBigNum("n: ",kp.publicKey.n,publicKeyLen);
     kp.publicKey.e = 65537; //Good number for RSA; 65537 == 2**16+1
+    return kp;
 }
 

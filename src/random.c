@@ -49,23 +49,20 @@ int randomNumber(bignum bigIntArr, int chunks,bignum n,int generationMs){  //A c
 
     int chunkWriteCount = 1;
     uint32_t mod;
-    if(n==NULL) mod = pow(256,sizeof(uint32_t))-1; //Can only get up to 256^uint32_t -2
-    else mod = n[0];
-    if(mod==0){
-        perror("randomNumber: Modulus must be greater than 0");
-        exit(1);
-    }
+   
     while(chunkWriteCount<=chunks){
-        GetCursorPos(&point);
-        x = point.x;
-        y = point.y;
-        product = (product ^ x ^ y)%mod;
+        if(generationMs>=1000){
+            GetCursorPos(&point);
+            x = point.x;
+            y = point.y;
+            product = product ^ x ^ y;
+        }
         if(((LONGLONG) targetTime - (LONGLONG) tickCount) <= generationMs*((float)(chunks-chunkWriteCount)/(chunks+1))){ //+1 means chunks aren't written at start or end
             QueryPerformanceCounter(&perfCount); 
             product ^= perfCount.QuadPart;
             bigIntArr[chunkWriteCount-1] = (uint32_t) product;
             chunkWriteCount ++;
-            mod = pow(256,sizeof(uint32_t))-1;
+
             if(chunkWriteCount > chunks) break;
         }
         tickCount = GetTickCount64();
@@ -76,10 +73,7 @@ int randomNumber(bignum bigIntArr, int chunks,bignum n,int generationMs){  //A c
     int nonHashedBytes = chunks*sizeof(uint32_t);
     int shaBytes = 256/8;
     int count = 0;
-    printf("\nRandom number: ");
-    for(int i=0;i<chunks;i++){
-        printf("%x ",bigIntArr[i]);
-    }
+
     while(nonHashedBytes>0){
         bignum hashed = sha256((uchar*)bigIntArr,chunks*sizeof(uint32_t)); 
         int copyLength = nonHashedBytes<shaBytes ? nonHashedBytes : shaBytes;
@@ -88,6 +82,17 @@ int randomNumber(bignum bigIntArr, int chunks,bignum n,int generationMs){  //A c
         nonHashedBytes -= shaBytes;
         count++;
     }   
+
+
+    if(n!=NULL){
+        if(bigNumCmpLittle(n,chunks,0) == EQUAL){
+            perror("randomNumber: Modulus must be greater than 0");
+            exit(1);
+        }
+        
+        //Make sure we are < n
+        bigNumMod(bigIntArr,chunks,n,chunks,bigIntArr,chunks);
+    }
     
    
     return 0;

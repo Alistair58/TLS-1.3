@@ -15,59 +15,12 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
 int main(int argc, char** argv) {
-
-    //Takes 300ms to do a montLadExp
-    //This is by far the bottleneck (60us for a random number)
-    //It does 1024 mod and mults
-    //Mod us: 368.900
-    //Mult us: 99.400
-    //Mod us: 300.400
-    //Mult us: 124.000
-    //Mod us: 336.100
-    //Mult us: 151.600
-    //Mod us: 341.900
-    //Which are both quite slow
-    //But Python can do it very quickly
-    //-O3:
-    //Mod us: 147.800
-    //Mult us: 97.600
-    //Mod us: 153.500
-    //Mult us: 97.900
-    //Mod us: 200.900
-    //Mult us: 94.400
-    //I might have to do something about that
-    //Possibly might be the heap allocations
-
-    // Mult us: 7.600
-    // Mod body us: 115.500
-    // Mod us: 213.900
-    // Mult us: 9.600
-    // Mod body us: 90.500
-    // Mod us: 177.800
-    // Mult us: 8.700
-    // Mod body us: 120.300
-    // Mod us: 264.000
-    // Mult us: 13.200
-    // Mod body us: 134.800
-    // Mod us: 221.800
-    //Removing the sub:
-    // Mod body us: 80.600
-    // Mod us: 160.700
-    // Mult us: 9.000
-    // Mod body us: 81.000
-    // Mod us: 162.200
-    // Mult us: 8.100
-    // Mod body us: 80.000
-    // Mod us: 160.600
-    // Mult us: 8.800
-    // Mod body us: 81.000
-    // Mod us: 160.300
-    // Mult us: 8.200
-    // Mod body us: 80.100
-    // Mod us: 159.300
-    // Mult us: 8.900
-
-    RSAKeyPair kp = generateKeys(128);
+    RSAKeyPair kp = generateKeys(64);
+    uchar msg[] = "Msg";
+    bignum encrypted = encryptRSA(msg,sizeof(msg),kp);
+    printBigNum("Encrypted: ",encrypted,sizeof(msg)/sizeof(uint32_t));
+    uchar *decrypted = decryptRSA(encrypted,sizeof(msg)/sizeof(uint32_t),kp);
+    printf("Decrypted: %s",decrypted);
     generateX509(kp);
     free(kp.privateKey.p);
     free(kp.privateKey.q);

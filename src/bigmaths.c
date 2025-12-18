@@ -7,15 +7,14 @@
 #include <stdio.h>
 #include "globals.h"
 
-//TODO remove - for profiling
-#include <windows.h>
-//#define max(a,b) (a)>=(b) ? (a) : (b)
+#define max(a,b) (a)>=(b) ? (a) : (b)
 
 void printBigNum(char *text, bignum n, int lenN){
-    printf("\n%s",text);
+    printf("%s",text);
     for(int i=0;i<lenN;i++){
         printf(" %lu",n[i]);
     }
+    printf("\n");
 }
 
 
@@ -113,6 +112,12 @@ void bigNumMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
     b = [y,z]
     a*b = [wy,wz+xy,xz]
     */
+    bignum temp = 0;
+    if(a==b){
+        temp = calloc(lenA,sizeof(uint32_t));
+        memcpy(temp,a,lenA*sizeof(uint32_t));
+        b = temp;
+    }
     int longest = max(lenA,lenB);
     if(lenDest<lenA+lenB){
         perror("\nStorage destination for multiplication is too small");
@@ -175,8 +180,11 @@ void bigNumMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
         bignum wz = calloc(longest,sizeof(uint32_t));
         bignum xy = calloc(longest,sizeof(uint32_t));
         bignum xz = calloc(longest,sizeof(uint32_t));
-        if(!wy || !wz || !xy || !xz){
+        bignum pos1Temp = calloc(longestDiv2+1,sizeof(uint32_t));
+        bignum pos2Temp = calloc(longestDiv2+1,sizeof(uint32_t));
+        if(!wy || !wz || !xy || !xz || !pos1Temp || !pos2Temp){
             free(wy);free(wz);free(xy);free(xz);
+            free(pos1Temp);free(pos2Temp);
             if(aPadAllocated) free(aPad);
             if(bPadAllocated) free(bPad);
             allocError()
@@ -189,9 +197,7 @@ void bigNumMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
         bigNumMult(&aPad[longestDiv2],longestDiv2,bPad,longestDiv2,xy,longest);
         bigNumMult(&aPad[longestDiv2],longestDiv2,&bPad[longestDiv2],longestDiv2,xz,longest); 
         
-        //We don't use aPad or bPad again and hence can use them as buffers (and their length is >=longestDiv2+1)
-        bignum pos1Temp = aPad;
-        bignum pos2Temp = bPad;
+
         bigNumMultiAdd(&wy[longestDiv2],longestDiv2,xy,longestDiv2,wz,longestDiv2,pos1Temp,(longestDiv2)+1); //Accounts for overflow
         bigNumMultiAdd(&xy[longestDiv2],longestDiv2,&wz[longestDiv2],longestDiv2,xz,longestDiv2,pos2Temp,(longestDiv2)+1);
 
@@ -226,6 +232,7 @@ void bigNumMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
         memcpy(&dest[i],&xz[longestDiv2+j],(quartered-j) * sizeof(uint32_t));
 
         free(wy);free(wz);free(xy);free(xz);
+        free(pos1Temp);free(pos2Temp);
         if(aPadAllocated) free(aPad);
         if(bPadAllocated) free(bPad);
     }
@@ -240,6 +247,10 @@ void bigNumMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
         dest[1] = smallResult;
         ////printBigNum("Product: ",product,2);
     }
+    if(temp){
+        free(temp);
+        b = a;
+    }
     
 }
 
@@ -251,24 +262,9 @@ void bigNumBitModMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDe
 }
 void bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN,bignum dest,int lenDest){ 
     //will return a big num of size lenN
-    LARGE_INTEGER freq;
-    QueryPerformanceFrequency(&freq);
-
-    LARGE_INTEGER start, end;
-    QueryPerformanceCounter(&start);
-
     bignum multResult = (bignum) calloc(lenA+lenB,sizeof(uint32_t));
     bigNumMult(a,lenA,b,lenB,multResult,lenA+lenB);
-
-    QueryPerformanceCounter(&end);
-    double multElapsedUs = (double)(end.QuadPart - start.QuadPart) * 1e6 / (double)freq.QuadPart;
-    printf("\nMult us: %.3f",multElapsedUs);
-    QueryPerformanceCounter(&start);
     bigNumMod(multResult,lenA+lenB,n,lenN,dest,lenDest);
-    QueryPerformanceCounter(&end);
-    double modElapsedUs = (double)(end.QuadPart - start.QuadPart) * 1e6 / (double)freq.QuadPart;
-    printf("\nMod us: %.3f",modElapsedUs);
-
     free(multResult);
 }
 
@@ -594,11 +590,6 @@ void bigNumMod(bignum a,int lenA,bignum n,int lenN,bignum dest,int lenDest){ //a
         allocError();
     }
     int bits = lenA*32;
-    LARGE_INTEGER freq;
-    QueryPerformanceFrequency(&freq);
-
-    LARGE_INTEGER start, end;
-    QueryPerformanceCounter(&start);
     
     for(int i=0;i<bits;i++){
         bigNumLShift(remainder,lenN+1,1,remainder,lenN+1);
@@ -610,9 +601,7 @@ void bigNumMod(bignum a,int lenA,bignum n,int lenN,bignum dest,int lenDest){ //a
             //Don't need to actually work out the quotient
         }
     }
-    QueryPerformanceCounter(&end);
-    double modBodyElapsedUs = (double)(end.QuadPart - start.QuadPart) * 1e6 / (double)freq.QuadPart;
-    printf("\nMod body us: %.3f",modBodyElapsedUs);
+       
     //Return the left over carry which will be the remainder
     memcpy(dest,&remainder[1],lenN*sizeof(uint32_t));
     free(remainder);

@@ -18,7 +18,6 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 
 //DONE
 
-
 //TODO High-Level
 //Add signatures
 //Make messages more formal/conform to TLS-1.3
@@ -26,15 +25,12 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Migrate bigmaths to use less allocations - buffers provided by caller
-//Speed up multiplication and modulo operations - modulo first
-//Add some more time-independent randomness to randomNumber - it still doesn't generate particularly random number
-//Write private key stores
+//Make extended Euclidean work
 //Test RSA
-//Test SHA
 //Test certificates
+//Write private key stores
 
-//create PKI
+
 int main(int argc, char** argv) {
     bignum result = sha256("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",56);
     printf("\n%08x%08x%08x%08x%08x%08x%08x%08x",result[0],result[1],result[2],result[3],result[4],result[5],result[6],result[7]);

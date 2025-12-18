@@ -31,7 +31,6 @@ typedef struct RSAPrivateKey{
     int lenQ;
 } RSAPrivateKey;
 
-
 typedef struct RSAKeyPair{
     RSAPrivateKey privateKey;
     RSAPublicKey publicKey;
