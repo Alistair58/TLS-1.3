@@ -6,7 +6,7 @@
 
 #define max(a,b) (a)>=(b) ? (a) : (b)
 
-void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,int lenDest);
+//void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,int lenDest);
 void montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen,bignum dest, int lenDest);
 bool millerRabin(bignum n,int lenN,bignum a,int lenA);
 
@@ -201,6 +201,10 @@ bignum encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp){
 }
 
 void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,int lenDest){
+    if(lenDest!=lenTotient){
+        perror("extendedEuclidean: destination must be same size as the totient");
+        exit(1);
+    }
     bignum r1 = (bignum) calloc(lenTotient,sizeof(uint32_t));
     bignum r2 = (bignum) calloc(lenTotient,sizeof(uint32_t));
     //dest is s1
@@ -217,11 +221,12 @@ void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,in
         free(bigTemp);
         allocError();
     }
-    r1[lenTotient-1] = exp;
-    memcpy(r2,totient,lenTotient*sizeof(uint32_t));
+    memcpy(r1,totient,lenTotient*sizeof(uint32_t));
+    r2[lenTotient-1] = exp;
     memset(dest,0,lenDest*sizeof(uint32_t));
-    dest[lenTotient-1] = 1;
-    //s2 stays at 0
+    //s1 (dest) stays at 0
+    s2[lenTotient-1] = 1;
+    
     while(bigNumCmpLittle(r2,lenTotient,0) != EQUAL){
         //quotient = r1//r2
         //(r1, r2) = (r2, r1 - quotient *r2) //Just a modulo but quicker as we already have the quotient so this is quicker
@@ -236,10 +241,12 @@ void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,in
                     r2,lenTotient,
                     bigTemp,2*lenTotient);
         //We know that quotient*r2 will fit in lenTotient
-        memcpy(r2,&bigTemp[lenTotient],lenTotient*sizeof(uint32_t));
-        memcpy(temp,r2,lenTotient*sizeof(uint32_t));
 
-        bigNumSub(r1,lenTotient,temp,lenTotient,r1,lenTotient);
+        bigNumSub(r1,lenTotient,&bigTemp[lenTotient],lenTotient,r1,lenTotient);
+        if(bigNumCmpLittle(bigTemp,lenTotient,0) != EQUAL){
+            //TODO remove
+            printf("Non-zero high bits\n");
+        }
         memcpy(r2,r1,lenTotient*sizeof(uint32_t));
         memcpy(r1,temp,lenTotient*sizeof(uint32_t));
         
@@ -261,6 +268,13 @@ void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,in
                         temp,lenTotient);
         memcpy(dest,s2,lenTotient*sizeof(uint32_t));
         memcpy(s2,temp,lenTotient*sizeof(uint32_t));
+    }
+    bigNumModMult(&exp,1,dest,lenDest,totient,lenTotient,r2,lenTotient);
+    if(bigNumCmpLittle(r2,lenTotient,1)!=EQUAL){
+        printBigNum("Extended Euclidean failed. ",r2,lenTotient);
+    }
+    else{
+        printf("Extended Euclidean passed\n");
     }
     free(r1); 
     free(r2);
@@ -290,6 +304,7 @@ uchar *decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp){
     bigNumSubLittle(kp.privateKey.q,kp.privateKey.lenQ,1,qSub1,kp.privateKey.lenQ);
     bigNumMult(pSub1,kp.privateKey.lenP,qSub1,kp.privateKey.lenQ,totient,kp.publicKey.lenN);
     extendedEuclidean(kp.publicKey.e,totient,kp.publicKey.lenN,d,kp.publicKey.lenN);
+    //d*e != 1 mod totient
     montLadExp( encryptedMessage,lenEM,
                 d,kp.publicKey.lenN,
                 kp.publicKey.n,kp.publicKey.lenN,

@@ -42,4 +42,6 @@ bignum encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp);
 uchar *decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp);
 RSAKeyPair generateKeys(int numBits);
 
+void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,int lenDest);
+
 #endif

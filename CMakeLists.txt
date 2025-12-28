@@ -31,5 +31,13 @@ add_executable(TLS-1.3-Server
 
 set(CMAKE_BUILD_TYPE Debug)
 
-target_link_libraries(TLS-1.3-Client PRIVATE ws2_32)
-target_link_libraries(TLS-1.3-Server PRIVATE ws2_32)
+if(${WINDOWS})
+    target_link_libraries(TLS-1.3-Client PRIVATE ws2_32)
+    target_link_libraries(TLS-1.3-Server PRIVATE ws2_32)
+elseif(${LINUX})
+    find_package(X11 REQUIRED)
+    target_include_directories(TLS-1.3-Client PRIVATE ${X11_INCLUDE_DIR})
+    target_link_libraries(TLS-1.3-Client PRIVATE ${X11_LIBRARIES} m)
+    target_include_directories(TLS-1.3-Server PRIVATE ${X11_INCLUDE_DIR})
+    target_link_libraries(TLS-1.3-Server PRIVATE ${X11_LIBRARIES} m)
+endif()

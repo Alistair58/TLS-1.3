@@ -83,11 +83,11 @@ bool gcm(uchar *plaintext, int lenPlaintext, uint32_t *key,gcmResult *dest){
         //Checking tag against what was received
         printf("\nReceived tag: ");
         for(int i=0;i<8;i++){
-            printf("%lu",dest->tag[i]);
+            printf("%u",dest->tag[i]);
         }
         printf("\nRecomputed tag: ");
         for(int i=0;i<8;i++){
-            printf("%lu",prevBlock[i]);
+            printf("%u",prevBlock[i]);
         }
         for(int i=0;i<8;i++){
             if(dest->tag[i] != prevBlock[i]){

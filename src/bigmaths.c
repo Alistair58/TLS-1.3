@@ -1,5 +1,7 @@
 #include "bigmaths.h"
-#include <winerror.h>
+#if _WIN32
+    #include <winerror.h>
+#endif
 #include <stdbool.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -12,7 +14,7 @@
 void printBigNum(char *text, bignum n, int lenN){
     printf("%s",text);
     for(int i=0;i<lenN;i++){
-        printf(" %lu",n[i]);
+        printf(" %u",n[i]);
     }
     printf("\n");
 }
