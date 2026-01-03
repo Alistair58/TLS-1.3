@@ -8,8 +8,9 @@
 #include <string.h>
 #include <stdio.h>
 #include "globals.h"
+#include <assert.h>
 
-#define max(a,b) (a)>=(b) ? (a) : (b)
+#define max(a,b) ((a)>=(b) ? (a) : (b))
 
 void printBigNum(char *text, bignum n, int lenN){
     printf("%s",text);
@@ -37,7 +38,7 @@ void bigNumAdd(bignum a,int lenA,bignum b, int lenB,bignum dest,int lenDest){
     uint64_t temp;
     int carry=0;
     if(lenDest < lenA || lenDest <lenB){
-        perror("\nStorage destination for addition is too small");
+        perror("Storage destination for addition is too small\n");
         exit(1);
     }
     int iA;
@@ -56,7 +57,7 @@ void bigNumAdd(bignum a,int lenA,bignum b, int lenB,bignum dest,int lenDest){
         if(carry>0){
             temp &= 0xffffffff;
             if(i==0){
-                perror("\nAddition overflow");
+                perror("bigNumAdd: Addition overflow\n");
                 exit(1);
             }
         }    
@@ -68,7 +69,7 @@ void bigNumAddLittle(bignum a,int lenA, uint32_t b,bignum dest,int lenDest){
     uint64_t temp;
     int carry=0;
     if(lenDest < lenA){
-        perror("\nStorage destination for addition is too small");
+        perror("bigNumAddLittle: Storage destination for addition is too small\n");
         exit(1);
     }
     int iA;
@@ -81,7 +82,7 @@ void bigNumAddLittle(bignum a,int lenA, uint32_t b,bignum dest,int lenDest){
         if(carry>0){
             temp &= 0xffffffff;
             if(i==0){
-                perror("\nAddition overflow");
+                perror("bigNumAddLittle: Addition overflow\n");
                 exit(1);
             }
         }    
@@ -122,7 +123,7 @@ void bigNumMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
     }
     int longest = max(lenA,lenB);
     if(lenDest<lenA+lenB){
-        perror("\nStorage destination for multiplication is too small");
+        perror("Storage destination for multiplication is too small\n");
         exit(1);
     }
     if(lenA>1 || lenB>1){
@@ -238,16 +239,12 @@ void bigNumMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
         if(aPadAllocated) free(aPad);
         if(bPadAllocated) free(bPad);
     }
-    else{
+    else{ //I.e. both are length 1
         uint64_t result = (uint64_t)a[0]*b[0];
-        //printf("\nMult result llu %llu ",result);
         uint32_t smallResult = (uint32_t) (result & 0xffffffffUL);
-       // printf("\nSmall result %lu ",smallResult);
         uint32_t bigResult = (uint32_t) (result >> 32);
-        //printf("\nBig result %lu ",bigResult);
         dest[0] = bigResult;
         dest[1] = smallResult;
-        ////printBigNum("Product: ",product,2);
     }
     if(temp){
         free(temp);
@@ -270,7 +267,15 @@ void bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN,bignu
     free(multResult);
 }
 
+void bigNumModMultBuff(bignum a,int lenA,bignum b,int lenB,bignum n,int lenN,bignum buff,int lenBuff,bignum dest,int lenDest){
+    if(lenBuff < lenA+lenB){
+        perror("bigNumModMultBuff: lenBuff must be >= lenA + lenB");
+        exit(1);
+    }
+    bigNumMult(a,lenA,b,lenB,buff,lenBuff);
+    bigNumMod(buff,lenBuff,n,lenN,dest,lenDest);
 
+}
 void bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult,bignum dest,int lenDest){
     int i = (int)((float)lenA - (float)bitMod/32); //Do we need to mod the number, if so how many chunks do we need to mod
     if(!(bitMod%32)) i--; //Doesn't affect 25519
@@ -285,7 +290,7 @@ void bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult,bignum dest,int le
     if(!carry || !realCarry){
         free(carry);
         free(realCarry);
-        perror("\nCalloc error during mod");
+        perror("Calloc error during mod\n");
         exit(1);
     }
     do{//Repeat until no more modding is required, 1 iteration on 0xfffff will require another mod
@@ -327,7 +332,7 @@ void bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult,bignum dest,int le
 
 void bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,bignum dest,int lenDest){
     if(lenDest<lenA){
-        perror("\nStorage destination for multiplication is too small");
+        perror("Storage destination for multiplication is too small\n");
         exit(1);
     }
     uint32_t carry = 0;
@@ -342,7 +347,7 @@ void bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,bignum dest,int le
                 dest[pI-1] = carry;
             }
             else{
-                perror("\nMultiplication overflow");
+                perror("Multiplication overflow\n");
                 exit(1);
             }
             
@@ -362,11 +367,11 @@ void bigNumSub(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
     long long temp;
     int carry=0;
     if(bigNumCmp(a,lenA,b,lenB)==LESS_THAN){
-        perror("\nFirst argument must be larger than second for subtraction");
+        perror("First argument must be larger than second for subtraction\n");
         exit(1);
     }
     if(lenDest<lenA){
-        perror("\nlenDest must be greater than or equal to lenA for subtraction");
+        perror("lenDest must be greater than or equal to lenA for subtraction\n");
         exit(1);
     }
     int iA;
@@ -384,7 +389,7 @@ void bigNumSub(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest){
         if(carry){
             temp &= 0xffffffff;
             if(i==0){
-                perror("\nFirst argument must be larger than second for subtraction");
+                perror("First argument must be larger than second for subtraction\n");
                 exit(1);
             }
         }    
@@ -405,7 +410,7 @@ void bigNumSubLittle(bignum a,int lenA, uint32_t b,bignum dest,int lenDest){
         if(carry){
             temp &= 0xffffffff;
             if(i==0){
-                perror("\nFirst argument must be smaller than second for subtraction");
+                perror("First argument must be smaller than second for subtraction\n");
                 exit(1);
             }
         }    
@@ -432,7 +437,7 @@ void bigNumModSub(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest,bi
         if(carry){
             int iP = lenP - (lenDest-i);
             if(iP<0){
-                perror("\nError? - bigNumModSub");
+                perror("Error? - bigNumModSub\n");
                 exit(1);
             }
             if(i==0){
@@ -489,7 +494,7 @@ void bigNumBitModInv(bignum a,int lenA,bignum p,int lenP,bignum dest,int lenDest
     //inv a = a^p-2
     //Constant time as p-2 is constant (for any given curve)
     if(lenDest!=lenA){
-        perror("\nbigNumBitModInv: lenA == lenDest failed");
+        perror("bigNumBitModInv: lenA == lenDest failed\n");
         exit(1);
     }
     int i = 1,bit;
@@ -517,11 +522,11 @@ void bigNumBitModInv(bignum a,int lenA,bignum p,int lenP,bignum dest,int lenDest
 
 void bigNumRShift(bignum a,int lenA,int shift,bignum dest,int lenDest){ 
     if(shift>=32){
-        perror("\nShift must be less than 32");
+        perror("Shift must be less than 32\n");
         exit(1);
     }
     if(lenDest!=lenA){
-        perror("\nbigNumRShift: lenA == lenDest failed");
+        perror("bigNumRShift: lenA == lenDest failed\n");
         exit(1);
     }
     uint32_t carry = 0;
@@ -536,11 +541,11 @@ void bigNumRShift(bignum a,int lenA,int shift,bignum dest,int lenDest){
 
 void bigNumLShift(bignum a,int lenA,int shift,bignum dest,int lenDest){
     if(shift>=32){
-        perror("\nShift must be less than 32");
+        perror("Shift must be less than 32\n");
         exit(1);
     }
     if(lenDest!=lenA){
-        perror("\nbigNumLShift: lenA == lenDest failed");
+        perror("bigNumLShift: lenA == lenDest failed\n");
         exit(1);
     }
     uint32_t carry = 0;
@@ -550,7 +555,7 @@ void bigNumLShift(bignum a,int lenA,int shift,bignum dest,int lenDest){
         carry = (uint32_t) ((temp+(uint64_t)carry) >> 32);
     }
     if(carry){
-        perror("\nOverflow error on bigNumLShift");
+        perror("Overflow error on bigNumLShift\n");
         exit(1);
     }
 }
@@ -582,7 +587,7 @@ uint8 bigNumCmpLittle(bignum a,int lenA,uint32_t b){
 //Returns size lenN
 void bigNumMod(bignum a,int lenA,bignum n,int lenN,bignum dest,int lenDest){ //a % n
     if(lenN != lenDest){
-        perror("\nbigNumMod: lenN == lenDest check failed");
+        perror("bigNumMod: lenN == lenDest check failed\n");
         exit(1);
     }
     //Long division
@@ -613,7 +618,7 @@ void bigNumMod(bignum a,int lenA,bignum n,int lenN,bignum dest,int lenDest){ //a
 void bigNumDiv(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest){ //returns the quotient
     //Long division
     if(lenA != lenDest){
-        perror("\nbigNumDiv: lenA == lenDest check failed");
+        perror("bigNumDiv: lenA == lenDest check failed\n");
         exit(1);
     }
     //Set dest to 0
@@ -641,10 +646,14 @@ void bigNumDiv(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest){ //r
 
 void bigNumModAdd(bignum a,int lenA, bignum b, int lenB,bignum n,int lenN,bignum dest,int lenDest){
     if(lenDest != lenN){
-        perror("\nbigNumModAdd: lenDest == lenN check failed");
+        perror("bigNumModAdd: lenDest == lenN check failed\n");
         exit(1);
     }
     int lenUnmodded = max(lenA,lenB)+1;
+    if(lenUnmodded==lenA || lenUnmodded==lenB){
+        printf("Failed. lenUnmodded: %d lenA: %d lenB: %d Max: %d\n",lenUnmodded,lenA,lenB,max(lenA,lenB));
+        exit(1);
+    }
     bignum unmodded = calloc(lenUnmodded,sizeof(uint32_t));
     if(!unmodded){
         allocError();

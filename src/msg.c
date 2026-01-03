@@ -8,7 +8,7 @@
 void ecbSendMessage(int sock,uchar *buffer,int lenBuff,uint32_t *key,char *msg,int lenMsg){
     memset(buffer,0,lenBuff);
     if(lenBuff < lenMsg){
-        perror("\nBuffer is too small for message");
+        perror("Buffer is too small for message\n");
         exit(1);
     }
     for(int i=0;i<ceil((float)lenMsg/256);i++){
@@ -21,7 +21,7 @@ void ecbSendMessage(int sock,uchar *buffer,int lenBuff,uint32_t *key,char *msg,i
     }
     send(sock,buffer,lenBuff,0); 
     buffer[lenBuff-1] = '\0';
-    printf("\nSent encrypted: ");
+    printf("Sent encrypted: \n");
     for(int i=0;i<lenBuff;i++){
         printf("%c",buffer[i]); //if you print the string it stops at a 0
     }
@@ -30,11 +30,11 @@ void ecbSendMessage(int sock,uchar *buffer,int lenBuff,uint32_t *key,char *msg,i
 void ecbReceiveMessage(int sock,char *buffer,int lenBuff,uint32_t *key){
     memset(buffer,0,lenBuff); //Remove any rubbish from buffer
     if(!recv(sock,buffer,lenBuff,0) || buffer[0]==0){
-        printf("\nNo message received from the client");
+        printf("No message received from the client\n");
     }
     else{
         buffer[lenBuff-1] = '\0';
-        printf("\nBuffer received %s",buffer);
+        printf("Buffer received %s\n",buffer);
         for(int i=0;i<floor((float)lenBuff/256);i++){
             uint32_t block[8] = {0};
             for(int j=0;j<32;j++){
@@ -74,11 +74,11 @@ void gcmSendMessage(int sock,uchar *buff,int lenBuff,uint32_t *key,char *msg,int
     buff[lenToSend-1] = '\0';
     send(sock,buff,lenToSend,0);
 
-    printf("\nSent gcm encrypted: ");
+    printf("Sent gcm encrypted: \n");
     for(int i=0;i<lenBuff;i++){
         printf("%c",buff[i]); //if you print the string it stops at a 0
     }
-    printf("\nSend tag: ");
+    printf("Send tag: \n");
     for(int i=0;i<8;i++){
         printf("%lu",result.tag[i]);
     }
@@ -93,12 +93,12 @@ void gcmSendMessage(int sock,uchar *buff,int lenBuff,uint32_t *key,char *msg,int
 void gcmReceiveMessage(int sock,char *buffer,int lenBuff,uint32_t *key){
     memset(buffer,0,lenBuff); //Remove any rubbish from buffer
     if(!recv(sock,buffer,lenBuff,0) || buffer[0]==0){
-        printf("\nNo message received from the client");
+        printf("No message received from the client\n");
     }
     else{
         gcmResult result;
         buffer[lenBuff-1] = '\0';
-        printf("\nBuffer received %s",buffer); //Won't always print everything as it will stop at a 0
+        printf("Buffer received %s\n",buffer); //Won't always print everything as it will stop at a 0
         char temp = buffer[3];
         buffer[3] = '\0';
         int lenMsg = strtoul(buffer,NULL,16);
@@ -110,7 +110,7 @@ void gcmReceiveMessage(int sock,char *buffer,int lenBuff,uint32_t *key){
             if(message) free(message);
             if(result.iv) free(result.iv);
             if(result.tag) free(result.tag);
-            perror("\nCalloc error");
+            perror("Calloc error\n");
             exit(1);
         }
         for(int i=0;i<lenMsg;i++){
@@ -133,7 +133,7 @@ void gcmReceiveMessage(int sock,char *buffer,int lenBuff,uint32_t *key){
             //The tag is checked by gcm
         }
         if(gcm(message,lenMsg,key,&result)){
-            printf("\nGcm decrypted: ");
+            printf("Gcm decrypted: \n");
             for(int i=0;i<lenMsg;i++){
                 printf("%c",result.ciphertext[i]); //if you print the string it stops at a 0
             }

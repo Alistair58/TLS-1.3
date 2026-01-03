@@ -81,17 +81,17 @@ bool gcm(uchar *plaintext, int lenPlaintext, uint32_t *key,gcmResult *dest){
     } 
     else{
         //Checking tag against what was received
-        printf("\nReceived tag: ");
+        printf("Received tag: \n");
         for(int i=0;i<8;i++){
             printf("%u",dest->tag[i]);
         }
-        printf("\nRecomputed tag: ");
+        printf("Recomputed tag: \n");
         for(int i=0;i<8;i++){
             printf("%u",prevBlock[i]);
         }
         for(int i=0;i<8;i++){
             if(dest->tag[i] != prevBlock[i]){
-                printf("\nGCM tag does not match.\nMessage has been altered during transit");
+                printf("GCM tag does not match.\nMessage has been altered during transit\n");
                 return false;
             }
         }

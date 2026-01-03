@@ -26,7 +26,7 @@ void generateX509(RSAKeyPair kp){
     asn1Certificate asn1Certif = generateAsn1X509(kp);
     DER derCertif = asn1ToDER(asn1Certif);
     Base64 b64Certif = base64Encode(derCertif.data,derCertif.lenData);
-    uchar pemTemplate[] = "-----BEGIN CERTIFICATE-----\n%s\n-----END CERTIFICATE-----\n";
+    uchar pemTemplate[] = "-----BEGIN CERTIFICATE-----%s\n-----END CERTIFICATE-----\n\n";
     FILE *fhand;
     fhand = fopen("certif.pem","w");
     fprintf(fhand,pemTemplate,b64Certif.data);
@@ -58,7 +58,8 @@ static asn1Certificate generateAsn1X509(RSAKeyPair kp){
     DER der = asn1TBSToDER(certif.tbsCertif);
     bignum hash = sha256(der.data,der.lenData);
     //Not decrypting, just using the private key to encrypt
-    uchar *signatureString = decryptRSA(hash,8,kp);
+    uchar *signatureString = calloc(kp.publicKey.lenN*sizeof(uint32_t),sizeof(uchar));
+    decryptRSA(hash,8,kp,signatureString,kp.publicKey.lenN*sizeof(uint32_t));
     certif.signatureValue = calloc(RSA_NUM_BITS/32,sizeof(uint32_t));
     if(!certif.signatureValue){
         allocError();

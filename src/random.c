@@ -121,11 +121,10 @@ void randomNumber(bignum dest, int chunks,bignum n,int generationMs){  //A chunk
     uint64_t targetTime = currTimeMs + generationMs; 
 
     int chunkWriteCount = 1;
-    uint32_t mod;
    
     while(chunkWriteCount<=chunks){
         //Use the mouse if the user has time to move it
-        if(generationMs>=0){
+        if(generationMs>0){
             #if _WIN32
                 GetCursorPos(&point);
                 product = product ^ point.x ^ point.y;
@@ -135,7 +134,7 @@ void randomNumber(bignum dest, int chunks,bignum n,int generationMs){  //A chunk
                 product ^= x ^ y;
             #endif
         }
-        if((targetTime-currTimeMs) <= generationMs*((float)(chunks-chunkWriteCount)/(chunks+1))){ //+1 means chunks aren't written at start or end
+        if(((int64_t)targetTime-(int64_t)currTimeMs) <= generationMs*((float)(chunks-chunkWriteCount)/(chunks+1))){ //+1 means chunks aren't written at start or end
             //Add the current time to the product so chunks are different
             #if _WIN32
                 QueryPerformanceCounter(&perfCount); 

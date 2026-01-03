@@ -38,10 +38,8 @@ typedef struct RSAKeyPair{
 
 
 bool isPrime(bignum n,int lenN);
-bignum encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp);
-uchar *decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp);
+void encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp,bignum dest,int lenDest);
+void decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp,uchar *dest,int lenDest);
 RSAKeyPair generateKeys(int numBits);
-
-void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,int lenDest);
 
 #endif

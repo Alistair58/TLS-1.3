@@ -29,7 +29,13 @@ add_executable(TLS-1.3-Server
     src/structs.c
 )
 
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
+target_compile_options(TLS-1.3-Client PRIVATE
+    -O3
+    )
+target_compile_options(TLS-1.3-Server PRIVATE
+    -O3
+    )
 
 if(${WINDOWS})
     target_link_libraries(TLS-1.3-Client PRIVATE ws2_32)

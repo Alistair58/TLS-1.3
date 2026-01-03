@@ -25,6 +25,8 @@ void bigNumBitModAdd(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest
 void bigNumMult(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest);
 void bigNumBitModMult(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest,int bitMod, int carryMult);
 void bigNumModMult(bignum a,int lenA, bignum b,int lenB,bignum n, int lenN,bignum dest,int lenDest);
+//Caller provides a buffer to avoid an alloction for each call
+void bigNumModMultBuff(bignum a,int lenA,bignum b,int lenB,bignum n,int lenN,bignum buff,int lenBuff,bignum dest,int lenDest);
 void bigNumBitMod(bignum a, int lenA,int bitMod,int carryMult,bignum dest,int lenDest);
 void bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,bignum dest,int lenDest);
 void bigNumSub(bignum a,int lenA, bignum b,int lenB,bignum dest,int lenDest);

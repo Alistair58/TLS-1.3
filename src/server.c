@@ -17,16 +17,20 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
 int main(int argc, char** argv) {
-    RSAKeyPair kp = generateKeys(64);
-    uchar msg[] = "Msg";
-    bignum encrypted = encryptRSA(msg,sizeof(msg),kp);
-    printBigNum("Encrypted: ",encrypted,sizeof(msg)/sizeof(uint32_t));
-    uchar *decrypted = decryptRSA(encrypted,sizeof(msg)/sizeof(uint32_t),kp);
-    printf("Decrypted: %s",decrypted);
+    RSAKeyPair kp = generateKeys(1024);
+    uchar msg[] = "This message has been encrypted and then decrypted";
+    bignum encrypted = calloc(kp.publicKey.lenN,sizeof(uint32_t));
+    encryptRSA(msg,sizeof(msg),kp,encrypted,kp.publicKey.lenN);
+    printBigNum("Encrypted num: ",encrypted,kp.publicKey.lenN);
+    uchar *decrypted = calloc(kp.publicKey.lenN*sizeof(uint32_t),sizeof(uchar));
+    decryptRSA(encrypted,kp.publicKey.lenN,kp,decrypted,kp.publicKey.lenN*sizeof(uint32_t));
+    printf("Decrypted: %s\n",decrypted);
     //generateX509(kp);
     free(kp.privateKey.p);
     free(kp.privateKey.q);
     free(kp.publicKey.n);
+    free(encrypted);
+    free(decrypted);
 
 
 
@@ -42,7 +46,7 @@ int main(int argc, char** argv) {
     //     while(1){
     //         addr_size = sizeof(client_addr);
     //         client_sock = accept(server_sock,(struct sockaddr*)&client_addr,&addr_size);
-    //         printf("%s","\nClient connected");
+    //         printf("%s","Client connected\n");
 
     //         struct ClientHello clientHello = waitForRequest(client_sock,buffer,1024);
             
@@ -52,7 +56,7 @@ int main(int argc, char** argv) {
 
     //         gcmReceiveMessage(client_sock,buffer,1024,privateECDHKey);
     //         close(client_sock);
-    //         printf("%s","\nClient disconnected");
+    //         printf("%s","Client disconnected\n");
     //         free(privateECDHKey);
             
     //     }
@@ -109,7 +113,7 @@ struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff){
         temp[(len-j)%8] = buffer[i];
         j--;
     }
-    printf("\nclientRandom %08x cipher suites %02x%02x supported groups %04x signature algorithms %04x client key exchange %u %u %u %u %u %u %u %u", //Length in characters before each chunk
+    printf("clientRandom %08x cipher suites %02x%02x supported groups %04x signature algorithms %04x client key exchange %u %u %u %u %u %u %u %u\n", //Length in characters before each chunk
     clientHello.clientRandom,
     clientHello.cipherSuites[0][0],clientHello.cipherSuites[0][1],
     clientHello.supportedGroups[0],clientHello.signatureAlgorithms[0],
@@ -127,14 +131,14 @@ struct ServerHello generateServerHello(uint32_t *privateDHRandom){
     serverHello.curveGroup = x25519;
     serverHello.signatureAlgorithm  = rsa_pss_pss_sha256;
     uint32_t *serverRandom = calloc(1,sizeof(uint32_t));
-    printf("\nGenerating random number. Please move your mouse until generation is completed");
+    printf("Generating random number. Please move your mouse until generation is completed\n");
     randomNumber(serverRandom,1,NULL,500);
     randomNumber(privateDHRandom,8,curve25519Params.n,500);
-    printf("\nGeneration completed");
-    // printf("\nServer random %u Server Private DH Random: %u %u %u %u %u %u %u %u ",serverRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
+    printf("Generation completed\n");
+    // printf("Server random %u Server Private DH Random: %u %u %u %u %u %u %u %u \n",serverRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
     // privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);
     uint32_t *publicECDHKey = X25519(curve25519Params.G[0],privateDHRandom);
-    // printf("\nServer Public ECDHE: %u %u %u %u %u %u %u %u",
+    // printf("Server Public ECDHE: %u %u %u %u %u %u %u %u\n",
     // publicECDHKey[0],publicECDHKey[1],publicECDHKey[2],publicECDHKey[3],
     // publicECDHKey[4],publicECDHKey[5],publicECDHKey[6],publicECDHKey[7]);
 
@@ -147,13 +151,13 @@ struct ServerHello generateServerHello(uint32_t *privateDHRandom){
 }
 
 uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH){
-    // printf("\nClient public ECDHE: %u %u %u %u %u %u %u %u Private DH: %u %u %u %u %u %u %u %u ",
+    // printf("Client public ECDHE: %u %u %u %u %u %u %u %u Private DH: %u %u %u %u %u %u %u %u \n",
     // keyExchange[0],keyExchange[1],keyExchange[2],keyExchange[3],
     // keyExchange[4],keyExchange[5],keyExchange[6],keyExchange[7],
     // privateDH[0],privateDH[1],privateDH[2],privateDH[3],
     // privateDH[4],privateDH[5],privateDH[6],privateDH[7]);
     uint32_t *privateECDHKey = X25519(keyExchange,privateDH);
-    printf("\nServer Private ECDHE: %u %u %u %u %u %u %u %u",
+    printf("Server Private ECDHE: %u %u %u %u %u %u %u %u\n",
     privateECDHKey[0],privateECDHKey[1],privateECDHKey[2],privateECDHKey[3],
     privateECDHKey[4],privateECDHKey[5],privateECDHKey[6],privateECDHKey[7]);
     return privateECDHKey;
@@ -169,7 +173,7 @@ int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int l
     serverHello.keyExchange[2],serverHello.keyExchange[3],
     serverHello.keyExchange[4],serverHello.keyExchange[5],
     serverHello.keyExchange[6],serverHello.keyExchange[7]);
-    printf("\nSent serverRandom %08x cipher suite %02x%02x supported group %04x signature algorithm %04x server key exchange %u %u %u %u %u %u %u %u", //Length in characters before each chunk
+    printf("Sent serverRandom %08x cipher suite %02x%02x supported group %04x signature algorithm %04x server key exchange %u %u %u %u %u %u %u %u\n", //Length in characters before each chunk
     serverHello.serverRandom,
     serverHello.cipherSuite[0],serverHello.cipherSuite[1],
     serverHello.curveGroup,serverHello.signatureAlgorithm,
@@ -190,20 +194,20 @@ int startServer(struct in_addr* addr,int *sock){
         int port = 80;
         WSADATA wsa;
         int n;
-        printf("\nInitialising Winsock...");
+        printf("Initialising Winsock...\n");
         if (WSAStartup(MAKEWORD(2,2),&wsa) != 0)
         {
-            printf("\nFailed. Error Code : %d",WSAGetLastError());
+            printf("Failed. Error Code : %d\n",WSAGetLastError());
             return 1;
         }
 
-        printf("\nInitialised.");
+        printf("Initialised.\n");
         *sock = socket(AF_INET,SOCK_STREAM,0); //ipv4, tcp, IP protocol (0) - returns an int
         if(*sock == INVALID_SOCKET){
-            perror("\nCould not get socket");
+            perror("Could not get socket\n");
             exit(1);
         }
-        printf("%s","\nTCP server socket created");
+        printf("%s","TCP server socket created\n");
         
         memset(addr,0,sizeof(*addr));
         (*addr).sin_family = AF_INET; //ipv4
@@ -212,11 +216,11 @@ int startServer(struct in_addr* addr,int *sock){
         
         n = bind(*sock, (struct sockaddr*)addr, sizeof(*addr)); //assigns address to the socket
         if(n<0){
-            perror("\nCould not bind socket");
+            perror("Could not bind socket\n");
             exit(1);
         }
-        printf("%s%d","\nSocket binded to port: ",port);
-        printf("\nListening");
+        printf("%s%d","Socket binded to port: \n",port);
+        printf("Listening\n");
         listen(*sock,5); //5 is the the maximum length to which the queue of pending connections can grow
     #endif
     return 0;

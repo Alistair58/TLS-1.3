@@ -12,7 +12,7 @@
 #include <stdio.h>
 
 #define allocError() char errorMsg[19+sizeof(__func__)]; \
-    sprintf(errorMsg,"\nAlloc error in \"%s\"",__func__); \
+    sprintf(errorMsg,"Alloc error in \"%s\"\n",__func__); \
     errno = ENOMEM; \
     perror(errorMsg); \
     exit(ALLOC_EXIT_CODE);

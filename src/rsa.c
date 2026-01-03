@@ -6,7 +6,7 @@
 
 #define max(a,b) (a)>=(b) ? (a) : (b)
 
-//void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,int lenDest);
+void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,int lenDest);
 void montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen,bignum dest, int lenDest);
 bool millerRabin(bignum n,int lenN,bignum a,int lenA);
 
@@ -24,12 +24,10 @@ bool isPrime(bignum n,int lenN){
         allocError();
     }
     for(int i=0;i<30;i++){ //as MR is incorrect 1/4 of time, it is now incorrect 1 in 4^30 times (once every 36558901 years if it runs every ms)
-        printf("i: %d\n",i);
         do{
             randomNumber(a,lenN,nSub1,0); //Fermats little theorem only works for 1<a<n-1
         }
         while(bigNumCmpLittle(a,lenN,0)==EQUAL);
-        printBigNum("a: ",a,lenN);
         if(!millerRabin(n,lenN,a,lenN)){
             free(a);
             free(nSub1);
@@ -55,44 +53,71 @@ void montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen
     https://en.wikipedia.org/wiki/Exponentiation_by_squaring
     */  
     if(lenDest != modLen){
-        perror("\nmontLadExp: lenDest == modLen check failed");
+        perror("montLadExp: lenDest == modLen check failed\n");
         exit(1);
     }
     int lenLongest = max(lenA,modLen);
     bignum x1 = calloc(lenLongest,sizeof(uint32_t));
     bignum x2 = calloc(modLen,sizeof(uint32_t));
-    if(!x1 || !x2){
-        free(x1);
-        free(x2);
+    //Buffers for saving unnecessary allocations inside bigNumModMult
+    bignum sameOperandBuff = calloc(lenLongest,sizeof(uint32_t));
+    int lenPreModBuff = lenLongest*2;
+    bignum preModBuff = calloc(lenPreModBuff,sizeof(uint32_t));
+    if(!x1 || !x2 || !sameOperandBuff || !preModBuff){
+        free(x1); free(x2);
+        free(sameOperandBuff); free(preModBuff);
         allocError();
     }
     memcpy(&x1[lenLongest-lenA],a,lenA*sizeof(uint32_t));
     
-    bigNumModMult(a,lenA,a,lenA,mod,modLen,x2,modLen);
+    //x1 = a
+    //x2 = a^2
+    bigNumModMultBuff(
+        a,lenA,
+        x1,lenLongest, //which holds a
+        mod,modLen,
+        preModBuff,lenPreModBuff,
+        x2,modLen
+    );
     bool started = false; //start when we reach the first 1 bit (as we have pre-set the first multiplication)
     for(int i=0;i<lenExp;i++){ //MSB to LSB chunks
         for(int j=0;j<32;j++){ //MSB to LSB inside of each chunk
             uint8 bit = (exp[i] >> (31-j))&1;
             if(started){
                 if(bit){
-                    bigNumModMult(  x1,lenLongest,
-                                    x2,modLen,
-                                    mod,modLen,
-                                    x1,lenLongest);
-                    bigNumModMult(  x2,modLen,
-                                    x2,modLen,
-                                    mod,modLen,
-                                    x2,modLen);
+                    bigNumModMultBuff(  
+                        x1,lenLongest,
+                        x2,modLen,
+                        mod,modLen,
+                        preModBuff,lenPreModBuff,
+                        x1,lenLongest
+                    );
+                    memset(sameOperandBuff,0,(lenLongest-modLen)*sizeof(uint32_t));
+                    memcpy(&sameOperandBuff[lenLongest-modLen],x2,modLen*sizeof(uint32_t));
+                    bigNumModMultBuff(  
+                        x2,modLen,
+                        sameOperandBuff,lenLongest,
+                        mod,modLen,
+                        preModBuff,lenPreModBuff,
+                        x2,modLen
+                    );
                 }
                 else{
-                    bigNumModMult(  x2,modLen,
-                                    x1,lenLongest,
-                                    mod,modLen,
-                                    x2,modLen);
-                    bigNumModMult(  x1,lenLongest,
-                                    x1,lenLongest,
-                                    mod,modLen,
-                                    x1,lenLongest);
+                    bigNumModMultBuff(  
+                        x2,modLen,
+                        x1,lenLongest,
+                        mod,modLen,
+                        preModBuff,lenPreModBuff,
+                        x2,modLen
+                    );
+                    memcpy(sameOperandBuff,x1,lenLongest*sizeof(uint32_t));      
+                    bigNumModMultBuff(  
+                        x1,lenLongest,
+                        sameOperandBuff,lenLongest,
+                        mod,modLen,
+                        preModBuff,lenPreModBuff,
+                        x1,lenLongest
+                    );
                 }
             }
             else if(bit){
@@ -103,8 +128,8 @@ void montLadExp(bignum a,int lenA,bignum exp, int lenExp, bignum mod, int modLen
     }
     
     memcpy(dest,&x1[lenLongest-modLen],modLen*sizeof(uint32_t));
-    free(x1);
-    free(x2);
+    free(x1); free(x2);
+    free(sameOperandBuff); free(preModBuff);
 }
 
 //Single test case
@@ -131,15 +156,12 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
         bigNumRShift(exp,lenN,1,exp,lenN); //Keep shifting until it's odd
         numShifts++;
     }
-    printBigNum("nSub1: ",nSub1,lenN);
-    printf("Num shifts: %d\n",numShifts);
     montLadExp(a,lenA,exp,lenN,n,lenN,expRes,lenN);
     //check if x = 1 mod n
     if(
         bigNumCmpLittle(expRes,lenN,1) == EQUAL ||
         bigNumCmp(expRes,lenN,nSub1,lenN) == EQUAL 
     ){
-        printf("Passed on the primality check with no squares\n");
         free(nSub1);
         free(exp);
         free(expRes);
@@ -149,14 +171,12 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
         bigNumModMult(expRes,lenN,expRes,lenN,n,lenN,expRes,lenN);
          // a^(n-1/2^k) + 1 is a multiple of n -> satisfying Fermat's Little Theorem -> likely prime
         if(bigNumCmp(expRes,lenN,nSub1,lenN)==EQUAL){
-            printf("Passed the primality check on iteration: %d\n",i);
             free(nSub1);
             free(exp);
             free(expRes);
             return true;
         }
         if(bigNumCmpLittle(expRes,lenN,1)==EQUAL){
-            printf("Failed the primality check on iteration: %d\n",i);
             free(nSub1);
             free(exp);
             free(expRes);
@@ -169,35 +189,34 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
     return false; 
 }
 
-
-bignum encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp){
+void encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp,bignum dest,int lenDest){
+    if(lenDest != kp.publicKey.lenN){
+        perror("encryptRSA: lenDest must be the length of the public key n");
+    }
     int sizeDiff = sizeof(uint32_t)/sizeof(uchar); //yes I know it's 4
-    int lenMsgNum = ceil((float)lenMsg*1/sizeDiff);
-    bignum msgNum = calloc(lenMsgNum,sizeof(uint32_t));
-    bignum result = calloc(kp.publicKey.lenN,sizeof(uint32_t));
-    if(!msgNum || !result){
-        free(msgNum);
-        free(result);
+    //Making msgNum length lenMsgNum means that it could be < lenN
+    //This means when you decrypt it, the first chunks may be zero and so you can't print it out
+    //Making it lenN is easier
+    bignum msgNum = calloc(kp.publicKey.lenN,sizeof(uint32_t));
+    if(!msgNum){
         allocError();
     }
-    int j = -1; //increments on first iteration
+    //Putting the msg in starting at the LSB of msgNum means that we don't fail the < n check
+    int j = kp.publicKey.lenN; //dencrements on first iteration
     for(int i=0;i<lenMsg;i++){
         int mod = i%sizeDiff;
-        if(mod==0) j++;
+        if(mod==0) j--;
         msgNum[j] |= (uint32_t) msg[i] << ((sizeDiff-1-mod)*8);
     }
     //RSA maths requirement
-    if(bigNumCmp(msgNum,lenMsgNum,kp.publicKey.n,kp.publicKey.lenN) == GREATER_THAN){
-        printf("Len msg num: %d\n",lenMsgNum);
+    if(bigNumCmp(msgNum,kp.publicKey.lenN,kp.publicKey.n,kp.publicKey.lenN) == GREATER_THAN){
         free(msgNum);
-        free(result);
-        perror("msg is too long for RSA encryption with this N\n");
+        perror("msg is too long for RSA encryption with this n\n");
         exit(1);
     }
     uint32_t eBigNum[1] = {kp.publicKey.e};
-    montLadExp(msgNum,lenMsgNum,&kp.publicKey.e,1,kp.publicKey.n,kp.publicKey.lenN,result,kp.publicKey.lenN);
+    montLadExp(msgNum,kp.publicKey.lenN,&kp.publicKey.e,1,kp.publicKey.n,kp.publicKey.lenN,dest,kp.publicKey.lenN);
     free(msgNum);
-    return result;
 }
 
 void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,int lenDest){
@@ -243,10 +262,6 @@ void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,in
         //We know that quotient*r2 will fit in lenTotient
 
         bigNumSub(r1,lenTotient,&bigTemp[lenTotient],lenTotient,r1,lenTotient);
-        if(bigNumCmpLittle(bigTemp,lenTotient,0) != EQUAL){
-            //TODO remove
-            printf("Non-zero high bits\n");
-        }
         memcpy(r2,r1,lenTotient*sizeof(uint32_t));
         memcpy(r1,temp,lenTotient*sizeof(uint32_t));
         
@@ -270,31 +285,24 @@ void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,in
         memcpy(s2,temp,lenTotient*sizeof(uint32_t));
     }
     bigNumModMult(&exp,1,dest,lenDest,totient,lenTotient,r2,lenTotient);
-    if(bigNumCmpLittle(r2,lenTotient,1)!=EQUAL){
-        printBigNum("Extended Euclidean failed. ",r2,lenTotient);
-    }
-    else{
-        printf("Extended Euclidean passed\n");
-    }
-    free(r1); 
-    free(r2);
-    free(s2);
-    free(temp);
-    free(quotient);
-    free(bigTemp);
+    free(r1); free(r2);
+    free(s2); free(temp);
+    free(quotient); free(bigTemp);
 }
 
-uchar *decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp){
+void decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp,uchar *dest,int lenDest){
     int sizeDiff = sizeof(uint32_t)/sizeof(uchar); //yes I know it's 4
     int lenMsg = lenEM*sizeDiff;
-    uchar *decryptedMessage = (uchar*) malloc(lenMsg);
+    if(lenMsg != lenDest){
+        perror("decryptRSA: lenDest does not match the length of the decrypted message");
+        exit(1);
+    }
     bignum pSub1 = (bignum) calloc(kp.privateKey.lenP,sizeof(uint32_t));
     bignum qSub1 = (bignum) calloc(kp.privateKey.lenQ,sizeof(uint32_t));
     bignum totient = (bignum) calloc(kp.publicKey.lenN,sizeof(uint32_t));
     bignum d = (bignum) calloc(kp.publicKey.lenN,sizeof(uint32_t));
     bignum decryptedNum = (bignum) calloc(kp.publicKey.lenN,sizeof(uint32_t));
-    if(!decryptedMessage || !pSub1 || !qSub1 || !totient || !d || !decryptedNum){
-        free(decryptedMessage);
+    if(!pSub1 || !qSub1 || !totient || !d || !decryptedNum){
         free(pSub1); free(qSub1);
         free(totient); free(d);
         free(decryptedNum);
@@ -304,21 +312,20 @@ uchar *decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp){
     bigNumSubLittle(kp.privateKey.q,kp.privateKey.lenQ,1,qSub1,kp.privateKey.lenQ);
     bigNumMult(pSub1,kp.privateKey.lenP,qSub1,kp.privateKey.lenQ,totient,kp.publicKey.lenN);
     extendedEuclidean(kp.publicKey.e,totient,kp.publicKey.lenN,d,kp.publicKey.lenN);
-    //d*e != 1 mod totient
     montLadExp( encryptedMessage,lenEM,
                 d,kp.publicKey.lenN,
                 kp.publicKey.n,kp.publicKey.lenN,
                 decryptedNum,kp.publicKey.lenN);
-    int j = -1; //increments on first iteration
+    int j = kp.publicKey.lenN; //decrements on first iteration
+    //Opposite of encryption encoding
     for(int i=0;i<lenMsg;i++){
         int mod = i%sizeDiff;
-        if(mod==0) j++;
-        decryptedMessage[i]  =  (decryptedNum[j] >> (sizeDiff-1-mod)) & 0xff;
+        if(mod==0) j--;
+        dest[i]  =  (decryptedNum[j] >> ((sizeDiff-1-mod)*8)) & 0xff;
     }
     free(pSub1); free(qSub1);
     free(totient); free(d);
     free(decryptedNum);
-    return decryptedMessage;
 }
 
 //numBits is the size of the public key n
@@ -338,9 +345,7 @@ RSAKeyPair generateKeys(int numBits){
         free(kp.publicKey.n);
         allocError();
     }
-    int count = 0;
     do{
-        printf("p: %d\n",count++);
         randomNumber(kp.privateKey.p,privateKeyLen,NULL,0);
     }
     while(!isPrime(kp.privateKey.p,privateKeyLen));
@@ -355,9 +360,6 @@ RSAKeyPair generateKeys(int numBits){
         kp.privateKey.q,privateKeyLen,
         kp.publicKey.n,publicKeyLen
     );
-    printBigNum("p: ",kp.privateKey.p,privateKeyLen);
-    printBigNum("q: ",kp.privateKey.q,privateKeyLen);
-    printBigNum("n: ",kp.publicKey.n,publicKeyLen);
     kp.publicKey.e = 65537; //Good number for RSA; 65537 == 2**16+1
     return kp;
 }
