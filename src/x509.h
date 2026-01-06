@@ -55,7 +55,14 @@ typedef struct Base64{
     int lenData;
 }Base64;
 
-void generateX509(RSAKeyPair kp);
+typedef uint8_t certifStatus;
+#define VALID 0
+#define OUT_OF_DATE 1
+#define INVALID_SIGNATURE 2
 
+void generateX509(RSAPublickKey subjectPk,RSAKeyPair issuerKp,uchar *fname);
+Base64 base64Encode(uchar *data,int lenData);
+asn1Certificate X509ToAsn1(uchar *fname);
+certifStatus checkX509(RSAPublickKey issuerPk,uchar *fname);
 
 #endif

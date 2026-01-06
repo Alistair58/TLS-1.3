@@ -17,22 +17,11 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
 int main(int argc, char** argv) {
-    RSAKeyPair kp = generateKeys(1024);
-    uchar msg[] = "This message has been encrypted and then decrypted";
-    bignum encrypted = calloc(kp.publicKey.lenN,sizeof(uint32_t));
-    encryptRSA(msg,sizeof(msg),kp,encrypted,kp.publicKey.lenN);
-    printBigNum("Encrypted num: ",encrypted,kp.publicKey.lenN);
-    uchar *decrypted = calloc(kp.publicKey.lenN*sizeof(uint32_t),sizeof(uchar));
-    decryptRSA(encrypted,kp.publicKey.lenN,kp,decrypted,kp.publicKey.lenN*sizeof(uint32_t));
-    printf("Decrypted: %s\n",decrypted);
-    //generateX509(kp);
+    RSAKeyPair kp = generateKeys(256);
+    generateX509(kp);
     free(kp.privateKey.p);
     free(kp.privateKey.q);
     free(kp.publicKey.n);
-    free(encrypted);
-    free(decrypted);
-
-
 
 
     // int server_sock, client_sock;

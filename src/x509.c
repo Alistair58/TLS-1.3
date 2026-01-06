@@ -11,24 +11,23 @@
 #define DER_UTF8STRING 0x0C
 #define DER_BITSTRING 0x03
 
-#define RSA_NUM_BITS 1024
 
-
-static asn1Certificate generateAsn1X509(RSAKeyPair kp);
+static asn1Certificate generateAsn1X509(RSAPublickKey subjectPk,RSAKeyPair issuerKp);
 static DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif);
 static int derEncodeBignum(uchar *result,bignum n,int lenN);
 static int derEncodeString(uchar *result,uchar *string,int lenString);
 static int derEncodeInt(uchar *result,int num);
 static DER asn1ToDER(asn1Certificate asn1Certif);
 static Base64 base64Encode(uchar *data,int lenData);
+static DER base64Decode(uchar *input,int lenInput);
+static asn1Certificate DERToAsn1(DER der);
 
-void generateX509(RSAKeyPair kp){
-    asn1Certificate asn1Certif = generateAsn1X509(kp);
+void generateX509(RSAPublickKey subjectPk,RSAKeyPair issuerKp,uchar *fname){
+    asn1Certificate asn1Certif = generateAsn1X509(subjectPk,issuerKp);
     DER derCertif = asn1ToDER(asn1Certif);
     Base64 b64Certif = base64Encode(derCertif.data,derCertif.lenData);
     uchar pemTemplate[] = "-----BEGIN CERTIFICATE-----%s\n-----END CERTIFICATE-----\n\n";
-    FILE *fhand;
-    fhand = fopen("certif.pem","w");
+    FILE *fhand = fopen(fname,"w");
     fprintf(fhand,pemTemplate,b64Certif.data);
     fclose(fhand);
 
@@ -37,7 +36,7 @@ void generateX509(RSAKeyPair kp){
 }
 
 
-static asn1Certificate generateAsn1X509(RSAKeyPair kp){
+static asn1Certificate generateAsn1X509(RSAPublickKey subjectPk,RSAKeyPair issuerKp){
     asn1Certificate certif;
     certif.tbsCertif.version = v3;
     certif.tbsCertif.serialNumber = 0;
@@ -52,23 +51,24 @@ static asn1Certificate generateAsn1X509(RSAKeyPair kp){
     uchar subject[] = "me";
     memcpy(certif.tbsCertif.subject,subject,sizeof(subject));
     certif.tbsCertif.subjectPublicKeyInfo.algorithm = rsa_pkcs1_sha256;
-    certif.tbsCertif.subjectPublicKeyInfo.subjectPublicKey = kp.publicKey;
+    certif.tbsCertif.subjectPublicKeyInfo.subjectPublicKey = subjectPk;
     certif.signatureAlgorithm = rsa_pkcs1_sha256;
 
     DER der = asn1TBSToDER(certif.tbsCertif);
     bignum hash = sha256(der.data,der.lenData);
     //Not decrypting, just using the private key to encrypt
-    uchar *signatureString = calloc(kp.publicKey.lenN*sizeof(uint32_t),sizeof(uchar));
-    decryptRSA(hash,8,kp,signatureString,kp.publicKey.lenN*sizeof(uint32_t));
-    certif.signatureValue = calloc(RSA_NUM_BITS/32,sizeof(uint32_t));
+    uchar *signatureString = calloc(issuerKp.publicKey.lenN*sizeof(uint32_t),sizeof(uchar));
+    decryptRSA(hash,8,kp,signatureString,issuerKp.publicKey.lenN*sizeof(uint32_t));
+    certif.signatureValue = calloc(issuerKp.publicKey.lenN,sizeof(uint32_t));
     if(!certif.signatureValue){
         allocError();
     }
-    memcpy(certif.signatureValue,signatureString,RSA_NUM_BITS/8);
-    certif.lenSignatureValue = RSA_NUM_BITS/32;
+    memcpy(certif.signatureValue,signatureString,issuerKp.publicKey.lenN*sizeof(uint32_t));
+    certif.lenSignatureValue = issuerKp.publicKey.lenN;
     free(signatureString);
     free(hash);
     free(der.data);
+    return certif;
 }
 
 static DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif){
@@ -187,7 +187,7 @@ static DER asn1ToDER(asn1Certificate asn1Certif){
     return result;
 }
 
-static Base64 base64Encode(uchar *data,int lenData){
+Base64 base64Encode(uchar *data,int lenData){
     Base64 result;
     int lenBits = lenData*8;
     int lenPaddingBits = lenBits%6;
@@ -195,9 +195,9 @@ static Base64 base64Encode(uchar *data,int lenData){
     int num6BitChunks = len6BitChunksBits / 6;
     //add a '=' for each 2 padding bits
     int lenPaddingChars = lenPaddingBits/2;
-    int lenResultBytes = num6BitChunks/8 + lenPaddingChars;
+    int lenResultBytes = num6BitChunks + lenPaddingChars;
 
-    result.data = calloc(lenResultBytes,1);
+    result.data = calloc(lenResultBytes,sizeof(uchar));
     result.lenData = lenResultBytes;
 
     for(int i=0;i<num6BitChunks;i++){
@@ -205,31 +205,31 @@ static Base64 base64Encode(uchar *data,int lenData){
         uchar inputChunk0 = data[inputIndex];
         uchar inputChunk1 = (inputIndex>=lenData)?0:data[inputIndex+1];
 
-        // i=0 -> chunk0 & 0b111111
-        // i=1 -> chunk0 & 0b11  | chunk1 & 0b11110000 
-        // i=2 -> chunk0 & 0b1111 | chunk1 & 0b11000000
-        // i=3 -> chunk0 & 0b111111
+        // i=0 -> input[0] & 0b11111100 >> 2 | input[1] & 0b00000000 >> 2
+        // i=1 -> input[0] & 0b00000011 << 4 | input[1] & 0b11110000 >> 4
+        // i=2 -> input[1] & 0b00001111 << 2 | input[2] & 0b11000000 >> 6
+        // i=3 -> input[2] & 0b00111111 << 0 | input[3] & 0b00000000 >> 8
+        // i=4 -> input[3] & 0b11111100 >> 2 | input[4] & 0b00000000 >> 2
+        // i=5 -> input[3] & 0b00000011 | input[4] & 0b11110000 
 
         //There might be a nicer way of doing this
-        uint8_t mask0,mask1;
-        uint8_t chunk0Shift;
-        switch(i%3){
+        //It's sort of a pattern but not a very nice one
+        
+        uint8_t chunk6Bits;
+        switch(i%4){
             case 0:
-                mask0 = 0b111111;
-                mask1 = 0b0;
-                chunk0Shift = 0;
+                chunk6Bits = (inputChunk0 & 0b11111100) >> 2;
                 break;
             case 1:
-                mask0 = 0b11;
-                mask1 = 0b11110000;
-                chunk0Shift = 4;
+                chunk6Bits = (inputChunk0 & 0b00000011) << 4 | (inputChunk1 & 0b11110000) >> 4;
                 break;
             case 2:
-                mask0 = 0b1111;
-                mask1 = 0b11000000;
-                chunk0Shift = 2;
+                chunk6Bits = (inputChunk0 & 0b00001111) << 2 | (inputChunk1 & 0b11000000) >> 6;
+                break;
+            case 3:
+                chunk6Bits = (inputChunk0 & 0b00111111);
+                break;
         }
-        uint8_t chunk6Bits = ((inputChunk0 & mask0) << chunk0Shift) | inputChunk1 & mask1; 
         if(chunk6Bits<26){
             result.data[i] = 'A'+chunk6Bits;
         }
@@ -248,4 +248,53 @@ static Base64 base64Encode(uchar *data,int lenData){
     }
 
     return result;
+}
+
+asn1Certificate X509ToAsn1(uchar *fname){
+    FILE *fhand = fopen(fname,"r");
+    const int lenBuff = 2000;
+    uchar buff[2000] = {0};
+    fgets(buff,lenBuff,fhand);
+    DER derCertif = base64Decode(buff,lenBuff);
+    asn1Certificate asn1Certif = DERToAsn1(derCertif);
+    free(derCertif.data);
+    return asn1Cerif;
+}
+
+
+certifStatus checkX509(RSAPublickKey issuerPk,uchar *fname){
+    asn1Certificate asn1Cerif =  X509ToAsn1(fname);
+    //TODO
+    //Check signature 
+    //Check date
+}
+
+static DER base64Decode(uchar *input,int lenInput){
+    DER result;
+    int lenBits = lenData*8;
+    //Calculate the real length of the message
+    int lenPaddingBits = 0;
+    for(int i=lenInput-1;i>=0;i--){
+        if(input[i]=='='){
+            lenPaddingBits+=2;
+            //8 for the '=' and 2 for the actual padding
+            lenBits-=10;
+        }
+        else break;
+    }
+    
+    int lenResultBytes = (lenBits/8)*6/8;
+
+    result.data = calloc(lenResultBytes,sizeof(uchar));
+    result.lenData = lenResultBytes;
+
+    //TODO 
+
+    return result;
+
+}
+
+
+static asn1Certificate DERToAsn1(DER der){
+    //TODO
 }
