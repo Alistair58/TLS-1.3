@@ -17,11 +17,11 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
 int main(int argc, char** argv) {
-    RSAKeyPair kp = generateKeys(256);
-    generateX509(kp);
-    free(kp.privateKey.p);
-    free(kp.privateKey.q);
-    free(kp.publicKey.n);
+    // RSAKeyPair kp = generateKeys(256);
+    // generateX509(kp);
+    // free(kp.privateKey.p);
+    // free(kp.privateKey.q);
+    // free(kp.publicKey.n);
 
 
     // int server_sock, client_sock;

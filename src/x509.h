@@ -60,9 +60,8 @@ typedef uint8_t certifStatus;
 #define OUT_OF_DATE 1
 #define INVALID_SIGNATURE 2
 
-void generateX509(RSAPublickKey subjectPk,RSAKeyPair issuerKp,uchar *fname);
-Base64 base64Encode(uchar *data,int lenData);
-asn1Certificate X509ToAsn1(uchar *fname);
-certifStatus checkX509(RSAPublickKey issuerPk,uchar *fname);
+void generateX509(RSAPublicKey subjectPk,RSAKeyPair issuerKp,uchar *fname);
+asn1Certificate x509ToAsn1(uchar *fname);
+certifStatus checkX509(RSAPublicKey issuerPk,uchar *fname);
 
 #endif

@@ -12,7 +12,7 @@
 #define DER_BITSTRING 0x03
 
 
-static asn1Certificate generateAsn1X509(RSAPublickKey subjectPk,RSAKeyPair issuerKp);
+static asn1Certificate generateAsn1X509(RSAPublicKey subjectPk,RSAKeyPair issuerKp);
 static DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif);
 static int derEncodeBignum(uchar *result,bignum n,int lenN);
 static int derEncodeString(uchar *result,uchar *string,int lenString);
@@ -20,9 +20,14 @@ static int derEncodeInt(uchar *result,int num);
 static DER asn1ToDER(asn1Certificate asn1Certif);
 static Base64 base64Encode(uchar *data,int lenData);
 static DER base64Decode(uchar *input,int lenInput);
-static asn1Certificate DERToAsn1(DER der);
+static asn1Certificate derToAsn1(DER der);
+static DER derTBSToAsn1(uchar *der,int *index);
+static bignum derDecodeBignum(uchar *input,int *index,int *len);
+static uchar* derDecodeString(uchar *input,int *index,int *len);
+static int derDecodeInt(uchar *input,int *index);
 
-void generateX509(RSAPublickKey subjectPk,RSAKeyPair issuerKp,uchar *fname){
+
+void generateX509(RSAPublicKey subjectPk,RSAKeyPair issuerKp,uchar *fname){
     asn1Certificate asn1Certif = generateAsn1X509(subjectPk,issuerKp);
     DER derCertif = asn1ToDER(asn1Certif);
     Base64 b64Certif = base64Encode(derCertif.data,derCertif.lenData);
@@ -36,7 +41,7 @@ void generateX509(RSAPublickKey subjectPk,RSAKeyPair issuerKp,uchar *fname){
 }
 
 
-static asn1Certificate generateAsn1X509(RSAPublickKey subjectPk,RSAKeyPair issuerKp){
+static asn1Certificate generateAsn1X509(RSAPublicKey subjectPk,RSAKeyPair issuerKp){
     asn1Certificate certif;
     certif.tbsCertif.version = v3;
     certif.tbsCertif.serialNumber = 0;
@@ -44,7 +49,7 @@ static asn1Certificate generateAsn1X509(RSAPublickKey subjectPk,RSAKeyPair issue
     uchar issuer[] = "me";
     memcpy(certif.tbsCertif.issuer,issuer,sizeof(issuer)); 
     //TODO add timings
-    uchar notBefore[] = "YYMMDDHHMMSSZ";
+    uchar notAfter[] = "YYMMDDHHMMSSZ";
     uchar notAfter[] = "YYMMDDHHMMSSZ";
     memcpy(certif.tbsCertif.validity.notBefore,notBefore,sizeof(notBefore));
     memcpy(certif.tbsCertif.validity.notAfter,notAfter,sizeof(notAfter));
@@ -58,7 +63,7 @@ static asn1Certificate generateAsn1X509(RSAPublickKey subjectPk,RSAKeyPair issue
     bignum hash = sha256(der.data,der.lenData);
     //Not decrypting, just using the private key to encrypt
     uchar *signatureString = calloc(issuerKp.publicKey.lenN*sizeof(uint32_t),sizeof(uchar));
-    decryptRSA(hash,8,kp,signatureString,issuerKp.publicKey.lenN*sizeof(uint32_t));
+    decryptRSA(hash,8,issuerKp,signatureString,issuerKp.publicKey.lenN*sizeof(uint32_t));
     certif.signatureValue = calloc(issuerKp.publicKey.lenN,sizeof(uint32_t));
     if(!certif.signatureValue){
         allocError();
@@ -97,8 +102,11 @@ static DER asn1TBSToDER(asn1TBSCertificate asn1TBSCertif){
     index++;
     index += derEncodeString(&result.data[index],asn1TBSCertif.validity.notBefore,sizeof(asn1TBSCertif.validity.notBefore));
     index += derEncodeString(&result.data[index],asn1TBSCertif.validity.notAfter,sizeof(asn1TBSCertif.validity.notAfter));
-    index += derEncodeString(&result.data[index],asn1TBSCertif.subject,sizeof(asn1TBSCertif.subject));
     result.data[validitySequenceLengthIndex] = index-(validitySequenceLengthIndex+1);
+    
+    //Subject
+    index += derEncodeString(&result.data[index],asn1TBSCertif.subject,sizeof(asn1TBSCertif.subject));
+    
 
     //Public key info
     result.data[index++] = DER_SEQUENCE;
@@ -123,7 +131,7 @@ static int derEncodeBignum(uchar *result,bignum n,int lenN){
     result[1] = lenN*4;
     for(int i=0;i<lenN*4;i++){
         //big endian
-        result[i+2] = (n[i/4] >> (3-(i&0x3))) & 0xff;
+        result[i+2] = (n[i/4] >> ((3-(i&0x3))*8)) & 0xff;
     }
     return lenN*4+2;
 }
@@ -157,7 +165,7 @@ static DER asn1ToDER(asn1Certificate asn1Certif){
         allocError();
     }
     int index = 0;
-    
+
     //Certif sequence
     result.data[index++] = DER_SEQUENCE;
     int certifSequenceLengthIndex = index;
@@ -172,11 +180,8 @@ static DER asn1ToDER(asn1Certificate asn1Certif){
     //Signature Algorithm
     index += derEncodeInt(&result.data[index],asn1Certif.signatureAlgorithm);
 
-    //Signature value
+    //Signature value and length
     index += derEncodeBignum(&result.data[index],asn1Certif.signatureValue,asn1Certif.lenSignatureValue*sizeof(uint32_t));
-
-    //Signature length
-    index += derEncodeInt(&result.data[index],asn1Certif.lenSignatureValue);
 
     result.data[certifSequenceLengthIndex] = index-(certifSequenceLengthIndex+1);
 
@@ -187,6 +192,8 @@ static DER asn1ToDER(asn1Certificate asn1Certif){
     return result;
 }
 
+//lenData should not include null terminator
+//Output will not include a null terminator
 Base64 base64Encode(uchar *data,int lenData){
     Base64 result;
     int lenBits = lenData*8;
@@ -250,51 +257,311 @@ Base64 base64Encode(uchar *data,int lenData){
     return result;
 }
 
-asn1Certificate X509ToAsn1(uchar *fname){
+asn1Certificate x509ToAsn1(uchar *fname){
     FILE *fhand = fopen(fname,"r");
-    const int lenBuff = 2000;
-    uchar buff[2000] = {0};
+    const int lenBuff = 2048;
+    uchar buff[2048] = {0};
     fgets(buff,lenBuff,fhand);
     DER derCertif = base64Decode(buff,lenBuff);
     asn1Certificate asn1Certif = DERToAsn1(derCertif);
     free(derCertif.data);
-    return asn1Cerif;
+    return asn1Certif;
 }
 
 
-certifStatus checkX509(RSAPublickKey issuerPk,uchar *fname){
+certifStatus checkX509(RSAPublicKey issuerPk,uchar *fname){
     asn1Certificate asn1Cerif =  X509ToAsn1(fname);
     //TODO
     //Check signature 
     //Check date
 }
 
+//lenInput should not include a null terminator
+//The result will not have a null terminator
 static DER base64Decode(uchar *input,int lenInput){
     DER result;
-    int lenBits = lenData*8;
+    int lenBits = lenInput*8;
     //Calculate the real length of the message
     int lenPaddingBits = 0;
     for(int i=lenInput-1;i>=0;i--){
         if(input[i]=='='){
             lenPaddingBits+=2;
-            //8 for the '=' and 2 for the actual padding
-            lenBits-=10;
+            //6 for the '=' and 2 for the actual padding
+            lenBits-=8;
         }
         else break;
-    }
-    
+    }    
     int lenResultBytes = (lenBits/8)*6/8;
 
     result.data = calloc(lenResultBytes,sizeof(uchar));
     result.lenData = lenResultBytes;
 
-    //TODO 
+    int lenNonPaddedInput = lenInput - lenPaddingBits/2;
+    for(int inputIndex=0;inputIndex<lenNonPaddedInput;inputIndex++){
+        
+        int outputIndex = inputIndex*6/8;
+        uchar b64Value = input[inputIndex];
+        if(b64Value >= 'A' && b64Value <= 'Z'){
+            b64Value -= 'A';
+        }
+        else if(b64Value >= 'a' && b64Value <= 'z'){
+            b64Value = b64Value-'a'+26;
+        }
+        else if(b64Value >= '0' && b64Value <= '9'){
+            b64Value = b64Value-'0'+52;
+        }
+        else if(b64Value == '+'){
+            b64Value = 62;
+        }
+        else if(b64Value == '/'){
+            b64Value = 63;
+        }
+        else{
+            fprintf(stderr,"base64Decode: Invalid base64 character at position: %d\n",inputIndex);
+            exit(1);
+        }
 
+        // result[0] = input[0] << 2 | (input[1] & 0b00110000) >> 4
+        // result[1] = (input[1] & 0b00001111) << 4 | (input[2] & 0b00111100) >> 2  
+        // result[2] = (input[2] & 0b00000011) << 6 | (input[3] & 0b00111111) 
+        // result[3] = input[4] << 2 | (input[5] & 0b00110000) >> 4
+
+        if((inputIndex&3) == 0){ //inputIndex%4 == 0
+            result.data[outputIndex] = b64Value << 2;
+        }
+        else if(outputIndex%3 == 0){ //&& inputIndex % 3 == 1
+            result.data[outputIndex] |= (b64Value & 0b00110000) >> 4;
+            if(outputIndex+1<lenResultBytes){
+                result.data[outputIndex+1] = (b64Value & 0b00001111) << 4;
+            }
+        }
+        else if(outputIndex%3 == 1){
+            result.data[outputIndex] |= (b64Value & 0b00111100) >> 2; 
+            if(outputIndex+1<lenResultBytes){
+                result.data[outputIndex+1] = (b64Value & 0b00000011) << 6;
+            }
+        }
+        else{ //outputIndex%3 == 2
+            if((inputIndex&1) == 0){ //inputIndex%4 == 2
+                result.data[outputIndex] = (b64Value & 0b00000011) << 6;
+            }
+            else{ //inputIndex%4 == 3
+                result.data[outputIndex] |= (b64Value & 0b00111111);
+            }
+        }
+    }
     return result;
-
 }
 
 
-static asn1Certificate DERToAsn1(DER der){
-    //TODO
+static asn1Certificate derToAsn1(DER der){
+    asn1Certificate result;
+    int index = 0;
+    if(der.data[index]!=DER_SEQUENCE){
+        perror("derToAsn1: Malformed DER certificate");
+        exit(1);
+    }
+    int derCertifLength = der.data[++index];
+    if(derCertiflength!=der.lenData-2){ //Minus the start seq and length
+        perror("derToAsn1: Malformed DER certificate. Length is incorrect.");
+        exit(1);
+    }
+    index++;
+    typedef enum Asn1Field{
+        TBS,
+        SignatureAlg,
+        SignatureVal
+    } Asn1Field;
+    Asn1Field currField = TBS;
+    while(index<der.lenData){
+        switch(currField){
+            case TBS:
+                result.tbsCertif = derTBSToAsn1(&der.data[index],&index);
+                break;
+            case SignatureAlg:
+                result.signatureAlgorithm = derDecodeInt(&der.data[index],&index);
+                break;
+            case SignatureVal:
+                result.signatureValue = derDecodeBignum(&der.data[index],&index,&result.lenSignatureValue);
+                break;
+            default:
+                perror("derToAsn1: Malformed DER certificate. Unknown field.");
+                exit(1);
+        };
+        currField++;
+    }
+    return result;
 }
+
+
+
+
+static DER derTBSToAsn1(uchar *der,int *index){
+    asn1TBSCertificate result;
+    if(der.data[*index]!=DER_SEQUENCE){
+        perror("derTBSToAsn1: Malformed DER TBS certificate");
+        exit(1);
+    }
+    int lenTBSSequence = der.data[++(*index)];
+    typedef enum tbsAsn1Field{
+        Version,
+        SerialNumber,
+        Signature,
+        Issuer,
+        Validity,
+        SubjectPublicKeyInfo
+    } tbsAsn1;
+
+    int endIndex = *index+lenTBSSequence;
+    tbsAsn1Field currField = Version;
+    while(*index<endIndex){
+        switch(currField){
+            case Version:
+                result.version = derDecodeInt(&der.data[*index],index);
+                break;
+            case SerialNumber:
+                result.serialNumber = derDecodeInt(&der.data[*index],index);
+                break;
+            case Signature:
+                result.signature = derDecodeInt(&der.data[*index],index);
+                break;
+            case Issuer:
+                int lenIssuer = 0;
+                uchar *issuer = derDecodeString(&der.data[*index],index,&lenIssuer);
+                int lenStructField = sizeof(result.issuer)/sizeof(result.issuer[0]);
+                if(lenIssuer>lenStructField){
+                    perror("derTBSToAsn1: Issuer string length is too long");
+                    exit(1);
+                }
+                memset(result.issuer,0,lenStructField);
+                memcpy(result.issuer,issuer,lenIssuer);
+                break;
+            case Validity:
+                if(der.data[*index]!=DER_SEQUENCE){
+                    perror("derTBSToAsn1: Malformed DER TBS certificate. Unknown field.");
+                    exit(1);
+                }
+                int length = der.data[++(*index)];
+                int startIndex = *index;
+                int lenNotBefore = 0;
+                uchar *notBefore = derDecodeString(&der.data[*index],index,&lenNotBefore);
+                int lenNotBeforeField = sizeof(result.validity.notBefore)/sizeof(result.validity.notBefore[0]);
+                if(lenNotBefore>lenNotBeforeField){
+                    perror("derTBSToAsn1: notBefore string length is too long");
+                    exit(1);
+                }
+                memset(result.validity.notBefore,0,lenNotBeforeField);
+                memcpy(result.validity.notBefore,notBefore,lenNotBefore);
+
+                int lenNotAfter = 0;
+                uchar *notAfter = derDecodeString(&der.data[*index],index,&lenNotAfter);
+                int lenNotAfterField = sizeof(result.validity.notAfter)/sizeof(result.validity.notAfter[0]);
+                if(lenNotAfter>lenNotAfterField){
+                    perror("derTBSToAsn1: notAfter string length is too long");
+                    exit(1);
+                }
+                memset(result.validity.notAfter,0,lenNotAfterField);
+                memcpy(result.validity.notAfter,notAfter,lenNotAfter);
+                if(startIndex+length!=*index){
+                    perror("derTBSToAsn1: Malformed DER TBS certificate. Length mismatch.");
+                    exit(1);
+                }
+                break;
+            case Subject:
+                int lenSubject = 0;
+                uchar *subject = derDecodeString(&der.data[*index],index,&lenSubject);
+                int lenStructField = sizeof(result.subject)/sizeof(result.subject[0]);
+                if(lenSubject>lenStructField){
+                    perror("derTBSToAsn1: Subject string length is too long");
+                    exit(1);
+                }
+                memset(result.subject,0,lenStructField);
+                memcpy(result.subject,subject,lenSubject);
+                break;
+            case SubjectPublicKeyInfo:
+                if(der.data[*index]!=DER_SEQUENCE){
+                    perror("derTBSToAsn1: Malformed DER TBS certificate. Unknown field.");
+                    exit(1);
+                }
+                int fieldLength = der.data[++(*index)];
+                int startFieldIndex = *index;
+                result.subjectPublicKeyInfo.algorithm = derDecodeInt(&der.data[*index],index);
+                if(der.data[*index]!=DER_SEQUENCE){
+                    perror("derTBSToAsn1: Malformed DER TBS certificate. Unknown field.");
+                    exit(1);
+                }
+                int subFieldLength = der.data[++(*index)];
+                int startSubFieldIndex = *index;
+                result.subjectPublicKeyInfo.subjectPublicKey.e = derDecodeInt(&der.data[*index],index);
+                result.subjectPublicKeyInfo.subjectPublicKey.n = derDecodeBignum(&der.data[*index],index);
+                result.subjectPublicKeyInfo.subjectPublicKey.lenN = derDecodeInt(&der.data[*index],index);
+                if(startSubFieldIndex+subFieldLength!=*index || startFieldIndex+fieldLength!=*index){
+                    perror("derTBSToAsn1: Malformed DER TBS certificate. Length mismatch.");
+                    exit(1);
+                }
+                break;
+            default:
+                perror("derTBSToAsn1: Malformed DER TBS certificate. Unknown field.");
+                exit(1);
+        };
+        currField++;
+    }
+    return result;
+}
+
+static bignum derDecodeBignum(uchar *input,int *index,int *len){
+    if(input[(*index)++]!=DER_BITSTRING){
+        perror("derDecodeBignum: Input is not a bignum\n");
+        exit(1);
+    }
+    *len = input[(*index)++];
+    bignum result = calloc(*len,sizeof(uchar));
+    if(!result){
+        allocError();
+    }
+    const int startIndex = *index;
+    for(;*index<startIndex+*len;(*index)++){
+        //Big endian
+        result[(*index-startIndex)>>2] |= (uint32_t) input[*index] << ((3-((*index-startIndex)&3))*8);
+    }
+    return result 
+}
+
+
+//The result is not null terminated
+static uchar* derDecodeString(uchar *input,int *index,int *len){
+    if(input[(*index)++]!=DER_UTF8STRING){
+        perror("derDecodeString: Input is not a string\n");
+        exit(1);
+    }
+    *len = input[(*index)++];
+    uchar result = calloc(*len,sizeof(uchar));
+    if(!result){
+        allocError();
+    }
+    const int startIndex = *index;
+    for(;*index<startIndex+*len;(*index)++){
+        result[*index-startIndex] = input[*index];
+    }
+    return result 
+}
+
+static int derDecodeInt(uchar *input,int *index){
+    if(input[(*index)++]!=DER_INTEGER){
+        perror("derDecodeInt: Input is not an int\n");
+        exit(1);
+    }
+    const int len = input[(*index)++];
+    if(len != 4){
+        perror("derDecodeInt: Input is not an int\n");
+        exit(1);
+    }
+    const int startIndex = *index;
+    int result = 0;
+    for(;*index<startIndex+len;(*index)++){
+        //Big endian
+        result |= (uint32_t) input[*index] << ((3-((*index-startIndex)&3))*8);
+    }
+    return result 
+}
+
