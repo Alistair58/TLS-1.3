@@ -61,7 +61,6 @@ typedef uint8_t certifStatus;
 #define INVALID_SIGNATURE 2
 
 void generateX509(RSAPublicKey subjectPk,RSAKeyPair issuerKp,uchar *fname);
-asn1Certificate x509ToAsn1(uchar *fname);
 certifStatus checkX509(RSAPublicKey issuerPk,uchar *fname);
 
 #endif

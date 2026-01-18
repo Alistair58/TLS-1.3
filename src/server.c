@@ -16,7 +16,10 @@ struct ServerHello generateServerHello(uint32_t *privateDHRandom);
 uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv){
+    RSAKeyPair kp = generateKeys(256);
+    generateX509(kp.publicKey,kp,"certif.pem");
+    checkX509(kp.publicKey,"certif.pem");
     // RSAKeyPair kp = generateKeys(256);
     // generateX509(kp);
     // free(kp.privateKey.p);
