@@ -20,4 +20,10 @@
 
 typedef unsigned char uchar;
 
+typedef struct String{
+    uchar *data;
+    int lenData;
+} String;
+
+
 #endif

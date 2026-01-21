@@ -29,9 +29,8 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Make all DER sequence lengths encoded as integers (some are bigger than 8 bits)
-//Test certificates
 //Write private key stores
+//Add them into x509 
 
 
 int main(int argc, char** argv) {

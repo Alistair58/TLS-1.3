@@ -45,15 +45,7 @@ typedef struct asn1Certificate{
     int lenSignatureValue;
 }asn1Certificate;
 
-typedef struct DER{
-    uchar *data;
-    int lenData;
-}DER;
 
-typedef struct Base64{
-    uchar *data;
-    int lenData;
-}Base64;
 
 typedef uint8_t certifStatus;
 #define VALID 0
