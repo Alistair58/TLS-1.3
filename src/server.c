@@ -9,6 +9,7 @@
 #include "x25519.h"
 #include "random.h"
 #include "shared.h"
+#include "keystore.h"
 
 int startServer(in_addr* addr,int *sock);
 struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff);
@@ -16,10 +17,39 @@ struct ServerHello generateServerHello(uint32_t *privateDHRandom);
 uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
+//Test 1
+//Server generates a key pair
+//Saves them
+//Reads them and checks that they are the same
+//PASSED
+
+//Test 2
+//Server generates a key pair
+//Signs its own certificate
+//Checks that the signature is valid
+
+//Write a command line utility for being able to generate keys, certificates, sign and communicate
+//-keygen {-privpath=""} {-pubpath=""}
+//-certifgen -subject="" -pubpath=""
+//-certifsign -issuer="" -privpath=""
+//-connect  //starts a repl loop in GCM
+
+//Test 3
+//Sever generates a key pair and saves them
+//Server signs a certificate for server 2
+//client checks that the certificate for server 2 is valid using server 1's public key
+
+
 int main(int argc, char** argv){
-    RSAKeyPair kp = generateKeys(256);
-    generateX509(kp.publicKey,kp,"certif.pem");
-    checkX509(kp.publicKey,"certif.pem");
+    RSAKeyPair kpInp = generateKeys(256);
+    savePrivateKey(kpInp.privateKey,"private.pem");
+    savePublicKey(kpInp.publicKey,"public.pem");
+
+    RSAKeyPair kpRes;
+    kpRes.privateKey = readPrivateKey("private.pem");
+    kpRes.publicKey = readPublicKey("public.pem");
+    freeRSAKeyPair(kpInp);
+    freeRSAKeyPair(kpRes);
     // RSAKeyPair kp = generateKeys(256);
     // generateX509(kp);
     // free(kp.privateKey.p);

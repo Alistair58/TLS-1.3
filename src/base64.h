@@ -3,8 +3,8 @@
 
 #include "globals.h"
 
-static String base64Decode(String inp);
-static String base64Encode(String inp);
+String base64Decode(String inp);
+String base64Encode(String inp);
 
 
 #endif

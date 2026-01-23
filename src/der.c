@@ -51,6 +51,7 @@ bignum derDecodeBignum(uchar *input,int *index,int *len){
         //Big endian
         result[(*index-startIndex)>>2] |= (uint32_t) input[*index] << ((3-((*index-startIndex)&3))*8);
     }
+    *len /= 4; //Return the length in number of uint32_ts instead of bytes (this is how bignums are measured)
     return result;
 }
 

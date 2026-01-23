@@ -3,9 +3,12 @@
 #include <string.h>
 #include "sha.h"
 #include "base64.h"
+#include "der.h"
+
+#define DER_SEQUENCE 0x30
 
 //An implementation of an X509 certificate creation roughly following RFC 5280
-#define DER_SEQUENCE 0x30
+
 
 
 

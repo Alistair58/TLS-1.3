@@ -202,7 +202,7 @@ void encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp,bignum dest,int lenDest){
         allocError();
     }
     //Putting the msg in starting at the LSB of msgNum means that we don't fail the < n check
-    int j = kp.publicKey.lenN; //dencrements on first iteration
+    int j = kp.publicKey.lenN; //decrements on first iteration
     for(int i=0;i<lenMsg;i++){
         int mod = i%sizeDiff;
         if(mod==0) j--;
@@ -364,3 +364,16 @@ RSAKeyPair generateKeys(int numBits){
     return kp;
 }
 
+void freeRSAPublicKey(RSAPublicKey pk){
+    free(pk.n);
+}   
+
+void freeRSAPrivateKey(RSAPrivateKey pk){
+    free(pk.p);
+    free(pk.q);
+}
+
+void freeRSAKeyPair(RSAKeyPair kp){
+    freeRSAPublicKey(kp.publicKey);
+    freeRSAPrivateKey(kp.privateKey);
+}
