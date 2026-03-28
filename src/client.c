@@ -29,8 +29,12 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//Write private key stores
-//Add them into x509 
+//CheckX509 - check the signature, check the date
+//CA program - generates and stores the keys
+//CA program - can sign a server's certificate
+//Client uses CA's key to verify the certificate
+//Start making the actual protocol 
+
 
 
 int main(int argc, char** argv) {
