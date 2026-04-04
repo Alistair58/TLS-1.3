@@ -4,7 +4,14 @@ extern "C" {
 #include <gtest/gtest.h>
 
 
-
-TEST(X509Test,gtestWorks){
-    EXPECT_EQ(5,5);
+TEST(X509Test,checkX509Valid){
+    //Need a key >256 bits so that it can encrypt a SHA 256 hash
+    RSAKeyPair myKp = generateKeys(512);
+    RSAKeyPair issuerKp = generateKeys(512);
+    uchar fname[] = "./test/tmp/test.pem"; 
+    generateX509(myKp.publicKey,issuerKp,fname);
+    certifStatus status = checkX509(issuerKp.publicKey,fname);
+    freeRSAKeyPair(myKp);
+    freeRSAKeyPair(issuerKp);
+    EXPECT_EQ(status,VALID);
 }

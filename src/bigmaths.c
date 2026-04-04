@@ -586,8 +586,8 @@ uint8 bigNumCmpLittle(bignum a,int lenA,uint32_t b){
 
 //Returns size lenN
 void bigNumMod(bignum a,int lenA,bignum n,int lenN,bignum dest,int lenDest){ //a % n
-    if(lenN != lenDest){
-        perror("bigNumMod: lenN == lenDest check failed\n");
+    if(lenN > lenDest){
+        perror("bigNumMod: lenN > lenDest check failed\n");
         exit(1);
     }
     //Long division
@@ -610,7 +610,8 @@ void bigNumMod(bignum a,int lenA,bignum n,int lenN,bignum dest,int lenDest){ //a
     }
        
     //Return the left over carry which will be the remainder
-    memcpy(dest,&remainder[1],lenN*sizeof(uint32_t));
+    //Copy it into the LSBs if lenDest>lenN
+    memcpy(&dest[lenDest-lenN],&remainder[1],lenN*sizeof(uint32_t));
     free(remainder);
 }
 
@@ -637,11 +638,12 @@ void bigNumDiv(bignum a,int lenA,bignum b,int lenB,bignum dest,int lenDest){ //r
         uint8 cmpRes = bigNumCmp(remainder,lenB+1,b,lenB);
         if(cmpRes != LESS_THAN){ //Equal or greater than
             bigNumSub(remainder,lenB+1,b,lenB,remainder,lenB+1);
-            dest[i>>5] |= (1 << (31 - (i&31)));
+            dest[i>>5] |= ((uint32_t)1 << (31 - (i&31)));
             //Don't need to actually work out the quotient
         }
     }
     //Don't need to mess around with remainder 
+    free(remainder);
 } 
 
 void bigNumModAdd(bignum a,int lenA, bignum b, int lenB,bignum n,int lenN,bignum dest,int lenDest){

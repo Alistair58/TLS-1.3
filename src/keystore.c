@@ -147,7 +147,8 @@ RSAPrivateKey readPrivateKey(uchar *fname){
 
 static String privateKeyToDER(RSAPrivateKey pk){
     String result;
-    result.data = (uchar*) malloc(2048);
+    result.lenData = 2048;
+    result.data = (uchar*) malloc(result.lenData);
     if(!result.data){
         allocError();
     }
@@ -156,14 +157,14 @@ static String privateKeyToDER(RSAPrivateKey pk){
     result.data[index++] = DER_SEQUENCE;
     //Reserve the index for the length
     int privateKeyLengthIdx = index;
-    index += derEncodeInt(&result.data[index],0);
+    index += derEncodeInt(&result.data[index],result.lenData-index,0);
     int privateKeyStart = index;
 
-    index += derEncodeBignum(&result.data[index],pk.p,pk.lenP);
-    index += derEncodeBignum(&result.data[index],pk.q,pk.lenQ);
+    index += derEncodeBignum(&result.data[index],result.lenData-index,pk.p,pk.lenP);
+    index += derEncodeBignum(&result.data[index],result.lenData-index,pk.q,pk.lenQ);
 
     //Put the correct length in
-    derEncodeInt(&result.data[privateKeyLengthIdx],index-privateKeyStart);
+    derEncodeInt(&result.data[privateKeyLengthIdx],result.lenData-privateKeyLengthIdx,index-privateKeyStart);
 
     uchar *resized = realloc(result.data,index);
     if(!resized){
@@ -177,7 +178,8 @@ static String privateKeyToDER(RSAPrivateKey pk){
 
 static String publicKeyToDER(RSAPublicKey pk){
     String result;
-    result.data = (uchar*) malloc(2048);
+    result.lenData = 2048;
+    result.data = (uchar*) malloc(result.lenData);
     if(!result.data){
         allocError();
     }
@@ -186,14 +188,14 @@ static String publicKeyToDER(RSAPublicKey pk){
     result.data[index++] = DER_SEQUENCE;
     //Reserve the index for the length
     int publicKeyLengthIdx = index;
-    index += derEncodeInt(&result.data[index],0);
+    index += derEncodeInt(&result.data[index],result.lenData-index,0);
     int publicKeyStart = index;
 
-    index += derEncodeBignum(&result.data[index],pk.n,pk.lenN);
-    index += derEncodeInt(&result.data[index],pk.e);
+    index += derEncodeBignum(&result.data[index],result.lenData-index,pk.n,pk.lenN);
+    index += derEncodeInt(&result.data[index],result.lenData-index,pk.e);
 
     //Put the correct length in
-    derEncodeInt(&result.data[publicKeyLengthIdx],index-publicKeyStart);
+    derEncodeInt(&result.data[publicKeyLengthIdx],result.lenData-publicKeyLengthIdx,index-publicKeyStart);
 
     uchar *resized = realloc(result.data,index);
     if(!resized){
@@ -212,11 +214,11 @@ static RSAPrivateKey derToPrivateKey(String der){
         perror("derToPrivateKey: Malformed DER key store");
         exit(1);
     }
-    int declaredLength = derDecodeInt(der.data,&index);
+    int declaredLength = derDecodeInt(der.data,der.lenData,&index);
     int startPrivateKeyIdx = index;
 
-    result.p = derDecodeBignum(der.data,&index,&result.lenP);
-    result.q = derDecodeBignum(der.data,&index,&result.lenQ);
+    result.p = derDecodeBignum(der.data,der.lenData,&index,&result.lenP);
+    result.q = derDecodeBignum(der.data,der.lenData,&index,&result.lenQ);
 
     if(index-startPrivateKeyIdx != declaredLength){
         perror("derToPrivateKey: Malformed DER key store. Length is incorrect.");
@@ -234,11 +236,11 @@ static RSAPublicKey derToPublicKey(String der){
         perror("derToPublicKey: Malformed DER key store");
         exit(1);
     }
-    int declaredLength = derDecodeInt(der.data,&index);
+    int declaredLength = derDecodeInt(der.data,der.lenData,&index);
     int startPublicKeyIdx = index;
 
-    result.n = derDecodeBignum(der.data,&index,&result.lenN);
-    result.e = derDecodeInt(der.data,&index);
+    result.n = derDecodeBignum(der.data,der.lenData,&index,&result.lenN);
+    result.e = derDecodeInt(der.data,der.lenData,&index);
 
     if(index-startPublicKeyIdx != declaredLength){
         perror("derToPublicKey: Malformed DER key store. Length is incorrect.");

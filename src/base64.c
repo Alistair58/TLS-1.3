@@ -2,7 +2,7 @@
 #include <stdint.h>
 
 //lenData should not include null terminator
-//Output will not include a null terminator
+//Output will include a null terminator
 String base64Encode(String inp){
     String result;
     int lenBits = inp.lenData*8;
@@ -13,13 +13,13 @@ String base64Encode(String inp){
     int lenPaddingChars = lenPaddingBits/2;
     int lenResultBytes = num6BitChunks + lenPaddingChars;
 
-    result.data = calloc(lenResultBytes,sizeof(uchar));
-    result.lenData = lenResultBytes;
-
+    result.lenData = lenResultBytes+1;
+    result.data = calloc(result.lenData,sizeof(uchar));
+    
     for(int i=0;i<num6BitChunks;i++){
         int inputIndex = i*6/8;
         uchar inputChunk0 = inp.data[inputIndex];
-        uchar inputChunk1 = (inputIndex>=inp.lenData)?0:inp.data[inputIndex+1];
+        uchar inputChunk1 = (inputIndex+1>=inp.lenData)?0:inp.data[inputIndex+1];
 
         // i=0 -> input[0] & 0b11111100 >> 2 | input[1] & 0b00000000 >> 2
         // i=1 -> input[0] & 0b00000011 << 4 | input[1] & 0b11110000 >> 4
@@ -62,6 +62,7 @@ String base64Encode(String inp){
     for(int i=0;i<lenPaddingChars;i++){
         result.data[num6BitChunks+i] = '=';
     }
+    result.data[lenResultBytes] = '\0';
 
     return result;
 }

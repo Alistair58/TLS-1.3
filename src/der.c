@@ -5,7 +5,16 @@
 #define DER_UTF8STRING 0x0C
 #define DER_BITSTRING 0x03
 
-int derEncodeBignum(uchar *result,bignum n,int lenN){
+
+static void derBoundsCheck(int currIndex,int lenBuff){
+    if(currIndex>=lenBuff){
+        perror("derBoundsCheck: Out of bounds\n");
+        exit(1);
+    }
+}
+
+int derEncodeBignum(uchar *result,int lenResult,bignum n,int lenN){
+    derBoundsCheck(lenN*4+2,lenResult);
     result[0] = DER_BITSTRING;
     result[1] = lenN*4;
     for(int i=0;i<lenN*4;i++){
@@ -16,7 +25,8 @@ int derEncodeBignum(uchar *result,bignum n,int lenN){
 }
 
 
-int derEncodeString(uchar *result,uchar *string,int lenString){
+int derEncodeString(uchar *result,int lenResult,uchar *string,int lenString){
+    derBoundsCheck(lenString+2,lenResult);
     result[0] = DER_UTF8STRING;
     result[1] = lenString;
     for(int i=0;i<lenString;i++){
@@ -25,7 +35,8 @@ int derEncodeString(uchar *result,uchar *string,int lenString){
     return lenString+2;
 }
 
-int derEncodeInt(uchar *result,int num){
+int derEncodeInt(uchar *result,int lenResult,int num){
+    derBoundsCheck(6,lenResult);
     result[0] = DER_INTEGER;
     result[1] = 4;
     for(int i=0;i<4;i++){
@@ -36,7 +47,9 @@ int derEncodeInt(uchar *result,int num){
 }
 
 
-bignum derDecodeBignum(uchar *input,int *index,int *len){
+bignum derDecodeBignum(uchar *input,int lenInput,int *index,int *len){
+    //Label and length
+    derBoundsCheck(*index+1,lenInput);
     if(input[(*index)++]!=DER_BITSTRING){
         perror("derDecodeBignum: Input is not a bignum\n");
         exit(1);
@@ -48,6 +61,7 @@ bignum derDecodeBignum(uchar *input,int *index,int *len){
     }
     const int startIndex = *index;
     for(;*index<startIndex+*len;(*index)++){
+        derBoundsCheck(*index,lenInput);
         //Big endian
         result[(*index-startIndex)>>2] |= (uint32_t) input[*index] << ((3-((*index-startIndex)&3))*8);
     }
@@ -56,7 +70,9 @@ bignum derDecodeBignum(uchar *input,int *index,int *len){
 }
 
 
-uchar* derDecodeString(uchar *input,int *index,int *len){
+uchar* derDecodeString(uchar *input,int lenInput,int *index,int *len){
+    //Label and length
+    derBoundsCheck(*index+1,lenInput);
     if(input[(*index)++]!=DER_UTF8STRING){
         perror("derDecodeString: Input is not a string\n");
         exit(1);
@@ -68,12 +84,14 @@ uchar* derDecodeString(uchar *input,int *index,int *len){
     }
     const int startIndex = *index;
     for(;*index<startIndex+*len;(*index)++){
+        derBoundsCheck(*index,input);
         result[*index-startIndex] = input[*index];
     }
     return result;
 }
 
-int derDecodeInt(uchar *input,int *index){
+int derDecodeInt(uchar *input,int lenInput,int *index){
+    derBoundsCheck(*index+5,input);
     if(input[(*index)++]!=DER_INTEGER){
         perror("derDecodeInt: Input is not an int\n");
         exit(1);

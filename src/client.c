@@ -29,11 +29,12 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//CheckX509 - check the signature, check the date
+//CheckX509 - check the date
 //CA program - generates and stores the keys
 //CA program - can sign a server's certificate
 //Client uses CA's key to verify the certificate
 //Start making the actual protocol 
+//Profiling on RSA key generation - very slow
 
 
 

@@ -38,7 +38,7 @@ typedef struct RSAKeyPair{
 
 
 bool isPrime(bignum n,int lenN);
-void encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp,bignum dest,int lenDest);
+void encryptRSA(uchar *msg,int lenMsg,RSAPublicKey pk,bignum dest,int lenDest);
 void decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp,uchar *dest,int lenDest);
 RSAKeyPair generateKeys(int numBits);
 void freeRSAPublicKey(RSAPublicKey pk);

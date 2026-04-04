@@ -7,6 +7,7 @@ project(TLS-1.3 LANGUAGES C CXX)
 if(${TEST})
     add_executable(TLS-1.3-Test 
         test/x509test.cpp
+        test/rsatest.cpp
         src/aes.c 
         src/bigmaths.c 
         src/gcm.c 
@@ -55,7 +56,7 @@ if(${TEST})
         -fsanitize=address,undefined
         -fno-omit-frame-pointer
         -g
-        -O1
+        -O0
     )
 
     target_link_options(TLS-1.3-Test PRIVATE

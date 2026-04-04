@@ -189,33 +189,41 @@ bool millerRabin(bignum n,int lenN,bignum a,int lenA){
     return false; 
 }
 
-void encryptRSA(uchar *msg,int lenMsg,RSAKeyPair kp,bignum dest,int lenDest){
-    if(lenDest != kp.publicKey.lenN){
+void encryptRSA(uchar *msg,int lenMsg,RSAPublicKey pk,bignum dest,int lenDest){
+    if(lenDest != pk.lenN){
         perror("encryptRSA: lenDest must be the length of the public key n");
+        exit(1);
     }
     int sizeDiff = sizeof(uint32_t)/sizeof(uchar); //yes I know it's 4
+    //RSA maths requirement
+    //First check for a message which is a number of bytes bigger
+    //Next check will check for if it is bigger within the same number of bytes
+    if(lenMsg > pk.lenN*sizeDiff){
+        perror("encryptRSA: message must be smaller than n");
+        exit(1);
+    }
     //Making msgNum length lenMsgNum means that it could be < lenN
     //This means when you decrypt it, the first chunks may be zero and so you can't print it out
     //Making it lenN is easier
-    bignum msgNum = calloc(kp.publicKey.lenN,sizeof(uint32_t));
+    bignum msgNum = calloc(pk.lenN,sizeof(uint32_t));
     if(!msgNum){
         allocError();
     }
     //Putting the msg in starting at the LSB of msgNum means that we don't fail the < n check
-    int j = kp.publicKey.lenN; //decrements on first iteration
+    int j = pk.lenN; //decrements on first iteration
     for(int i=0;i<lenMsg;i++){
         int mod = i%sizeDiff;
         if(mod==0) j--;
         msgNum[j] |= (uint32_t) msg[i] << ((sizeDiff-1-mod)*8);
     }
-    //RSA maths requirement
-    if(bigNumCmp(msgNum,kp.publicKey.lenN,kp.publicKey.n,kp.publicKey.lenN) == GREATER_THAN){
+    //Checking if bigger within the same number of bytes
+    if(bigNumCmp(msgNum,pk.lenN,pk.n,pk.lenN) == GREATER_THAN){
         free(msgNum);
         perror("msg is too long for RSA encryption with this n\n");
         exit(1);
     }
-    uint32_t eBigNum[1] = {kp.publicKey.e};
-    montLadExp(msgNum,kp.publicKey.lenN,&kp.publicKey.e,1,kp.publicKey.n,kp.publicKey.lenN,dest,kp.publicKey.lenN);
+    uint32_t eBigNum[1] = {pk.e};
+    montLadExp(msgNum,pk.lenN,&pk.e,1,pk.n,pk.lenN,dest,pk.lenN);
     free(msgNum);
 }
 
@@ -291,12 +299,7 @@ void extendedEuclidean(uint32_t exp,bignum totient,int lenTotient,bignum dest,in
 }
 
 void decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp,uchar *dest,int lenDest){
-    int sizeDiff = sizeof(uint32_t)/sizeof(uchar); //yes I know it's 4
-    int lenMsg = lenEM*sizeDiff;
-    if(lenMsg != lenDest){
-        perror("decryptRSA: lenDest does not match the length of the decrypted message");
-        exit(1);
-    }
+    const int sizeDiff = sizeof(uint32_t)/sizeof(uchar); //yes I know it's 4
     bignum pSub1 = (bignum) calloc(kp.privateKey.lenP,sizeof(uint32_t));
     bignum qSub1 = (bignum) calloc(kp.privateKey.lenQ,sizeof(uint32_t));
     bignum totient = (bignum) calloc(kp.publicKey.lenN,sizeof(uint32_t));
@@ -316,9 +319,24 @@ void decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp,uchar *dest,int 
                 d,kp.publicKey.lenN,
                 kp.publicKey.n,kp.publicKey.lenN,
                 decryptedNum,kp.publicKey.lenN);
+    //The original message was at most as long as N but is most likely shorter
+    int lenDecrypted = kp.publicKey.lenN*sizeDiff;
+    for(int j=0;j<kp.publicKey.lenN;j++){
+        if(!decryptedNum[j]){
+            lenDecrypted-=sizeDiff;
+        }
+        else{
+            break;
+        }
+    }
+    if(lenDecrypted>lenDest){
+        perror("decryptRSA: lenDest is insufficient to hold the decrypted message");
+        exit(1);
+    }
     int j = kp.publicKey.lenN; //decrements on first iteration
     //Opposite of encryption encoding
-    for(int i=0;i<lenMsg;i++){
+    //The smallest end of the number (higher indices) is put at the start of the message
+    for(int i=0;i<lenDest;i++){
         int mod = i%sizeDiff;
         if(mod==0) j--;
         dest[i]  =  (decryptedNum[j] >> ((sizeDiff-1-mod)*8)) & 0xff;
@@ -330,6 +348,8 @@ void decryptRSA(bignum encryptedMessage,int lenEM,RSAKeyPair kp,uchar *dest,int 
 
 //numBits is the size of the public key n
 RSAKeyPair generateKeys(int numBits){
+    //Currenly very slow
+    //The random number generation is not the slow part
     RSAKeyPair kp;
     int publicKeyLen = numBits/(8*sizeof(uint32_t));
     int privateKeyLen = publicKeyLen/2;
