@@ -5,7 +5,11 @@
 #define DER_UTF8STRING 0x0C
 #define DER_BITSTRING 0x03
 
-
+/**
+ * Exit if currIndex>=lenBuff
+ * @param currIndex the index we are proposing to access or write to
+ * @param lenBuff the total buffer size
+ */
 static void derBoundsCheck(int currIndex,int lenBuff){
     if(currIndex>=lenBuff){
         perror("derBoundsCheck: Out of bounds\n");
@@ -14,7 +18,7 @@ static void derBoundsCheck(int currIndex,int lenBuff){
 }
 
 int derEncodeBignum(uchar *result,int lenResult,bignum n,int lenN){
-    derBoundsCheck(lenN*4+2,lenResult);
+    derBoundsCheck(lenN*sizeof(uint32_t)+2,lenResult);
     result[0] = DER_BITSTRING;
     result[1] = lenN*4;
     for(int i=0;i<lenN*4;i++){
@@ -84,14 +88,15 @@ uchar* derDecodeString(uchar *input,int lenInput,int *index,int *len){
     }
     const int startIndex = *index;
     for(;*index<startIndex+*len;(*index)++){
-        derBoundsCheck(*index,input);
+        derBoundsCheck(*index,lenInput);
         result[*index-startIndex] = input[*index];
     }
     return result;
 }
 
 int derDecodeInt(uchar *input,int lenInput,int *index){
-    derBoundsCheck(*index+5,input);
+    //Label and length
+    derBoundsCheck(*index+5,lenInput);
     if(input[(*index)++]!=DER_INTEGER){
         perror("derDecodeInt: Input is not an int\n");
         exit(1);

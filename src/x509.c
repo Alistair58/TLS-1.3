@@ -4,13 +4,11 @@
 #include "sha.h"
 #include "base64.h"
 #include "der.h"
+#include "time.h"
 
 #define DER_SEQUENCE 0x30
 
 //An implementation of an X509 certificate creation roughly following RFC 5280
-
-
-
 
 static asn1Certificate x509ToAsn1(uchar *fname);
 static asn1Certificate generateAsn1X509(RSAPublicKey subjectPk,RSAKeyPair issuerKp);
@@ -21,7 +19,8 @@ static asn1Certificate derToAsn1(String der);
 static asn1TBSCertificate derTBSToAsn1(String der,int *index);
 static bool checkSignature(asn1Certificate certif,RSAPublicKey issuerPk);
 static void freeCertif(asn1Certificate certif,bool freePublicKey);
-
+static void formatTime(uchar dest[sizeof("YYMMDDHHMMSSZ")],int daysFromNow);
+static double cmpFormattedTime(uchar formattedTime[sizeof("YYMMDDHHMMSSZ")]);
 
 
 void generateX509(RSAPublicKey subjectPk,RSAKeyPair issuerKp,uchar *fname){
@@ -45,13 +44,23 @@ static asn1Certificate generateAsn1X509(RSAPublicKey subjectPk,RSAKeyPair issuer
     certif.tbsCertif.serialNumber = 0;
     certif.tbsCertif.signature = rsa_pkcs1_sha256;
     uchar issuer[] = "me";
-    memcpy(certif.tbsCertif.issuer,issuer,sizeof(issuer)); 
-    //TODO add timings
-    uchar notBefore[] = "YYMMDDHHMMSSZ";
-    uchar notAfter[] = "YYMMDDHHMMSSZ";
+    memset(certif.tbsCertif.issuer,0,sizeof(certif.tbsCertif.issuer));
+    memcpy(certif.tbsCertif.issuer,issuer,sizeof(issuer));
+
+    //As of 15/03/26 the maximum length for a TLS certificate is 200 days
+    const int expiryDays = 200;    
+    //X509 puts dates in the YYMMDDHHMMSSZ format
+    //For simplicity, we ignore the time differential
+    uchar notBefore[sizeof("YYMMDDHHMMSSZ")];
+    uchar notAfter[sizeof("YYMMDDHHMMSSZ")]; 
+    formatTime(notBefore,0);
+    formatTime(notAfter,expiryDays);
+    
+
     memcpy(certif.tbsCertif.validity.notBefore,notBefore,sizeof(notBefore));
     memcpy(certif.tbsCertif.validity.notAfter,notAfter,sizeof(notAfter));
     uchar subject[] = "me";
+    memset(certif.tbsCertif.subject,0,sizeof(certif.tbsCertif.subject));
     memcpy(certif.tbsCertif.subject,subject,sizeof(subject));
     certif.tbsCertif.subjectPublicKeyInfo.algorithm = rsa_pkcs1_sha256;
     certif.tbsCertif.subjectPublicKeyInfo.subjectPublicKey = subjectPk;
@@ -75,6 +84,40 @@ static asn1Certificate generateAsn1X509(RSAPublicKey subjectPk,RSAKeyPair issuer
     free(hash);
     free(der.data);
     return certif;
+}
+
+/**
+ * Turn the time with an optional days offset into a YYMMDDHHMMSSZ string
+ * @param dest buffer capable of holding "YYMMDDHHMMSSZ", no space for null terminator is required and the buffer does not have to be empty
+ * @param daysFromNow a number of days offset to add to the current time
+ */
+static void formatTime(uchar dest[sizeof("YYMMDDHHMMSSZ")],int daysFromNow){
+    time_t seconds = time(NULL) + daysFromNow*24*60*60;
+    struct tm *t = gmtime(&seconds);
+    //January is 0 in tm
+    sprintf(dest,"%02d%02d%02d%02d%02d%02dZ",
+        t->tm_year%100,t->tm_mon+1,t->tm_mday,
+        t->tm_hour,t->tm_min,t->tm_sec
+    );
+}
+
+/**
+ * Compare the current time with a YYMMDDHHMMSSZ formatted string time
+ * @param formattedTime a string in the YYMMDDHHMMSSZ format
+ * @return formattedTime - currTime in seconds. I.e. >0 for formattedTime is in the future, <0 for in the past, 0 for now
+ */
+static double cmpFormattedTime(uchar formattedTime[sizeof("YYMMDDHHMMSSZ")]){
+    time_t now = time(NULL);
+    struct tm t = {0};
+    sscanf(formattedTime,"%02d%02d%02d%02d%02d%02dZ",
+        &t.tm_year,&t.tm_mon,&t.tm_mday,
+        &t.tm_hour,&t.tm_min,&t.tm_sec
+    );
+    //The format is just YY and tm stores the year since 1900
+    t.tm_year += 100; 
+    t.tm_mon -= 1; //January is 0
+    time_t time = mktime(&t);
+    return difftime(time,now);
 }
 
 static String asn1ToDER(asn1Certificate asn1Certif){
@@ -197,16 +240,26 @@ static String asn1TBSToDER(asn1TBSCertificate asn1TBSCertif){
 
 
 certifStatus checkX509(RSAPublicKey issuerPk,uchar *fname){
-    asn1Certificate asn1Cerif =  x509ToAsn1(fname);
+    asn1Certificate asn1Cerif = x509ToAsn1(fname);
     certifStatus result;
 
-    result = checkSignature(asn1Cerif,issuerPk) ? VALID : INVALID_SIGNATURE;
+    if(!checkSignature(asn1Cerif,issuerPk)){
+        result = INVALID_SIGNATURE;
+    }
+    else if(
+        cmpFormattedTime(asn1Cerif.tbsCertif.validity.notBefore) > 0 ||
+        cmpFormattedTime(asn1Cerif.tbsCertif.validity.notAfter) < 0 
+    ){
+        //If the notBefore is in the future or the notAfter is in the past
+        result = OUT_OF_DATE;
+    }
+    else{
+        result = VALID;
+    }
 
+    //The public key has been read from the file and allocated, it is not used elsewhere
     freeCertif(asn1Cerif,true);
     return result;
-    //TODO
-    //Check signature 
-    //Check date
 }
 
 static asn1Certificate x509ToAsn1(uchar *fname){
@@ -226,7 +279,7 @@ static void readX509(uchar *fname,uchar *buff,int lenBuff,int *startIndex,int *e
     
     int currFileLength = 0;
     while(fgets(&buff[currFileLength],lenBuff-currFileLength,fhand)){
-        for(;currFileLength<lenBuff && buff[currFileLength];currFileLength++);
+        currFileLength += strlen(&buff[currFileLength]);
     }
     fclose(fhand);
     
@@ -270,6 +323,7 @@ static void readX509(uchar *fname,uchar *buff,int lenBuff,int *startIndex,int *e
 
 static asn1Certificate derToAsn1(String der){
     asn1Certificate result;
+    memset(&result, 0, sizeof(result));
     int index = 0;
     if(der.data[index++]!=DER_SEQUENCE){
         perror("derToAsn1: Malformed DER certificate");
@@ -311,6 +365,7 @@ static asn1Certificate derToAsn1(String der){
 
 static asn1TBSCertificate derTBSToAsn1(String der,int *index){
     asn1TBSCertificate result;
+    memset(&result, 0, sizeof(result));
     if(der.data[(*index)++]!=DER_SEQUENCE){
         perror("derTBSToAsn1: Malformed DER TBS certificate");
         exit(1);
@@ -425,13 +480,23 @@ static asn1TBSCertificate derTBSToAsn1(String der,int *index){
     return result;
 }
 
-
+/**
+ * Given a certificate and public key, verify that the signature of the certificate is valid (i.e. signed by the issuer and no data has changed)
+ * @param certif the certificate to be checked
+ * @param issuerPk the public key of the entity that issued and signed the certificate
+ * @return true if the signature is valid, false otherwise
+ */
 static bool checkSignature(asn1Certificate certif,RSAPublicKey issuerPk){
+    //We only support RSA with SHA256 at the moment
     if(certif.signatureAlgorithm != rsa_pkcs1_sha256){
         perror("checkSignature: Incorrect signature algorithm");
         exit(1);
     }
+    //"Decrypt" the signature and check that it matches the reconstructed hash
+
+    //Encode the certificate as DER
     String tbsDer = asn1TBSToDER(certif.tbsCertif);
+    //Hash the DER
     bignum hashedTbs = sha256(tbsDer.data,tbsDer.lenData);
     bignum hashFromSignature = (bignum) calloc(issuerPk.lenN,sizeof(uint32_t));
     if(!hashFromSignature){
