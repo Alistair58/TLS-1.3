@@ -8,7 +8,9 @@ if(${TEST})
     add_executable(TLS-1.3-Test 
         test/x509test.cpp
         test/rsatest.cpp
+        test/argstest.cpp
         src/aes.c 
+        src/args.c
         src/bigmaths.c 
         src/gcm.c 
         src/random.c 
@@ -70,6 +72,7 @@ else()
     add_executable(TLS-1.3-Client
         src/client.c
         src/aes.c 
+        src/args.c
         src/bigmaths.c 
         src/gcm.c 
         src/random.c 
@@ -85,7 +88,8 @@ else()
 
     add_executable(TLS-1.3-Server  
         src/server.c
-        src/aes.c 
+        src/aes.c
+        src/args.c 
         src/bigmaths.c 
         src/gcm.c 
         src/random.c 

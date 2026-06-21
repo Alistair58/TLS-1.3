@@ -29,18 +29,13 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 //Add finished (a MAC over the handshake)
 
 //TODO Low-Level
-//CA program - generates and stores the keys
-//CA program - can sign a server's certificate
-//Client uses CA's key to verify the certificate
+//Command line options to do stuff
 //Start making the actual protocol 
 //Profiling on RSA key generation - very slow
 
 
-
 int main(int argc, char** argv) {
-    bignum result = sha256("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",56);
-    printf("%08x%08x%08x%08x%08x%08x%08x%08x\n",result[0],result[1],result[2],result[3],result[4],result[5],result[6],result[7]);
-    free(result);
+    
     // int sock;
     // struct sockaddr_in addr;
     // char buffer[1024];
