@@ -4,14 +4,16 @@
 #endif
 #include <stdio.h>
 #include <string.h>
+#include "globals.h"
 #include "bigmaths.h"
 #include "structs.h"
 #include "sha.h"
 #include "random.h"
 #include "x25519.h"
 #include "shared.h"
-
-typedef unsigned char uchar;
+#include "args.h"
+#include "rsa.h"
+#include "keystore.h"
 
 int connectToServer(in_addr* addr, int* sock);
 int sendClientHello(int sock,in_addr addr,char* buffer,int lenBuff,struct ClientHello clientHello);
@@ -35,7 +37,28 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 
 
 int main(int argc, char** argv) {
-    
+    Args args = parseArgsClient(argc,argv);
+    switch (args.option){
+        case KEY_GEN:
+            //TODO not hardcoded length
+            RSAKeyPair kp = generateKeys(512);
+            //-keygen -privpath="arg1" -pubpath="arg2"
+            savePrivateKey(kp.privateKey,args.arg1);
+            savePublicKey(kp.publicKey,args.arg2);
+            printf("Private key generated and saved at %s\nPublic key generated and saved at %s\n",args.arg1,args.arg2);
+            break;
+        case CERTIF_GEN:
+                    
+            break;
+        case CERTIF_SIGN:
+
+            break;
+        case CONNECT:
+
+            break;
+        default:
+            break;
+    }
     // int sock;
     // struct sockaddr_in addr;
     // char buffer[1024];

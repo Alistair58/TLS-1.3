@@ -11,7 +11,7 @@
 //An implementation of an X509 certificate creation roughly following RFC 5280
 
 static asn1Certificate x509ToAsn1(uchar *fname);
-static asn1Certificate generateAsn1X509(RSAPublicKey subjectPk,RSAKeyPair issuerKp);
+static asn1Certificate generateAsn1X509(RSAPublicKey subjectPk,uchar *subject);
 static String asn1TBSToDER(asn1TBSCertificate asn1TBSCertif);
 static String asn1ToDER(asn1Certificate asn1Certif);
 static void readX509(uchar *fname,uchar *buff,int lenBuff,int *startIndex,int *endIndex);
@@ -21,10 +21,61 @@ static bool checkSignature(asn1Certificate certif,RSAPublicKey issuerPk);
 static void freeCertif(asn1Certificate certif,bool freePublicKey);
 static void formatTime(uchar dest[sizeof("YYMMDDHHMMSSZ")],int daysFromNow);
 static double cmpFormattedTime(uchar formattedTime[sizeof("YYMMDDHHMMSSZ")]);
+static void asn1ToX509(asn1Certificate asn1Certif,uchar *fname);
+static void signAsn1X509(asn1Certificate *certif,RSAKeyPair issuerKp,uchar *issuer);
+
+/**
+ * Create an unsigned X509 certificate with the subject's info and save it under fname
+ */
+void generateX509(RSAPublicKey subjectPk,uchar *subject,uchar *fname){
+    asn1Certificate asn1Certif = generateAsn1X509(subjectPk,subject);
+    asn1ToX509(asn1Certif,fname);
+    freeCertif(asn1Certif,false);
+}
 
 
-void generateX509(RSAPublicKey subjectPk,RSAKeyPair issuerKp,uchar *fname){
-    asn1Certificate asn1Certif = generateAsn1X509(subjectPk,issuerKp);
+/**
+ * Given an unsigned X509 certificate at fname, sign it with the issuer's private key and save it back to fname
+ */
+void signX509(RSAKeyPair issuerKp,uchar *issuer,uchar *fname){
+    asn1Certificate asn1Certif = x509ToAsn1(fname);
+    signAsn1X509(&asn1Certif,issuerKp,issuer);
+    asn1ToX509(asn1Certif,fname);
+    //The subject's public key has been read from the file and allocated, it is not used elsewhere
+    freeCertif(asn1Certif,true);
+}
+
+
+/**
+ * Given an X509 certificate at fname, check that its signature and date are valid
+ */
+certifStatus checkX509(RSAPublicKey issuerPk,uchar *fname){
+    asn1Certificate asn1Certif = x509ToAsn1(fname);
+    certifStatus result;
+
+    if(!checkSignature(asn1Certif,issuerPk)){
+        result = INVALID_SIGNATURE;
+    }
+    else if(
+        cmpFormattedTime(asn1Certif.tbsCertif.validity.notBefore) > 0 ||
+        cmpFormattedTime(asn1Certif.tbsCertif.validity.notAfter) < 0 
+    ){
+        //If the notBefore is in the future or the notAfter is in the past
+        result = OUT_OF_DATE;
+    }
+    else{
+        result = VALID;
+    }
+
+    //The public key has been read from the file and allocated, it is not used elsewhere
+    freeCertif(asn1Certif,true);
+    return result;
+}
+
+
+
+
+static void asn1ToX509(asn1Certificate asn1Certif,uchar *fname){
     String derCertif = asn1ToDER(asn1Certif);
     String b64Certif = base64Encode(derCertif);
     uchar pemTemplate[] = "-----BEGIN CERTIFICATE-----\n%s\n-----END CERTIFICATE-----";
@@ -34,18 +85,45 @@ void generateX509(RSAPublicKey subjectPk,RSAKeyPair issuerKp,uchar *fname){
 
     free(derCertif.data);
     free(b64Certif.data);
-    freeCertif(asn1Certif,false);
 }
 
 
-static asn1Certificate generateAsn1X509(RSAPublicKey subjectPk,RSAKeyPair issuerKp){
-    asn1Certificate certif;
+static void signAsn1X509(asn1Certificate *certif,RSAKeyPair issuerKp,uchar *issuer){
+    if(strlen(issuer)>sizeof(certif->tbsCertif.issuer)){
+        fprintf(stderr,"Issuer name (length %lu) exceeds the %lu character limit.\n",strlen(issuer),sizeof(certif->tbsCertif.issuer));
+        exit(1);
+    }
+    memcpy(certif->tbsCertif.issuer,issuer,strlen(issuer));
+
+    String der = asn1TBSToDER(certif->tbsCertif);
+    bignum hash = sha256(der.data,der.lenData);
+    //Not decrypting, just using the private key to encrypt
+    uchar *signatureString = calloc(issuerKp.publicKey.lenN*sizeof(uint32_t),sizeof(uchar));
+    if(!signatureString){
+        allocError();
+    }   
+    decryptRSA(hash,LEN_SHA256_BIGNUM,issuerKp,signatureString,issuerKp.publicKey.lenN*sizeof(uint32_t));
+    //When we loaded the file, we allocated space for the (potentially absent) signature
+    if(certif->signatureValue){
+        free(certif->signatureValue);
+    }
+    certif->signatureValue = calloc(issuerKp.publicKey.lenN,sizeof(uint32_t));
+    if(!certif->signatureValue){
+        allocError();
+    }
+    memcpy(certif->signatureValue,signatureString,issuerKp.publicKey.lenN*sizeof(uint32_t));
+    certif->lenSignatureValue = issuerKp.publicKey.lenN;
+
+    free(signatureString);
+    free(hash);
+    free(der.data);
+}
+
+static asn1Certificate generateAsn1X509(RSAPublicKey subjectPk,uchar *subject){
+    asn1Certificate certif = {};
     certif.tbsCertif.version = v3;
     certif.tbsCertif.serialNumber = 0;
     certif.tbsCertif.signature = rsa_pkcs1_sha256;
-    uchar issuer[] = "me";
-    memset(certif.tbsCertif.issuer,0,sizeof(certif.tbsCertif.issuer));
-    memcpy(certif.tbsCertif.issuer,issuer,sizeof(issuer));
 
     //As of 15/03/26 the maximum length for a TLS certificate is 200 days
     const int expiryDays = 200;    
@@ -59,30 +137,16 @@ static asn1Certificate generateAsn1X509(RSAPublicKey subjectPk,RSAKeyPair issuer
 
     memcpy(certif.tbsCertif.validity.notBefore,notBefore,sizeof(notBefore));
     memcpy(certif.tbsCertif.validity.notAfter,notAfter,sizeof(notAfter));
-    uchar subject[] = "me";
-    memset(certif.tbsCertif.subject,0,sizeof(certif.tbsCertif.subject));
+    if(strlen(subject)>sizeof(certif.tbsCertif.subject)){
+        fprintf(stderr,"Subject name (length %lu) exceeds the %lu character limit.\n",strlen(subject),sizeof(certif.tbsCertif.subject));
+        exit(1);
+    }
     memcpy(certif.tbsCertif.subject,subject,sizeof(subject));
     certif.tbsCertif.subjectPublicKeyInfo.algorithm = rsa_pkcs1_sha256;
     certif.tbsCertif.subjectPublicKeyInfo.subjectPublicKey = subjectPk;
     certif.signatureAlgorithm = rsa_pkcs1_sha256;
 
-    String der = asn1TBSToDER(certif.tbsCertif);
-    bignum hash = sha256(der.data,der.lenData);
-    //Not decrypting, just using the private key to encrypt
-    uchar *signatureString = calloc(issuerKp.publicKey.lenN*sizeof(uint32_t),sizeof(uchar));
-    if(!signatureString){
-        allocError();
-    }   
-    decryptRSA(hash,LEN_SHA256_BIGNUM,issuerKp,signatureString,issuerKp.publicKey.lenN*sizeof(uint32_t));
-    certif.signatureValue = calloc(issuerKp.publicKey.lenN,sizeof(uint32_t));
-    if(!certif.signatureValue){
-        allocError();
-    }
-    memcpy(certif.signatureValue,signatureString,issuerKp.publicKey.lenN*sizeof(uint32_t));
-    certif.lenSignatureValue = issuerKp.publicKey.lenN;
-    free(signatureString);
-    free(hash);
-    free(der.data);
+    
     return certif;
 }
 
@@ -239,28 +303,7 @@ static String asn1TBSToDER(asn1TBSCertificate asn1TBSCertif){
 
 
 
-certifStatus checkX509(RSAPublicKey issuerPk,uchar *fname){
-    asn1Certificate asn1Cerif = x509ToAsn1(fname);
-    certifStatus result;
 
-    if(!checkSignature(asn1Cerif,issuerPk)){
-        result = INVALID_SIGNATURE;
-    }
-    else if(
-        cmpFormattedTime(asn1Cerif.tbsCertif.validity.notBefore) > 0 ||
-        cmpFormattedTime(asn1Cerif.tbsCertif.validity.notAfter) < 0 
-    ){
-        //If the notBefore is in the future or the notAfter is in the past
-        result = OUT_OF_DATE;
-    }
-    else{
-        result = VALID;
-    }
-
-    //The public key has been read from the file and allocated, it is not used elsewhere
-    freeCertif(asn1Cerif,true);
-    return result;
-}
 
 static asn1Certificate x509ToAsn1(uchar *fname){
     const int lenBuff = 2048;
@@ -522,7 +565,7 @@ static bool checkSignature(asn1Certificate certif,RSAPublicKey issuerPk){
 
 
 static void freeCertif(asn1Certificate certif,bool freePublicKey){
-    free(certif.signatureValue);
+    if(certif.signatureValue) free(certif.signatureValue);
     if(freePublicKey){
         freeRSAPublicKey(certif.tbsCertif.subjectPublicKeyInfo.subjectPublicKey);
     }

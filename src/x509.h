@@ -52,7 +52,19 @@ typedef uint8_t certifStatus;
 #define OUT_OF_DATE 1
 #define INVALID_SIGNATURE 2
 
-void generateX509(RSAPublicKey subjectPk,RSAKeyPair issuerKp,uchar *fname);
+/**
+ * Create an unsigned X509 certificate with the subject's info and save it under fname
+ */
+void signX509(RSAKeyPair issuerKp,uchar *issuer,uchar *fname);
+
+/**
+ * Given an unsigned X509 certificate at fname, sign it with the issuer's private key and save it back to fname
+ */
+void generateX509(RSAPublicKey subjectPk,uchar *subject,uchar *fname);
+
+/**
+ * Given an X509 certificate at fname, check that its signature and date are valid
+ */
 certifStatus checkX509(RSAPublicKey issuerPk,uchar *fname);
 
 #endif

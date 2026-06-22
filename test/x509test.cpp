@@ -9,7 +9,8 @@ TEST(X509Test,checkX509Valid){
     RSAKeyPair myKp = generateKeys(512);
     RSAKeyPair issuerKp = generateKeys(512);
     uchar fname[] = "./test/tmp/test.pem"; 
-    generateX509(myKp.publicKey,issuerKp,fname);
+    generateX509(myKp.publicKey,(uchar*)"subject",fname);
+    signX509(issuerKp,(uchar*)"issuer",fname);
     certifStatus status = checkX509(issuerKp.publicKey,fname);
     freeRSAKeyPair(myKp);
     freeRSAKeyPair(issuerKp);
@@ -21,9 +22,11 @@ TEST(X509Test,checkX509Make2){
     RSAKeyPair myKp = generateKeys(512);
     RSAKeyPair issuerKp = generateKeys(512);
     uchar fname[] = "./test/tmp/test.pem"; 
-    generateX509(myKp.publicKey,issuerKp,fname);
+    generateX509(myKp.publicKey,(uchar*)"subject",fname);
+    signX509(issuerKp,(uchar*)"issuer",fname);
     certifStatus status1 = checkX509(issuerKp.publicKey,fname);
-    generateX509(myKp.publicKey,issuerKp,fname);
+    generateX509(myKp.publicKey,(uchar*)"subject",fname);
+    signX509(issuerKp,(uchar*)"issuer",fname);
     certifStatus status2 = checkX509(issuerKp.publicKey,fname);
     freeRSAKeyPair(myKp);
     freeRSAKeyPair(issuerKp);
@@ -54,7 +57,8 @@ TEST(X509Test,checkX509WrongSig){
     RSAKeyPair issuerKp = generateKeys(512);
     issuerKp.publicKey.n[issuerKp.publicKey.lenN-1] ^= 1;
     uchar fname[] = "./test/tmp/test.pem"; 
-    generateX509(myKp.publicKey,issuerKp,fname);
+    generateX509(myKp.publicKey,(uchar*)"subject",fname);
+    signX509(myKp,(uchar*)"issuer",fname);
     certifStatus status = checkX509(issuerKp.publicKey,fname);
     freeRSAKeyPair(myKp);
     freeRSAKeyPair(issuerKp);
