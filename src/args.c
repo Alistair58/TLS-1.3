@@ -121,15 +121,14 @@ Args parseArgsClient(int argc,char **argv){
 
 static Args parseKeygen(Args res,char **argv){
     //-keygen -privpath="{str}" -pubpath="{str}"
-    char *privPath = parseQuotedString(&argv[2][strlen("-privpath=")],true);
+    char *privPath = &argv[2][strlen("-privpath=")];
     if(privPath == NULL){
         printf("Invalid private key path. Run -help for info on valid commands.\n");
         res.option = DEALT_WITH;
         return res;
     }
-    char *pubPath = parseQuotedString(&argv[3][strlen("-pubpath=")],true);
+    char *pubPath = &argv[3][strlen("-pubpath=")];
     if(pubPath == NULL){
-        free(privPath);
         printf("Invalid public key path. Run -help for info on valid commands.\n");
         res.option = DEALT_WITH;
         return res;
@@ -142,7 +141,7 @@ static Args parseKeygen(Args res,char **argv){
 
 static Args parseClientConnect(Args res,char **argv){
     //-connect -capubpath="{str}"
-    char *caPubPath = parseQuotedString(&argv[2][strlen("-capubpath=")],true);
+    char *caPubPath = &argv[2][strlen("-capubpath=")];
     if(caPubPath == NULL){
         printf("Invalid CA public key path. Run -help for info on valid commands.\n");
         res.option = DEALT_WITH;
@@ -156,22 +155,20 @@ static Args parseClientConnect(Args res,char **argv){
 
 static Args parseCertifsign(Args res,char **argv){
     //-certifsign -certifpath="{str} -issuer="{str}" -privpath="{str}"
-    char *certifPath = parseQuotedString(&argv[2][strlen("-certifpath=")],true);
+    char *certifPath = &argv[2][strlen("-certifpath=")];
     if(certifPath == NULL){
         printf("Invalid certificate path. Run -help for info on valid commands.\n");
         res.option = DEALT_WITH;
         return res;
     }
-    char *issuer = parseQuotedString(&argv[3][strlen("-issuer=")],true);
+    char *issuer = &argv[3][strlen("-issuer=")];
     if(issuer == NULL){
-        free(certifPath);
         printf("Invalid issuer name. Run -help for info on valid commands.\n");
         res.option = DEALT_WITH;
         return res;
     }
-    char *privPath = parseQuotedString(&argv[4][strlen("-privpath=")],true);
+    char *privPath = &argv[4][strlen("-privpath=")];
     if(privPath == NULL){
-        free(certifPath); free(issuer);
         printf("Invalid private key path. Run -help for info on valid commands.\n");
         res.option = DEALT_WITH;
         return res;
@@ -185,15 +182,14 @@ static Args parseCertifsign(Args res,char **argv){
 
 static Args parseCertifgen(Args res,char **argv){
     //-certifgen -subject="{str}" -pubpath="{str}"
-    char *subject = parseQuotedString(&argv[2][strlen("-subject=")],true);
+    char *subject = &argv[2][strlen("-subject=")];
     if(subject == NULL){
         printf("Invalid subject name. Run -help for info on valid commands.\n");
         res.option = DEALT_WITH;
         return res;
     }
-    char *pubPath = parseQuotedString(&argv[3][strlen("-pubpath=")],true);
+    char *pubPath = &argv[3][strlen("-pubpath=")];
     if(pubPath == NULL){
-        free(subject);
         printf("Invalid public key path. Run -help for info on valid commands.\n");
         res.option = DEALT_WITH;
         return res;
@@ -209,31 +205,4 @@ static Args parseCertifgen(Args res,char **argv){
  */
 static bool startsWith(char *str,char *prefix){
     return strlen(str)>=strlen(prefix) && strncmp(str,prefix,strlen(prefix))==0;     
-}
-
-/**
- * Given "str" returns a pointer to str where str is null terminated.
- * If assertEnd is true, then NULL will be returned if the final speech mark is not followed by a null terminator.
- * If assertEnd is false, then the result will be the first quoted string found and the result will end with a null terminator.
- * The caller must free.
- */
-static char *parseQuotedString(char *str,bool assertEnd){
-    if(str[0]!='"') return NULL;
-    int i=1;
-    for(;;i++){
-        if(str[i]=='"') break;
-        if(str[i]=='\0') return NULL;
-    }
-    if(str[i+1]=='\0' || !assertEnd){
-        char *result = (char*) malloc(i);
-        if(!result){
-            allocError();
-        }
-        memcpy(result,&str[1],i-1);
-        result[i-1] = '\0';
-        return result;
-    }
-    else{ //str[i+1] != '\0' && assertEnd
-        return NULL;
-    }
 }

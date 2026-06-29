@@ -27,33 +27,30 @@ TEST(ArgsTest,helpClientValid){
 }
 
 TEST(ArgsTest,keygenClientValid){
-    char *argv[] = {"program","-keygen","-privpath=\"/priv/\"","-pubpath=\"/pub/\""};
+    char *argv[] = {"program","-keygen","-privpath=/priv/","-pubpath=/pub/"};
     Args res = parseArgsClient(4,argv); 
     ASSERT_EQ(res.option,KEY_GEN);
     ASSERT_STREQ(res.arg1,"/priv/");
     ASSERT_STREQ(res.arg2,"/pub/");
     ASSERT_EQ(res.arg3,nullptr);
-    free(res.arg1); free(res.arg2);
 }
 
 TEST(ArgsTest,certifgenClientValid){
-    char *argv[] = {"program","-certifgen","-subject=\"dave\"","-pubpath=\"/pub/\""};
+    char *argv[] = {"program","-certifgen","-subject=dave","-pubpath=/pub/"};
     Args res = parseArgsClient(4,argv); 
     ASSERT_EQ(res.option,CERTIF_GEN);
     ASSERT_STREQ(res.arg1,"dave");
     ASSERT_STREQ(res.arg2,"/pub/");
     ASSERT_EQ(res.arg3,nullptr);
-    free(res.arg1); free(res.arg2);
 }
 
 TEST(ArgsTest,connectClientValid){
-    char *argv[] = {"program","-connect","-capubpath=\"{str}\""};
+    char *argv[] = {"program","-connect","-capubpath={str}"};
     Args res = parseArgsClient(3,argv); 
     ASSERT_EQ(res.option,CONNECT);
     ASSERT_STREQ(res.arg1,"{str}");
     ASSERT_EQ(res.arg2,nullptr);
     ASSERT_EQ(res.arg3,nullptr);
-    free(res.arg1);
 }
 
 TEST(ArgsTest,helpServerValid){
@@ -82,33 +79,30 @@ TEST(ArgsTest,helpServerValid){
 }   
 
 TEST(ArgsTest,keygenServerValid){
-    char *argv[] = {"program","-keygen","-privpath=\"/priv/\"","-pubpath=\"/pub/\""};
+    char *argv[] = {"program","-keygen","-privpath=/priv/","-pubpath=/pub/"};
     Args res = parseArgsServer(4,argv); 
     ASSERT_EQ(res.option,KEY_GEN);
     ASSERT_STREQ(res.arg1,"/priv/");
     ASSERT_STREQ(res.arg2,"/pub/");
     ASSERT_EQ(res.arg3,nullptr);
-    free(res.arg1); free(res.arg2);
 }
 
 TEST(ArgsTest,certifgenServerValid){
-    char *argv[] = {"program","-certifgen","-subject=\"dave\"","-pubpath=\"/pub/\""};
+    char *argv[] = {"program","-certifgen","-subject=dave","-pubpath=/pub/"};
     Args res = parseArgsServer(4,argv); 
     ASSERT_EQ(res.option,CERTIF_GEN);
     ASSERT_STREQ(res.arg1,"dave");
     ASSERT_STREQ(res.arg2,"/pub/");
     ASSERT_EQ(res.arg3,nullptr);
-    free(res.arg1); free(res.arg2);
 }   
 
 TEST(ArgsTest,certifsignServerValid){
-    char *argv[] = {"program","-certifsign","-certifpath=\"path\"","-issuer=\"dave\"","-privpath=\"/priv\""};
+    char *argv[] = {"program","-certifsign","-certifpath=path","-issuer=dave","-privpath=/priv"};
     Args res = parseArgsServer(5,argv); 
     ASSERT_EQ(res.option,CERTIF_SIGN);
     ASSERT_STREQ(res.arg1,"path");
     ASSERT_STREQ(res.arg2,"dave");
     ASSERT_STREQ(res.arg3,"/priv");
-    free(res.arg1); free(res.arg2); free(res.arg3);
 }
 
 TEST(ArgsTest,connectServerValid){
@@ -144,51 +138,3 @@ TEST(ArgsTest,serverInvalid){
     ASSERT_EQ(output,"Invalid option. Run -help for info on valid options.\n");
 }
 
-TEST(ArgsTest,connectClientInvalidCA){  
-    char *argv[] = {"program","-connect","-capubpath=\"notstr"};
-    testing::internal::CaptureStdout();    
-    Args res = parseArgsClient(3,argv); 
-    std::string output = testing::internal::GetCapturedStdout();
-    ASSERT_EQ(res.option,DEALT_WITH);
-    ASSERT_EQ(res.arg1,nullptr);
-    ASSERT_EQ(res.arg2,nullptr);
-    ASSERT_EQ(res.arg3,nullptr);
-    ASSERT_EQ(output,"Invalid CA public key path. Run -help for info on valid commands.\n");
-}   
-
-TEST(ArgsTest,keygenClientInvalidPaths){
-    char *argv[] = {"program","-keygen","-privpath=\"/priv","-pubpath=pub/\""};
-    testing::internal::CaptureStdout();    
-    Args res = parseArgsClient(4,argv);
-    std::string output = testing::internal::GetCapturedStdout(); 
-    ASSERT_EQ(res.option,DEALT_WITH);
-    ASSERT_EQ(res.arg1,nullptr);
-    ASSERT_EQ(res.arg2,nullptr);
-    ASSERT_EQ(res.arg3,nullptr);
-    ASSERT_EQ(output,"Invalid private key path. Run -help for info on valid commands.\n");
-}
-
-TEST(ArgsTest,certifgenClientInvalidPubpath){
-    char *argv[] = {"program","-certifgen","-subject=\"dave\"","-pubpath=\"/pub/"};
-    testing::internal::CaptureStdout();    
-    Args res = parseArgsClient(4,argv); 
-    std::string output = testing::internal::GetCapturedStdout(); 
-    ASSERT_EQ(res.option,DEALT_WITH);
-    ASSERT_EQ(res.arg1,nullptr);
-    ASSERT_EQ(res.arg2,nullptr);
-    ASSERT_EQ(res.arg3,nullptr);
-    ASSERT_EQ(output,"Invalid public key path. Run -help for info on valid commands.\n");
-}
-
-
-TEST(ArgsTest,certifsignServerInvalidIssuer){
-    char *argv[] = {"program","-certifsign","-certifpath=\"path\"","-issuer=\"dave\"id","-privpath=\"/priv\""};
-    testing::internal::CaptureStdout();    
-    Args res = parseArgsServer(5,argv); 
-    std::string output = testing::internal::GetCapturedStdout(); 
-    ASSERT_EQ(res.option,DEALT_WITH);
-    ASSERT_EQ(res.arg1,nullptr);
-    ASSERT_EQ(res.arg2,nullptr);
-    ASSERT_EQ(res.arg3,nullptr);
-    ASSERT_EQ(output,"Invalid issuer name. Run -help for info on valid commands.\n");
-}

@@ -45,6 +45,7 @@ int main(int argc, char** argv) {
             //-keygen -privpath="arg1" -pubpath="arg2"
             savePrivateKey(kp.privateKey,args.arg1);
             savePublicKey(kp.publicKey,args.arg2);
+            //TODO segmentation fault?
             printf("Private key generated and saved at %s\nPublic key generated and saved at %s\n",args.arg1,args.arg2);
             break;
         case CERTIF_GEN:
