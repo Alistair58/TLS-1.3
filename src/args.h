@@ -3,15 +3,20 @@
 
 #include "stdint.h"
 
-#define KEY_GEN 1 
-#define CERTIF_GEN 2
-#define CERTIF_SIGN 3
-#define CONNECT 4 
-#define DEALT_WITH 5 //E.g. -help or an invalid option
+
+typedef enum ArgOption{
+    KEY_GEN = 1,
+    CERTIF_GEN,
+    CERTIF_SIGN,
+    CONNECT,
+    LISTEN,
+    DEALT_WITH, //E.g. -help or an invalid option
+    UNKNOWN
+} ArgOption;
 
 
 typedef struct Args{
-    uint8_t option; 
+    ArgOption option; 
     char *arg1;
     char *arg2;
     char *arg3;
@@ -20,7 +25,6 @@ typedef struct Args{
 /**
  * Parse the command line arguments for the server program into the Args structure.
  * If it is unsuccessful, or -help is the option, then it prints an output message. 
- * Caller must free all arg{n} in Args
  */
 Args parseArgsServer(int argc,char **argv);
 

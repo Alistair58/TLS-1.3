@@ -45,11 +45,15 @@ int main(int argc, char** argv) {
             //-keygen -privpath="arg1" -pubpath="arg2"
             savePrivateKey(kp.privateKey,args.arg1);
             savePublicKey(kp.publicKey,args.arg2);
-            //TODO segmentation fault?
+
             printf("Private key generated and saved at %s\nPublic key generated and saved at %s\n",args.arg1,args.arg2);
+            freeRSAKeyPair(kp);
             break;
         case CERTIF_GEN:
-                    
+            //-certifgen -subject="arg1" -pubpath="arg2" -outpath="arg3"
+            RSAPublicKey subjectPk = readPublicKey(args.arg2);
+            generateX509(subjectPk,args.arg1,args.arg3);
+            freeRSAPublicKey(subjectPk);
             break;
         case CERTIF_SIGN:
 

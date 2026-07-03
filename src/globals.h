@@ -24,6 +24,9 @@ typedef struct String{
     uchar *data;
     int lenData;
 } String;
+ 
+#define arr_length(a) \
+    ((a) ? sizeof(a)/sizeof((a)[0]) : 0)
 
 
 #endif

@@ -16,6 +16,10 @@ void savePublicKey(RSAPublicKey pk,uchar *fname){
     String b64 = base64Encode(der);
     uchar pemTemplate[] = "-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----";
     FILE *fhand = fopen(fname,"w");
+    if(!fhand){
+        fprintf(stderr,"savePublicKey: Could not locate or create %s\n",fname);
+        exit(1);
+    }
     fprintf(fhand,pemTemplate,b64.data);
     fclose(fhand);
 
@@ -27,6 +31,10 @@ void savePrivateKey(RSAPrivateKey pk,uchar *fname){
     String b64 = base64Encode(der);
     uchar pemTemplate[] = "-----BEGIN PRIVATE KEY-----\n%s\n-----END PRIVATE KEY-----";
     FILE *fhand = fopen(fname,"w");
+    if(!fhand){
+        fprintf(stderr,"savePrivateKey: Could not locate or create %s\n",fname);
+        exit(1);
+    }
     fprintf(fhand,pemTemplate,b64.data);
     fclose(fhand);
 
