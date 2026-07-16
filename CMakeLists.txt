@@ -7,6 +7,8 @@ project(TLS-1.3 LANGUAGES C CXX)
 if(${TEST})
     add_executable(TLS-1.3-Test 
         test/pki/x509test.cpp
+        test/pki/base64test.cpp
+        test/pki/keystoretest.cpp
         test/crypto/rsatest.cpp
         test/other/argstest.cpp
         src/bigmaths/bigmaths.c 

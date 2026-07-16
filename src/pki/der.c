@@ -1,6 +1,5 @@
 #include "../pki/der.h"
 
-#define DER_SEQUENCE 0x30
 #define DER_INTEGER 0x02
 #define DER_UTF8STRING 0x0C
 #define DER_BITSTRING 0x03

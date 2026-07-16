@@ -77,7 +77,7 @@ certifStatus checkX509(RSAPublicKey issuerPk,uchar *fname){
 
 static void asn1ToX509(asn1Certificate asn1Certif,uchar *fname){
     String derCertif = asn1ToDER(asn1Certif);
-    String b64Certif = base64Encode(derCertif);
+    String b64Certif = base64Encode(derCertif,true);
     uchar pemTemplate[] = "-----BEGIN CERTIFICATE-----\n%s\n-----END CERTIFICATE-----";
     FILE *fhand = fopen(fname,"w");
     fprintf(fhand,pemTemplate,b64Certif.data);
@@ -311,7 +311,7 @@ static asn1Certificate x509ToAsn1(uchar *fname){
     int startIndex,endIndex;
     readX509(fname,buff,lenBuff,&startIndex,&endIndex);
     String rawX509 = {&buff[startIndex],endIndex};
-    String derCertif = base64Decode(rawX509);
+    String derCertif = base64Decode(rawX509,false);
     asn1Certificate asn1Certif = derToAsn1(derCertif);
     free(derCertif.data);
     return asn1Certif;

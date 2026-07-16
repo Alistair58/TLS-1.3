@@ -2,18 +2,20 @@
 #include <stdint.h>
 
 //lenData should not include null terminator
-//Output will include a null terminator
-String base64Encode(String inp){
+String base64Encode(String inp,bool nullTerminatorOutput){
     String result;
     int lenBits = inp.lenData*8;
-    int lenPaddingBits = lenBits%6;
+    int lenPaddingBits = (6-lenBits%6)%6;
     int len6BitChunksBits = lenBits+lenPaddingBits;
     int num6BitChunks = len6BitChunksBits / 6;
     //add a '=' for each 2 padding bits
     int lenPaddingChars = lenPaddingBits/2;
     int lenResultBytes = num6BitChunks + lenPaddingChars;
 
-    result.lenData = lenResultBytes+1;
+    if(nullTerminatorOutput){
+        lenResultBytes++;
+    }
+    result.lenData = lenResultBytes;
     result.data = calloc(result.lenData,sizeof(uchar));
     
     for(int i=0;i<num6BitChunks;i++){
@@ -62,14 +64,14 @@ String base64Encode(String inp){
     for(int i=0;i<lenPaddingChars;i++){
         result.data[num6BitChunks+i] = '=';
     }
-    result.data[lenResultBytes] = '\0';
-
+    if(nullTerminatorOutput){
+        result.data[lenResultBytes-1] = '\0';
+    }
     return result;
 }
 
 //lenInput should not include a null terminator
-//The result will not have a null terminator
-String base64Decode(String inp){
+String base64Decode(String inp,bool nullTerminatorOutput){
     String result;
     int lenBits = inp.lenData*8;
     //Calculate the real length of the message
@@ -83,6 +85,9 @@ String base64Decode(String inp){
         else break;
     }    
     int lenResultBytes = (lenBits/8)*6/8;
+    if(nullTerminatorOutput){
+        lenResultBytes++;
+    }
 
     result.data = calloc(lenResultBytes,sizeof(uchar));
     result.lenData = lenResultBytes;
@@ -140,6 +145,9 @@ String base64Decode(String inp){
                 result.data[outputIndex] |= (b64Value & 0b00111111);
             }
         }
+    }
+    if(nullTerminatorOutput){
+        result.data[lenResultBytes-1] = '\0';
     }
     return result;
 }

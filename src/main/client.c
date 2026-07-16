@@ -56,8 +56,8 @@ int main(int argc, char** argv) {
             freeRSAPublicKey(subjectPk);
             break;
         case CERTIF_SIGN:
-            //-certifsign -certifpath="arg1" -issuer="arg2" -privpath="arg3"
-            
+            //-certifsign -certifpath="arg1" -issuer="arg2" -keypairpath="arg3"
+            //TODO
             break;
         case CONNECT:
 

@@ -4,8 +4,8 @@
 #include "../crypto/rsa.h"
 
 //Parses to and from PEM format
-void savePublicKey(RSAPublicKey pk,uchar *fname);
-void savePrivateKey(RSAPrivateKey pk,uchar *fname);
-RSAPublicKey readPublicKey(uchar *fname);
-RSAPrivateKey readPrivateKey(uchar *fname);
+void savePublicKey(RSAPublicKey pk,char *fname);
+void saveKeyPair(RSAKeyPair kp,char *fname);
+RSAPublicKey readPublicKey(char *fname);
+RSAKeyPair readKeyPair(char *fname);
 #endif 

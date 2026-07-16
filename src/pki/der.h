@@ -4,6 +4,8 @@
 #include "../other/globals.h"
 #include "../bigmaths/bigmaths.h"
 
+#define DER_SEQUENCE 0x30
+
 int derEncodeBignum(uchar *result,int lenResult,bignum n,int lenN);
 int derEncodeString(uchar *result,int lenResult,uchar *string,int lenString);
 int derEncodeInt(uchar *result,int lenResult,int num);
