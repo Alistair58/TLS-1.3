@@ -6,22 +6,22 @@ project(TLS-1.3 LANGUAGES C CXX)
 
 if(${TEST})
     add_executable(TLS-1.3-Test 
-        test/x509test.cpp
-        test/rsatest.cpp
-        test/argstest.cpp
-        src/aes.c 
-        src/args.c
-        src/bigmaths.c 
-        src/gcm.c 
-        src/random.c 
-        src/rsa.c 
-        src/sha.c 
-        src/x509.c 
-        src/x25519.c
-        src/structs.c
-        src/base64.c
-        src/der.c
-        src/keystore.c
+        test/pki/x509test.cpp
+        test/crypto/rsatest.cpp
+        test/other/argstest.cpp
+        src/bigmaths/bigmaths.c 
+        src/crypto/aes.c 
+        src/crypto/gcm.c 
+        src/crypto/params.c
+        src/crypto/rsa.c 
+        src/crypto/sha.c 
+        src/crypto/x25519.c
+        src/other/args.c
+        src/other/random.c 
+        src/pki/x509.c 
+        src/pki/base64.c
+        src/pki/der.c
+        src/pki/keystore.c
     )
     set(CMAKE_BUILD_TYPE Debug)
 
@@ -70,37 +70,37 @@ if(${TEST})
     )
 else()
     add_executable(TLS-1.3-Client
-        src/client.c
-        src/aes.c 
-        src/args.c
-        src/bigmaths.c 
-        src/gcm.c 
-        src/random.c 
-        src/rsa.c 
-        src/sha.c 
-        src/x509.c 
-        src/x25519.c
-        src/structs.c
-        src/base64.c
-        src/der.c
-        src/keystore.c
+        src/main/client.c
+        src/bigmaths/bigmaths.c 
+        src/crypto/aes.c 
+        src/crypto/gcm.c 
+        src/crypto/params.c
+        src/crypto/rsa.c 
+        src/crypto/sha.c 
+        src/crypto/x25519.c
+        src/other/args.c
+        src/other/random.c 
+        src/pki/x509.c 
+        src/pki/base64.c
+        src/pki/der.c
+        src/pki/keystore.c
     )
 
     add_executable(TLS-1.3-Server  
-        src/server.c
-        src/aes.c
-        src/args.c 
-        src/bigmaths.c 
-        src/gcm.c 
-        src/random.c 
-        src/rsa.c 
-        src/sha.c 
-        src/x509.c 
-        src/x25519.c
-        src/structs.c
-        src/base64.c
-        src/der.c
-        src/keystore.c
+        src/main/server.c
+        src/bigmaths/bigmaths.c 
+        src/crypto/aes.c 
+        src/crypto/gcm.c 
+        src/crypto/params.c
+        src/crypto/rsa.c 
+        src/crypto/sha.c 
+        src/crypto/x25519.c
+        src/other/args.c
+        src/other/random.c 
+        src/pki/x509.c 
+        src/pki/base64.c
+        src/pki/der.c
+        src/pki/keystore.c
     )
 
 
