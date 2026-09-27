@@ -1,8 +1,4 @@
-#include "../pki/der.h"
-
-#define DER_INTEGER 0x02
-#define DER_UTF8STRING 0x0C
-#define DER_BITSTRING 0x03
+#include "../other/der.h"
 
 /**
  * Exit if currIndex>=lenBuff

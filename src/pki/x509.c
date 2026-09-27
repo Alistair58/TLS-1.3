@@ -3,7 +3,7 @@
 #include <string.h>
 #include "../crypto/sha.h"
 #include "../pki/base64.h"
-#include "../pki/der.h"
+#include "../other/der.h"
 #include "time.h"
 
 #define DER_SEQUENCE 0x30
@@ -71,9 +71,6 @@ certifStatus checkX509(RSAPublicKey issuerPk,uchar *fname){
     freeCertif(asn1Certif,true);
     return result;
 }
-
-
-
 
 static void asn1ToX509(asn1Certificate asn1Certif,uchar *fname){
     String derCertif = asn1ToDER(asn1Certif);
@@ -299,11 +296,6 @@ static String asn1TBSToDER(asn1TBSCertificate asn1TBSCertif){
     result.lenData = index;
     return result;
 }
-
-
-
-
-
 
 static asn1Certificate x509ToAsn1(uchar *fname){
     const int lenBuff = 2048;

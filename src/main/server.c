@@ -16,6 +16,8 @@
 #include "../other/common.h"
 #include "../pki/keystore.h"
 #include "../other/args.h"
+#include "../other/globals.h"
+#include "../other/der.h"
 
 int startServer(sockaddr_in* addr,int *sock);
 struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff);
@@ -23,6 +25,10 @@ struct ServerHello generateServerHello(uint32_t *privateDHRandom);
 uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
+
+serverHelloInfo = {
+
+};
 
 int main(int argc, char** argv){
     Args args = parseArgsServer(argc,argv);
@@ -165,27 +171,22 @@ struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff){
 }
 
 
-struct ServerHello generateServerHello(uint32_t *privateDHRandom){
+struct ServerHello generateServerHello(uint32_t *privateDHRandom,uchar *certifFname){
     struct ServerHello serverHello;
     int cipherSuite[2] =   {0x13,TLS_AES_128_GCM_SHA256};
     serverHello.curveGroup = x25519;
     serverHello.signatureAlgorithm  = rsa_pss_pss_sha256;
-    uint32_t *serverRandom = calloc(1,sizeof(uint32_t));
-    printf("Generating random number. Please move your mouse until generation is completed\n");
-    randomNumber(serverRandom,1,NULL,500);
-    randomNumber(privateDHRandom,8,curve25519Params.n,500);
-    printf("Generation completed\n");
-    // printf("Server random %u Server Private DH Random: %u %u %u %u %u %u %u %u \n",serverRandom[0],privateDHRandom[0],privateDHRandom[1],privateDHRandom[2],privateDHRandom[3],
-    // privateDHRandom[4],privateDHRandom[5],privateDHRandom[6],privateDHRandom[7]);
-    uint32_t *publicECDHKey = X25519(curve25519Params.G[0],privateDHRandom);
-    // printf("Server Public ECDHE: %u %u %u %u %u %u %u %u\n",
-    // publicECDHKey[0],publicECDHKey[1],publicECDHKey[2],publicECDHKey[3],
-    // publicECDHKey[4],publicECDHKey[5],publicECDHKey[6],publicECDHKey[7]);
+    uint32_t serverRandom;
+    randomNumber(&serverRandom,1,NULL,0);
+    randomNumber(privateDHRandom,8,curve25519Params.n,0);
 
+    uint32_t *publicECDHKey = X25519(curve25519Params.G[0],privateDHRandom);
     
-    serverHello.serverRandom = serverRandom[0];
+    serverHello.serverRandom = serverRandom;
     memcpy(&serverHello.cipherSuite,&cipherSuite,sizeof(cipherSuite));
     memcpy(&serverHello.keyExchange,publicECDHKey,8*sizeof(uint32_t));
+    
+    x509ToDER();
     free(serverRandom);free(publicECDHKey);
     return serverHello;
 }
@@ -205,24 +206,62 @@ uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH){
 
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff){
     memset(buffer,0,lenBuff); //Remove any rubbish from buffer
-    sprintf(buffer,"08%08x04%02x%02x04%04x04%04x40%08x%08x%08x%08x%08x%08x%08x%08x", //Length in characters before each chunk
-    serverHello.serverRandom,
-    serverHello.cipherSuite[0],serverHello.cipherSuite[1],
-    serverHello.curveGroup,serverHello.signatureAlgorithm,
-    serverHello.keyExchange[0],serverHello.keyExchange[1],
-    serverHello.keyExchange[2],serverHello.keyExchange[3],
-    serverHello.keyExchange[4],serverHello.keyExchange[5],
-    serverHello.keyExchange[6],serverHello.keyExchange[7]);
-    printf("Sent serverRandom %08x cipher suite %02x%02x supported group %04x signature algorithm %04x server key exchange %u %u %u %u %u %u %u %u\n", //Length in characters before each chunk
-    serverHello.serverRandom,
-    serverHello.cipherSuite[0],serverHello.cipherSuite[1],
-    serverHello.curveGroup,serverHello.signatureAlgorithm,
-    serverHello.keyExchange[0],serverHello.keyExchange[1],
-    serverHello.keyExchange[2],serverHello.keyExchange[3],
-    serverHello.keyExchange[4],serverHello.keyExchange[5],
-    serverHello.keyExchange[6],serverHello.keyExchange[7]);
-    
+    memcpy()
+    String serverHello = derEncodeServerHello(serverHello);
+    if(serverHello.)
     send(sock,buffer,strlen(buffer),0);
+}
+
+derEncodeStruct(
+    array of offsets
+    array of types
+)
+
+
+String derEncodeServerHello(struct ServerHello serverHello){
+    String result;
+    //Allocate a buffer that is sufficient in size
+    //We will resize when we know the length
+    const int lenDataBuff = 2048;
+    result.data = (uchar*) malloc(lenDataBuff);
+    if(!result.data){
+        allocError();
+    }
+    int index = 0;
+
+    //Certif sequence {
+    result.data[index++] = DER_SEQUENCE;
+    int certifSequenceLengthIndex = index;
+    //reserve the index
+    index += derEncodeInt(&result.data[index],lenDataBuff-index,0);
+    int certifSequenceStart = index;
+    
+    //  tbsCertif {
+    String tbsDER = asn1TBSToDER(asn1Certif.tbsCertif);
+    memcpy(&result.data[index],tbsDER.data,tbsDER.lenData);
+    index += tbsDER.lenData;
+    free(tbsDER.data);
+    //  } tbsCertif 
+
+    //  Signature Algorithm {
+    index += derEncodeInt(&result.data[index],lenDataBuff-index,asn1Certif.signatureAlgorithm);
+    //  }
+
+
+    //  Signature value and length {
+    index += derEncodeBignum(&result.data[index],lenDataBuff-index,asn1Certif.signatureValue,asn1Certif.lenSignatureValue);
+    //  }
+
+    derEncodeInt(&result.data[certifSequenceLengthIndex],lenDataBuff-certifSequenceLengthIndex,index-certifSequenceStart);
+    //} Certif sequence
+
+    uchar *resizedResult = realloc(result.data,index);
+    if(!resizedResult){
+        allocError();
+    }
+    result.data = resizedResult;
+    result.lenData = index;
+    return result;
 }
 
 int startServer(sockaddr_in* addr,int *sock){
