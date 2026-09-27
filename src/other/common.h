@@ -3,11 +3,7 @@
 
 #include "../pki/x509.h"
 
-typedef unsigned char uchar;
-typedef struct in_addr{
-    //TODO
-} in_addr;
-
+typedef struct sockaddr_in sockaddr_in; 
 
 typedef struct ClientHello{
     uint32_t clientRandom;

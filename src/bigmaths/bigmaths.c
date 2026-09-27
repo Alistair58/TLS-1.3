@@ -340,7 +340,7 @@ void bigNumMultByLittle(bignum a,int lenA, uint32_t littleNum,bignum dest,int le
         int pI = lenDest - (lenA-i);
         uint64_t result = (uint64_t)a[i]*littleNum + carry;
         uint32_t thisChunk = result & 0xffffffff;
-        uint32_t carry = result >> 32;  
+        carry = result >> 32;  
         dest[pI] = thisChunk;
         if(i==0 && carry){
             if(lenDest>lenA){

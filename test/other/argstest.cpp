@@ -14,7 +14,7 @@ TEST(ArgsTest,helpClientValid){
     ASSERT_EQ(res.arg3,nullptr);
     std::string output = testing::internal::GetCapturedStdout();
     ASSERT_EQ(output, "Usage:\n"
-            "   -keygen -privpath=\"{str}\" -pubpath=\"{str}\"\n"
+            "   -keygen -kppath=\"{str}\" -pubpath=\"{str}\"\n"
             "       Generates a key pair and stores the private and public keys at the specified file paths.\n"
             "   -certifgen -subject=\"{str}\" -pubpath=\"{str}\" -outpath=\"{str}\"\n" \
             "       Generates an unsigned X509 certificate for this subject.\n" \
@@ -28,7 +28,7 @@ TEST(ArgsTest,helpClientValid){
 }
 
 TEST(ArgsTest,keygenClientValid){
-    char *argv[] = {"program","-keygen","-privpath=/priv/","-pubpath=/pub/"};
+    char *argv[] = {"program","-keygen","-kppath=/priv/","-pubpath=/pub/"};
     Args res = parseArgsClient(4,argv); 
     ASSERT_EQ(res.option,KEY_GEN);
     ASSERT_STREQ(res.arg1,"/priv/");
@@ -64,13 +64,13 @@ TEST(ArgsTest,helpServerValid){
     ASSERT_EQ(res.arg3,nullptr);
     std::string output = testing::internal::GetCapturedStdout();
     ASSERT_EQ(output, "Usage:\n"
-            "   -keygen -privpath=\"{str}\" -pubpath=\"{str}\"\n"
+            "   -keygen -kppath=\"{str}\" -pubpath=\"{str}\"\n"
             "       Generates a key pair and stores the private and public keys at the specified file paths.\n"
             "   -certifgen -subject=\"{str}\" -pubpath=\"{str}\" -outpath=\"{str}\"\n" \
             "       Generates an unsigned X509 certificate for this subject.\n" \
             "       pubpath is the path of the subject's public key.\n" \
             "       outpath is where the generated certificate will be stored.\n"
-            "   -certifsign -certifpath=\"{str}\" -issuer=\"{str}\" -privpath=\"{str}\"\n"
+            "   -certifsign -certifpath=\"{str}\" -issuer=\"{str}\" -kppath=\"{str}\"\n"
             "       Signs an X509 certificate using the private key specified by the path and with the issuer's name on the certificate.\n"
             "       certifpath is the source file which will be overwritten with the signed version.\n"
             "   -listen\n" \ 
@@ -81,7 +81,7 @@ TEST(ArgsTest,helpServerValid){
 }   
 
 TEST(ArgsTest,keygenServerValid){
-    char *argv[] = {"program","-keygen","-privpath=/priv/","-pubpath=/pub/"};
+    char *argv[] = {"program","-keygen","-kppath=/priv/","-pubpath=/pub/"};
     Args res = parseArgsServer(4,argv); 
     ASSERT_EQ(res.option,KEY_GEN);
     ASSERT_STREQ(res.arg1,"/priv/");
@@ -99,7 +99,7 @@ TEST(ArgsTest,certifgenServerValid){
 }   
 
 TEST(ArgsTest,certifsignServerValid){
-    char *argv[] = {"program","-certifsign","-certifpath=path","-issuer=dave","-privpath=/priv"};
+    char *argv[] = {"program","-certifsign","-certifpath=path","-issuer=dave","-kppath=/priv"};
     Args res = parseArgsServer(5,argv); 
     ASSERT_EQ(res.option,CERTIF_SIGN);
     ASSERT_STREQ(res.arg1,"path");

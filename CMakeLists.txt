@@ -19,6 +19,7 @@ if(${TEST})
         src/crypto/sha.c 
         src/crypto/x25519.c
         src/other/args.c
+        src/other/msg.c
         src/other/random.c 
         src/pki/x509.c 
         src/pki/base64.c
@@ -81,6 +82,7 @@ else()
         src/crypto/sha.c 
         src/crypto/x25519.c
         src/other/args.c
+        src/other/msg.c
         src/other/random.c 
         src/pki/x509.c 
         src/pki/base64.c
@@ -98,6 +100,7 @@ else()
         src/crypto/sha.c 
         src/crypto/x25519.c
         src/other/args.c
+        src/other/msg.c
         src/other/random.c 
         src/pki/x509.c 
         src/pki/base64.c

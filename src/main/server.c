@@ -1,7 +1,12 @@
-#include <stdint.h>
 #if _WIN32
     #include <winsock2.h>
+#elif __linux__
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <unistd.h>
 #endif
+#include <stdint.h>
 #include <string.h>
 #include "../crypto/rsa.h"
 #include "../crypto/params.h"
@@ -12,73 +17,101 @@
 #include "../pki/keystore.h"
 #include "../other/args.h"
 
-int startServer(in_addr* addr,int *sock);
+int startServer(sockaddr_in* addr,int *sock);
 struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff);
 struct ServerHello generateServerHello(uint32_t *privateDHRandom);
 uint32_t *generatePrivateECDH(uint32_t *keyExchange,uint32_t *privateDH);
 int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int lenBuff);
 
 
-
-
-
-
-
 int main(int argc, char** argv){
     Args args = parseArgsServer(argc,argv);
-    RSAKeyPair kpInp = generateKeys(256);
-    savePrivateKey(kpInp.privateKey,"private.pem");
-    savePublicKey(kpInp.publicKey,"public.pem");
+    switch (args.option){
+        case KEY_GEN:
+            //TODO not hardcoded length
+            RSAKeyPair kp = generateKeys(512);
+            //-keygen -kppath="arg1" -pubpath="arg2"
+            saveKeyPair(kp,args.arg1);
+            savePublicKey(kp.publicKey,args.arg2);
 
-    RSAKeyPair kpRes;
-    kpRes.privateKey = readPrivateKey("private.pem");
-    kpRes.publicKey = readPublicKey("public.pem");
-    freeRSAKeyPair(kpInp);
-    freeRSAKeyPair(kpRes);
-    // RSAKeyPair kp = generateKeys(256);
-    // generateX509(kp);
-    // free(kp.privateKey.p);
-    // free(kp.privateKey.q);
-    // free(kp.publicKey.n);
+            printf("Private key generated and saved at %s\nPublic key generated and saved at %s\n",args.arg1,args.arg2);
+            freeRSAKeyPair(kp);
+            break;
+        case CERTIF_GEN:
+            //-certifgen -subject="arg1" -pubpath="arg2" -outpath="arg3"
+            RSAPublicKey subjectPk = readPublicKey(args.arg2);
+            generateX509(subjectPk,args.arg1,args.arg3);
+            freeRSAPublicKey(subjectPk);
+            break;
+        case CERTIF_SIGN:
+            //-certifsign -certifpath="arg1" -issuer="arg2" -keypairpath="arg3"
+            RSAKeyPair issuerKp = readKeyPair(args.arg3);
+            signX509(issuerKp,args.arg2,args.arg1);
 
+            printf("Certificate signed and saved at %s\n", args.arg1);
+            freeRSAKeyPair(issuerKp);
+            break;
+        case LISTEN:
+            // TODO add ip and port to parse args
+            char* ip = "127.0.0.1";
+            int port = 80;
+            sockaddr_in server_addr;
+            memset(&server_addr,0,sizeof(server_addr));
+            server_addr.sin_family = AF_INET; //ipv4
+            server_addr.sin_port = htons(port);
+            server_addr.sin_addr.s_addr = inet_addr(ip);
+            int server_sock = 0;
+            char buffer[1024];
 
-    // int server_sock, client_sock;
-    // struct sockaddr_in server_addr, client_addr;
-    // socklen_t addr_size;
-    // uint32_t *privateDHRandom = calloc(8,sizeof(uint32_t));
-    // char buffer[1024];
-    
-   
-    // if(startServer(&server_addr,&server_sock) == 0){
-    //     while(1){
-    //         addr_size = sizeof(client_addr);
-    //         client_sock = accept(server_sock,(struct sockaddr*)&client_addr,&addr_size);
-    //         printf("%s","Client connected\n");
+            uint32_t *privateDHRandom = calloc(8,sizeof(uint32_t));
 
-    //         struct ClientHello clientHello = waitForRequest(client_sock,buffer,1024);
-            
-    //         struct ServerHello serverHello = generateServerHello(privateDHRandom); 
-    //         sendServerHello(client_sock,serverHello,buffer,1024);
-    //         uint32_t *privateECDHKey = generatePrivateECDH(clientHello.keyExchange,privateDHRandom);
+            if(startServer(&server_addr,&server_sock) == 0){
+                while(1){
+                    struct sockaddr_in client_addr;
+                    socklen_t client_addr_len;
+                    int client_sock = accept(server_sock,(struct sockaddr*)&client_addr,&client_addr_len);
+                    printf("%s","Client connected\n");
 
-    //         gcmReceiveMessage(client_sock,buffer,1024,privateECDHKey);
-    //         close(client_sock);
-    //         printf("%s","Client disconnected\n");
-    //         free(privateECDHKey);
-            
-    //     }
-    // }
-    // free(privateDHRandom);
+                    struct ClientHello clientHello = waitForRequest(client_sock,buffer,1024);
+                    
+                    struct ServerHello serverHello = generateServerHello(privateDHRandom); 
+                    sendServerHello(client_sock,serverHello,buffer,1024);
+                    uint32_t *privateECDHKey = generatePrivateECDH(clientHello.keyExchange,privateDHRandom);
+                    
+                    // TODO make not ABABA
+                    gcmReceiveMessage(client_sock,buffer,1024,privateECDHKey);
+                    printf("Received: %s\n",buffer);
+                    memset(buffer,0,sizeof(buffer));
+
+                    char input[256] = {0};
+                    while(fgets(input, sizeof(input), stdin)){
+                        // TODO document
+                        if(input == "q") {
+                            break;
+                        }
+                        gcmSendMessage(client_sock,buffer,sizeof(buffer),privateECDHKey,input,strlen(input));
+                        memset(input,0,sizeof(input));
+
+                        gcmReceiveMessage(client_sock,buffer,sizeof(buffer),privateECDHKey);
+                        printf("Received: %s\n",buffer);
+                        memset(buffer,0,sizeof(buffer));    
+                    }
+                    close(client_sock);
+                    printf("%s","Client disconnected\n");
+                    free(privateECDHKey);
+                }
+            }
+            free(privateDHRandom);
+            break;
+        default:
+            break;
+    }
     return 0;
-
 }
 struct ClientHello waitForRequest(int sock,char *buffer, int lenBuff){
     struct ClientHello clientHello;
     memset(buffer,0,lenBuff); //Remove any rubbish from buffer
-    //TODO linux
-    #if _WIN32
-        recv(sock,buffer,lenBuff,0);
-    #endif
+    recv(sock,buffer,lenBuff,0);
     char *temp = calloc(512,sizeof(char));
     int j=0,len=0,count=-1;
     for(int i=0;i<lenBuff;i++){
@@ -188,17 +221,13 @@ int sendServerHello(int sock,struct ServerHello serverHello, char *buffer, int l
     serverHello.keyExchange[2],serverHello.keyExchange[3],
     serverHello.keyExchange[4],serverHello.keyExchange[5],
     serverHello.keyExchange[6],serverHello.keyExchange[7]);
-    //TODO linux
-    #if _WIN32
-        send(sock,buffer,strlen(buffer),0);
-    #endif
+    
+    send(sock,buffer,strlen(buffer),0);
 }
 
-int startServer(struct in_addr* addr,int *sock){
-    //TODO make linux version
+int startServer(sockaddr_in* addr,int *sock){
+    // TODO tidy up - add closing of winsock and stuff
     #if _WIN32
-        char* ip = "127.0.0.1";
-        int port = 80;
         WSADATA wsa;
         int n;
         printf("Initialising Winsock...\n");
@@ -207,29 +236,29 @@ int startServer(struct in_addr* addr,int *sock){
             printf("Failed. Error Code : %d\n",WSAGetLastError());
             return 1;
         }
-
         printf("Initialised.\n");
-        *sock = socket(AF_INET,SOCK_STREAM,0); //ipv4, tcp, IP protocol (0) - returns an int
-        if(*sock == INVALID_SOCKET){
-            perror("Could not get socket\n");
-            exit(1);
-        }
-        printf("%s","TCP server socket created\n");
-        
-        memset(addr,0,sizeof(*addr));
-        (*addr).sin_family = AF_INET; //ipv4
-        (*addr).sin_port = port;
-        (*addr).sin_addr.s_addr = inet_addr(ip);
-        
-        n = bind(*sock, (struct sockaddr*)addr, sizeof(*addr)); //assigns address to the socket
-        if(n<0){
-            perror("Could not bind socket\n");
-            exit(1);
-        }
-        printf("%s%d","Socket binded to port: \n",port);
-        printf("Listening\n");
-        listen(*sock,5); //5 is the the maximum length to which the queue of pending connections can grow
     #endif
+    *sock = socket(AF_INET,SOCK_STREAM,0); // IPv4, TCP
+    
+    #if _WIN32
+        if(*sock == INVALID_SOCKET)
+    #elif __linux__
+        if(*sock < 0)        
+    #endif     
+    {
+        perror("Could not get socket\n");
+        exit(1);
+    }
+    printf("%s","TCP server socket created\n");
+                
+    // Assigns address to the socket
+    if(bind(*sock, (struct sockaddr*)addr, sizeof(*addr))<0){
+        perror("Could not bind socket\n");
+        exit(1);
+    }
+    printf("Socket binded to port: %d\n",ntohs(addr->sin_port));
+    printf("Listening\n");
+    listen(*sock,5); //5 is the the maximum length to which the queue of pending connections can grow
     return 0;
 }
 

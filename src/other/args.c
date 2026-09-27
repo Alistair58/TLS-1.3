@@ -18,39 +18,39 @@ static bool startsWith(char *str,char *prefix);
 static bool checkEmpty(char *str,char *name);
 
 #define KEYGEN_USAGE \
- "   -keygen -privpath=\"{str}\" -pubpath=\"{str}\"\n" \
- "       Generates a key pair and stores the private and public keys at the specified file paths.\n"
-const char *keygenParams[] = {"-keygen","-privpath=","-pubpath="};
+ "   -keygen -kppath=\"{str}\" -pubpath=\"{str}\"\n" \
+ "       Generates a key pair and stores the key pair and public key at the specified file paths.\n"
+char *keygenParams[] = {"-keygen","-kppath=","-pubpath="};
 
 #define CERTIFGEN_USAGE \
  "   -certifgen -subject=\"{str}\" -pubpath=\"{str}\" -outpath=\"{str}\"\n" \
  "       Generates an unsigned X509 certificate for this subject.\n" \
  "       pubpath is the path of the subject's public key.\n" \
  "       outpath is where the generated certificate will be stored.\n"
-const char *certifgenParams[] = {"-certifgen","-subject=","-pubpath=","-outpath="};
+char *certifgenParams[] = {"-certifgen","-subject=","-pubpath=","-outpath="};
 
 #define CERTIFSIGN_USAGE \
- "   -certifsign -certifpath=\"{str}\" -issuer=\"{str}\" -privpath=\"{str}\"\n" \
- "       Signs an X509 certificate using the private key specified by the path and with the issuer's name on the certificate.\n" \
+ "   -certifsign -certifpath=\"{str}\" -issuer=\"{str}\" -kppath=\"{str}\"\n" \
+ "       Signs an X509 certificate using the private key specified by the key pair path and with the issuer's name on the certificate.\n" \
  "       certifpath is the source file which will be overwritten with the signed version.\n"
-const char *certifsignParams[] = {"-certifsign","-certifpath=","-issuer=","-privpath="};
+char *certifsignParams[] = {"-certifsign","-certifpath=","-issuer=","-kppath="};
 
 #define LISTEN_USAGE \
  "   -listen\n" \ 
  "       Listen to a socket and wait for a client.\n" \ 
  "       Once connected, prompts user for input, encrypts this and sends this to the client. Prints response from client. Loop repeats.\n"
-const char *listenParams[] = {"-listen"};
+char *listenParams[] = {"-listen"};
 
 #define HELP_USAGE \
  "   -help\n" \
  "       This.\n"
-const char *helpParams[] = {"-help"};
+char *helpParams[] = {"-help"};
 
 #define CONNECT_USAGE \
  "   -connect -capubpath=\"{str}\"\n" \
  "       Connect to a server using the public key of a CA found at capubpath.\n" \
  "       Once connected, prompts user for input, encrypts this and sends this to the server. Prints response from server. Loop repeats.\n"
-const char *connectParams[] = {"-connect","-capubpath="};
+char *connectParams[] = {"-connect","-capubpath="};
 
 //Represents a command line option
 typedef struct Option{
@@ -81,14 +81,14 @@ const Option serverOptions[] =
 //String explaining the command line options for the client program
 #define CLIENT_USAGES \
     KEYGEN_USAGE \
-    CERTIFGEN_USAGE \ 
+    CERTIFSIGN_USAGE \ 
     CONNECT_USAGE \
     HELP_USAGE
 
 const Option clientOptions[] = 
     {
         {.params = keygenParams,.lenParams = arr_length(keygenParams),.parser = parseKeygen},
-        {.params = certifgenParams,.lenParams = arr_length(certifgenParams),.parser = parseCertifgen},
+        {.params = certifsignParams,.lenParams = arr_length(certifsignParams),.parser = parseCertifsign},
         {.params = connectParams,.lenParams = arr_length(connectParams),.parser = parseConnect}, 
         {.params = helpParams,.lenParams = arr_length(helpParams),.parser = parseClientHelp}
     };
@@ -128,18 +128,18 @@ Args parseArgsClient(int argc,char **argv){
 }
 
 static void parseKeygen(Args *res,char **argv){
-    //-keygen -privpath="{str}" -pubpath="{str}"
-    char *privPath = &argv[2][strlen("-privpath=")];
+    //-keygen -kppath="{str}" -pubpath="{str}"
+    char *kpPath = &argv[2][strlen("-kppath=")];
     char *pubPath = &argv[3][strlen("-pubpath=")];
     if(
-        checkEmpty(privPath,"privpath") ||
+        checkEmpty(kpPath,"kppath") ||
         checkEmpty(pubPath,"pubpath")
     ){
         res->option = DEALT_WITH;
         return;
     }
     res->option = KEY_GEN;
-    res->arg1 = privPath;
+    res->arg1 = kpPath;
     res->arg2 = pubPath;
 }
 
@@ -155,14 +155,14 @@ static void parseConnect(Args *res,char **argv){
 
 
 static void parseCertifsign(Args *res,char **argv){
-    //-certifsign -certifpath="{str} -issuer="{str}" -privpath="{str}"
+    //-certifsign -certifpath="{str} -issuer="{str}" -kppath="{str}"
     char *certifPath = &argv[2][strlen("-certifpath=")];
     char *issuer = &argv[3][strlen("-issuer=")];
-    char *privPath = &argv[4][strlen("-privpath=")];
+    char *kpPath = &argv[4][strlen("-kppath=")];
     if(
         checkEmpty(certifPath,"certifpath") || 
         checkEmpty(issuer,"issuer")         || 
-        checkEmpty(privPath,"privpath")
+        checkEmpty(kpPath,"kppath")
     ){
         res->option = DEALT_WITH;
         return;
@@ -170,7 +170,7 @@ static void parseCertifsign(Args *res,char **argv){
     res->option = CERTIF_SIGN;
     res->arg1 = certifPath;
     res->arg2 = issuer;
-    res->arg3 = privPath;
+    res->arg3 = kpPath;
 }
 
 static void parseCertifgen(Args *res,char **argv){

@@ -6,7 +6,8 @@
 
 void ecbSendMessage(int sock,uchar *buffer,int lenBuff,uint32_t *key,char *msg,int lenMsg);
 void ecbReceiveMessage(int sock,char *buffer, int lenBuff, uint32_t *key);
+// Clears buffer after use
 void gcmSendMessage(int sock,uchar *buff,int lenBuff,uint32_t *key,char *msg,int lenMsg);
 void gcmReceiveMessage(int sock,char *buffer, int lenBuff, uint32_t *key);
 
-#endif MSG_H
+#endif

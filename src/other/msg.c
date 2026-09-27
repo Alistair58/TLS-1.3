@@ -1,7 +1,15 @@
 #include <stdio.h>
 #include <stdbool.h>
-#include <winsock2.h>
-#include <WS2tcpip.h>
+#if _WIN32
+    #include <winsock2.h>
+    #include <WS2tcpip.h>
+#elif __linux__
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <unistd.h>
+#endif
+#include <string.h>
 #include "../crypto/gcm.h"
 #include "../other/msg.h"
 
@@ -86,6 +94,8 @@ void gcmSendMessage(int sock,uchar *buff,int lenBuff,uint32_t *key,char *msg,int
     free(result.tag);
     free(result.iv);
     free(result.ciphertext);
+
+    memset(buff,0,lenBuff);
  
 }
 
